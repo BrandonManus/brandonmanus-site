@@ -50,7 +50,78 @@
     font-size: 16px; color: #0f0; white-space: nowrap;
     animation: pulse 1.5s infinite;
   }
+ <!-- Crypto Dashboard -->
+  <div id="crypto-dashboard" style="display:flex; gap:20px; margin-top:50px; justify-content:center;">
+    <div class="crypto-card" id="btc-card">
+      <h2>BTC</h2>
+      <p class="price">$0</p>
+    </div>
+    <div class="crypto-card" id="eth-card">
+      <h2>ETH</h2>
+      <p class="price">$0</p>
+    </div>
+    <div class="crypto-card" id="sol-card">
+      <h2>SOL</h2>
+      <p class="price">$0</p>
+    </div>
+  </div>
 
+  <style>
+    #crypto-dashboard {
+      font-family: 'Orbitron', sans-serif;
+    }
+    .crypto-card {
+      background: rgba(0, 0, 0, 0.6);
+      border: 2px solid #00ffea;
+      border-radius: 12px;
+      padding: 20px;
+      width: 120px;
+      text-align: center;
+      color: #00ffea;
+      box-shadow: 0 0 20px #00ffea, 0 0 40px #00ffea inset;
+      transition: 0.3s;
+    }
+    .crypto-card:hover {
+      box-shadow: 0 0 30px #ff00ff, 0 0 50px #ff00ff inset;
+      transform: scale(1.05);
+    }
+    .crypto-card h2 {
+      font-size: 1.2em;
+      margin-bottom: 10px;
+      text-shadow: 0 0 10px #00ffea;
+    }
+    .crypto-card .price {
+      font-size: 1.5em;
+      font-weight: bold;
+      animation: glow 1.5s infinite alternate;
+    }
+    @keyframes glow {
+      from { text-shadow: 0 0 5px #00ffea; }
+      to { text-shadow: 0 0 20px #00ffea, 0 0 30px #00ffea; }
+    }
+  </style>
+
+  <script>
+    async function fetchCryptoPrices() {
+      try {
+        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd');
+        const data = await response.json();
+
+        document.querySelector('#btc-card .price').textContent = `$${data.bitcoin.usd.toLocaleString()}`;
+        document.querySelector('#eth-card .price').textContent = `$${data.ethereum.usd.toLocaleString()}`;
+        document.querySelector('#sol-card .price').textContent = `$${data.solana.usd.toLocaleString()}`;
+      } catch (error) {
+        console.error('Error fetching crypto prices:', error);
+      }
+    }
+
+    // Initial fetch
+    fetchCryptoPrices();
+
+    // Refresh every 30 seconds
+    setInterval(fetchCryptoPrices, 30000);
+  </script>
+  <!-- ==== END OF DASHBOARD SECTION ==== -->
   /* Terminal */
   #terminal {
     position: absolute; bottom: 10px; left: 10px; width: calc(100% - 20px); 
