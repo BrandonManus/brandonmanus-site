@@ -61,10 +61,10 @@
 
   /* Terminal */
   #terminal { 
-    position: absolute; bottom:5%; left:50%; transform: translateX(-50%);
-    background: rgba(0,0,0,0.75); border:1px solid #0f0; padding:10px;
+    position: absolute; bottom:20%; left:50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.85); border:1px solid #0f0; padding:10px;
     width: 90%; max-width:600px; color:#0f0; font-family: monospace; font-size:14px;
-    display:none; z-index:4;
+    display:none; z-index:6;
   }
   #terminalOutput { max-height:200px; overflow-y:auto; margin-bottom:5px; }
   #terminalInput { width: 95%; background: #000; color:#0f0; border:none; outline:none; }
@@ -115,6 +115,9 @@
   @media (max-width: 768px) {
     .crypto-dashboard-container { flex-direction: column; align-items: center; gap: 15px; }
     .crypto-card { width: 100%; max-width: 200px; }
+    /* On small screens, keep terminal at the bottom and push the dashboard up to avoid overlap */
+    #terminal { bottom: 6%; }
+    .crypto-dashboard-wrapper { bottom: 20%; }
   }
 </style>
 </head>
@@ -202,17 +205,17 @@ canvas.width=window.innerWidth; canvas.height=window.innerHeight;
 window.addEventListener('resize',()=>{ canvas.width=window.innerWidth; canvas.height=window.innerHeight; matrixCanvas.width=window.innerWidth; matrixCanvas.height=window.innerHeight; });
 window.addEventListener('mousemove',e=>{ mouse.x=e.clientX; mouse.y=e.clientY; });
 class Particle{
-  constructor(){ this.x=Math.random()*canvas.width; this.y=Math.random()*canvas.height; this.size=Math.random()*2+1; this.speedX=Math.random()-0.5; this.speedY=Math.random()-0.5; this.trail=[]; this.maxTrail=12; }
-  update(){ this.x+=this.speedX+(mouse.x-this.x)*0.0012; this.y+=this.speedY+(mouse.y-this.y)*0.0012; if(this.x<0||this.x>canvas.width)this.speedX*=-1; if(this.y<0||this.y>canvas.height)this.speedY*=-1; this.trail.push({x:this.x,y:this.y}); if(this.trail.length>this.maxTrail)this.trail.shift(); }
-  draw(){ this.trail.forEach((pos,i)=>{ ctx.fillStyle=`rgba(0,255,0,${0.12*(i/this.maxTrail)})`; ctx.beginPath(); ctx.arc(pos.x,pos.y,this.size*(i/this.maxTrail)*1.2,0,Math.PI*2); ctx.fill(); }); ctx.fillStyle='#0f0'; ctx.beginPath(); ctx.arc(this.x,this.y,this.size,0,Math.PI*2); ctx.fill(); }
+  constructor(){ this.x=Math.random()*canvas.width; this.y=Math.random()*canvas.height; this.size=Math.random()*2+1; this.speedX=Math.random()-0.5; this.speedY=Math.random()-0.5; this.trail=[]; this.m[...]
+  update(){ this.x+=this.speedX+(mouse.x-this.x)*0.0012; this.y+=this.speedY+(mouse.y-this.y)*0.0012; if(this.x<0||this.x>canvas.width)this.speedX*=-1; if(this.y<0||this.y>canvas.height)this.speedY*=-[...]
+  draw(){ this.trail.forEach((pos,i)=>{ ctx.fillStyle=`rgba(0,255,0,${0.12*(i/this.maxTrail)})`; ctx.beginPath(); ctx.arc(pos.x,pos.y,this.size*(i/this.maxTrail)*1.2,0,Math.PI*2); ctx.fill(); }); ctx.[...]
 }
 function initParticles(num=180){ particles=[]; for(let i=0;i<num;i++)particles.push(new Particle()); animate(); }
 function animate(){ ctx.fillStyle='rgba(0,0,0,0.06)'; ctx.fillRect(0,0,canvas.width,canvas.height); particles.forEach(p=>{p.update();p.draw();}); requestAnimationFrame(animate); }
 
 // DISPLAY TEXT
 const displayTextEl=document.getElementById('displayText'); let username='';
-let startupMessages=["Neural pathways synapsing...\nBoot sequence initiated...","Decrypting avatar matrix...\nLoading nodes...","Calibrating quantum entanglement...\nSystems online...","Avatar manifestation complete.\nWelcome, Neural Operative: "];
-function typeMessages(messages,i=0){ if(i>=messages.length){ setTimeout(()=>{ document.getElementById('terminal').style.display='block'; document.getElementById('terminalInput').focus(); beep(1200,200,'triangle'); },1000); return; } let msg=messages[i]; let j=0; function typeChar(){ if(j<=msg.length){ displayTextEl.textContent=msg.substring(0,j)+(i===messages.length-1?username:''); if(j%3===0) beep(800+Math.random()*400,30,'square'); j++; setTimeout(typeChar,35); } else { if(i===1){ document.getElementById('avatarContainer').style.opacity='1'; beep(1000,300,'sawtooth'); } setTimeout(()=>typeMessages(messages,i+1),900); } } typeChar(); }
+let startupMessages=["Neural pathways synapsing...\nBoot sequence initiated...","Decrypting avatar matrix...\nLoading nodes...","Calibrating quantum entanglement...\nSystems online...","Avatar manifes[...]
+function typeMessages(messages,i=0){ if(i>=messages.length){ setTimeout(()=>{ document.getElementById('terminal').style.display='block'; document.getElementById('terminalInput').focus(); beep(1200,200[...]
 
 // TERMINAL
 const terminal=document.getElementById('terminal'); const output=document.getElementById('terminalOutput'); const input=document.getElementById('terminalInput');
@@ -228,8 +231,8 @@ const commands={
   youtube:()=>{ window.open('https://www.youtube.com/@brandonmanus','_blank'); return 'Opening YouTube...'; },
   project89:()=>{ window.open('https://project89.org','_blank'); return 'Opening Project89...'; }
 };
-function print(line){ const div=document.createElement('div'); div.className='output'; if(typeof line==='string'){ div.innerHTML=line; } else { div.appendChild(line); } output.appendChild(div); output.scrollTop=output.scrollHeight; }
-input.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const cmd=input.value.trim(); print(`> ${cmd}`); input.value=''; const [command,...args]=cmd.split(' '); const handler=commands[command.toLowerCase()]||(()=>`Command not found: ${command}. Type 'help'.`); const result=handler(args); if(result) print(result); beep(600,80); } });
+function print(line){ const div=document.createElement('div'); div.className='output'; if(typeof line==='string'){ div.innerHTML=line; } else { div.appendChild(line); } output.appendChild(div); output[...]
+input.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const cmd=input.value.trim(); print(`> ${cmd}`); input.value=''; const [command,...args]=cmd.split(' '); const handler=commands[command.toLow[...]
 
 // CRYPTO DASHBOARD
 async function fetchCryptoPrices(){
