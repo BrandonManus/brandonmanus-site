@@ -52,19 +52,34 @@
     animation: pulse 1.5s infinite;
   }
 
-  /* Terminal */
-  #terminal { display:none; position:absolute; bottom:0; left:0; width:100%; background:rgba(0,0,0,0.85); color:#0f0; font-family:monospace; padding:10px; box-sizing:border-box; z-index:4; max-height:40%; overflow-y:auto; }
-  #terminalOutput { margin-bottom:5px; }
-  #terminalInput { width:95%; background:#000; color:#0f0; border:none; outline:none; font-family:monospace; }
+  /* Display Text */
+  #displayText {
+    position: absolute; top: 60%; left: 50%; transform: translateX(-50%);
+    color:#0f0; font-family: 'Orbitron', monospace; font-size:1.1em;
+    white-space: pre-line; z-index:3; text-align:center;
+  }
 
-  /* Display text */
-  #displayText { position:absolute; top:10%; left:50%; transform:translateX(-50%); font-size:20px; white-space:pre-line; z-index:2; }
+  /* Terminal */
+  #terminal { 
+    position: absolute; bottom:5%; left:50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.75); border:1px solid #0f0; padding:10px;
+    width: 90%; max-width:600px; color:#0f0; font-family: monospace; font-size:14px;
+    display:none; z-index:4;
+  }
+  #terminalOutput { max-height:200px; overflow-y:auto; margin-bottom:5px; }
+  #terminalInput { width: 95%; background: #000; color:#0f0; border:none; outline:none; }
 
   /* Crypto Dashboard */
-  .crypto-dashboard-wrapper { isolation: isolate; }
+  .crypto-dashboard-wrapper {
+    position: absolute; bottom: 5%; left: 50%; transform: translateX(-50%);
+    z-index: 5;
+  }
   .crypto-dashboard-container {
-    display: flex; gap: 20px; margin: 50px auto; justify-content: center; padding: 20px; font-family: 'Orbitron', sans-serif; max-width: 100%;
-    box-sizing: border-box;
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    padding: 20px;
+    font-family: 'Orbitron', sans-serif;
   }
   .crypto-card {
     background: rgba(0, 0, 0, 0.6);
@@ -78,11 +93,29 @@
     transition: 0.3s ease;
     position: relative;
   }
-  .crypto-card:hover { box-shadow: 0 0 30px #ff00ff, 0 0 50px #ff00ff inset; transform: scale(1.05); }
-  .crypto-card h2 { font-size: 1.2em; margin-bottom: 10px; text-shadow: 0 0 10px #00ffea; }
-  .crypto-card .price { font-size: 1.5em; font-weight: bold; animation: glow 1.5s infinite alternate; margin:0; }
-  @keyframes glow { from { text-shadow: 0 0 5px #00ffea; } to { text-shadow: 0 0 20px #00ffea, 0 0 30px #00ffea; } }
-  @media (max-width: 768px) { .crypto-dashboard-container { flex-direction: column; align-items: center; gap: 15px; } .crypto-card { width:100%; max-width:200px; } }
+  .crypto-card:hover {
+    box-shadow: 0 0 30px #ff00ff, 0 0 50px #ff00ff inset;
+    transform: scale(1.05);
+  }
+  .crypto-card h2 {
+    font-size: 1.2em;
+    margin-bottom: 10px;
+    text-shadow: 0 0 10px #00ffea;
+  }
+  .crypto-card .price {
+    font-size: 1.5em;
+    font-weight: bold;
+    animation: glow 1.5s infinite alternate;
+    margin: 0;
+  }
+  @keyframes glow {
+    from { text-shadow: 0 0 5px #00ffea; }
+    to { text-shadow: 0 0 20px #00ffea, 0 0 30px #00ffea; }
+  }
+  @media (max-width: 768px) {
+    .crypto-dashboard-container { flex-direction: column; align-items: center; gap: 15px; }
+    .crypto-card { width: 100%; max-width: 200px; }
+  }
 </style>
 </head>
 <body>
@@ -110,22 +143,13 @@
     <div id="terminalOutput"></div>
     <div><span class="prompt">> </span><input id="terminalInput" type="text" autocomplete="off" autofocus /></div>
   </div>
-
+  
   <!-- Crypto Dashboard -->
   <div class="crypto-dashboard-wrapper">
     <div id="crypto-dashboard" class="crypto-dashboard-container">
-      <div class="crypto-card" id="btc-card">
-        <h2>BTC</h2>
-        <p class="price">$0</p>
-      </div>
-      <div class="crypto-card" id="eth-card">
-        <h2>ETH</h2>
-        <p class="price">$0</p>
-      </div>
-      <div class="crypto-card" id="sol-card">
-        <h2>SOL</h2>
-        <p class="price">$0</p>
-      </div>
+      <div class="crypto-card" id="btc-card"><h2>BTC</h2><p class="price">$0</p></div>
+      <div class="crypto-card" id="eth-card"><h2>ETH</h2><p class="price">$0</p></div>
+      <div class="crypto-card" id="sol-card"><h2>SOL</h2><p class="price">$0</p></div>
     </div>
   </div>
 </div>
@@ -134,34 +158,33 @@
 // AUDIO SYSTEM
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null;
-function initAudio(){ if(!audioCtx) audioCtx = new AudioContext(); }
-function beep(freq=800, duration=100, type='sine'){
+function initAudio() { if (!audioCtx) audioCtx = new AudioContext(); }
+function beep(freq=800,dur=100,type='sine'){
   if(!audioCtx) return;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.connect(gain); gain.connect(audioCtx.destination);
-  osc.frequency.value=freq; osc.type=type;
+  osc.frequency.value = freq; osc.type = type;
   gain.gain.setValueAtTime(0.0001,audioCtx.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.1,audioCtx.currentTime+0.01);
-  gain.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+duration/1000);
-  osc.start(); osc.stop(audioCtx.currentTime+duration/1000);
+  gain.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+dur/1000);
+  osc.start(); osc.stop(audioCtx.currentTime+dur/1000);
 }
 function playBootSequence(){
   const seq=[{f:400,d:80},{f:600,d:80},{f:800,d:120},{f:1000,d:100},{f:1200,d:150},{f:1500,d:200}];
-  seq.forEach((note,i)=>setTimeout(()=>beep(note.f,note.d,'square'),i*180));
+  seq.forEach((n,i)=>setTimeout(()=>beep(n.f,n.d,'square'),i*180));
 }
 
 // MATRIX RAIN
-const matrixCanvas=document.getElementById('matrixCanvas');
-const mctx=matrixCanvas.getContext('2d');
+const matrixCanvas = document.getElementById('matrixCanvas');
+const mctx = matrixCanvas.getContext('2d');
 matrixCanvas.width=window.innerWidth; matrixCanvas.height=window.innerHeight;
 const chars='01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
 const fontSize=14;
 const columns=Math.floor(matrixCanvas.width/fontSize);
 const drops=Array(columns).fill(1);
 function drawMatrix(){
-  mctx.fillStyle='rgba(0,0,0,0.04)';
-  mctx.fillRect(0,0,matrixCanvas.width,matrixCanvas.height);
+  mctx.fillStyle='rgba(0,0,0,0.04)'; mctx.fillRect(0,0,matrixCanvas.width,matrixCanvas.height);
   mctx.fillStyle='#0f0'; mctx.font=`${fontSize}px monospace`;
   drops.forEach((y,i)=>{
     const text=chars[Math.floor(Math.random()*chars.length)];
@@ -172,95 +195,67 @@ function drawMatrix(){
   });
 }
 
-// PARTICLE SYSTEM
+// PARTICLES
 const canvas=document.getElementById('particleCanvas');
-const ctx=canvas.getContext('2d');
-let particles=[]; let mouse={x:window.innerWidth/2,y:window.innerHeight/2};
+const ctx=canvas.getContext('2d'); let particles=[]; let mouse={x:window.innerWidth/2,y:window.innerHeight/2};
 canvas.width=window.innerWidth; canvas.height=window.innerHeight;
-window.addEventListener('resize',()=>{canvas.width=window.innerWidth; canvas.height=window.innerHeight; matrixCanvas.width=window.innerWidth; matrixCanvas.height=window.innerHeight;});
-window.addEventListener('mousemove',e=>{mouse.x=e.clientX; mouse.y=e.clientY;});
+window.addEventListener('resize',()=>{ canvas.width=window.innerWidth; canvas.height=window.innerHeight; matrixCanvas.width=window.innerWidth; matrixCanvas.height=window.innerHeight; });
+window.addEventListener('mousemove',e=>{ mouse.x=e.clientX; mouse.y=e.clientY; });
 class Particle{
-  constructor(){ this.x=Math.random()*canvas.width; this.y=Math.random()*canvas.height; this.size=Math.random()*2+1; this.speedX=Math.random()*1-0.5; this.speedY=Math.random()*1-0.5; this.trail=[]; this.maxTrail=12; }
-  update(){
-    this.x+=this.speedX+(mouse.x-this.x)*0.0012; this.y+=this.speedY+(mouse.y-this.y)*0.0012;
-    if(this.x<0||this.x>canvas.width) this.speedX*=-1;
-    if(this.y<0||this.y>canvas.height) this.speedY*=-1;
-    this.trail.push({x:this.x,y:this.y}); if(this.trail.length>this.maxTrail) this.trail.shift();
-  }
-  draw(){ this.trail.forEach((pos,i)=>{ ctx.fillStyle=`rgba(0,255,0,${0.12*(i/this.maxTrail)})`; ctx.beginPath(); ctx.arc(pos.x,pos.y,this.size*(i/this.maxTrail)*1.2,0,Math.PI*2); ctx.fill(); });
-    ctx.fillStyle='#0f0'; ctx.beginPath(); ctx.arc(this.x,this.y,this.size,0,Math.PI*2); ctx.fill();
-  }
+  constructor(){ this.x=Math.random()*canvas.width; this.y=Math.random()*canvas.height; this.size=Math.random()*2+1; this.speedX=Math.random()-0.5; this.speedY=Math.random()-0.5; this.trail=[]; this.maxTrail=12; }
+  update(){ this.x+=this.speedX+(mouse.x-this.x)*0.0012; this.y+=this.speedY+(mouse.y-this.y)*0.0012; if(this.x<0||this.x>canvas.width)this.speedX*=-1; if(this.y<0||this.y>canvas.height)this.speedY*=-1; this.trail.push({x:this.x,y:this.y}); if(this.trail.length>this.maxTrail)this.trail.shift(); }
+  draw(){ this.trail.forEach((pos,i)=>{ ctx.fillStyle=`rgba(0,255,0,${0.12*(i/this.maxTrail)})`; ctx.beginPath(); ctx.arc(pos.x,pos.y,this.size*(i/this.maxTrail)*1.2,0,Math.PI*2); ctx.fill(); }); ctx.fillStyle='#0f0'; ctx.beginPath(); ctx.arc(this.x,this.y,this.size,0,Math.PI*2); ctx.fill(); }
 }
-function initParticles(num=180){ particles=[]; for(let i=0;i<num;i++) particles.push(new Particle()); animate(); }
+function initParticles(num=180){ particles=[]; for(let i=0;i<num;i++)particles.push(new Particle()); animate(); }
 function animate(){ ctx.fillStyle='rgba(0,0,0,0.06)'; ctx.fillRect(0,0,canvas.width,canvas.height); particles.forEach(p=>{p.update();p.draw();}); requestAnimationFrame(animate); }
 
-// TEXT ANIMATION
-const displayTextEl=document.getElementById('displayText');
-let username='';
-let startupMessages=[
-  "Neural pathways synapsing...\nBoot sequence initiated...",
-  "Decrypting avatar matrix...\nLoading nodes...",
-  "Calibrating quantum entanglement...\nSystems online...",
-  "Avatar manifestation complete.\nWelcome, Neural Operative: "
-];
-function typeMessages(messages,i=0){
-  if(i>=messages.length){ setTimeout(()=>{document.getElementById('terminal').style.display='block'; document.getElementById('terminalInput').focus(); beep(1200,200,'triangle');},1000); return; }
-  let msg=messages[i], j=0;
-  function typeChar(){
-    if(j<=msg.length){
-      displayTextEl.textContent=msg.substring(0,j)+(i===messages.length-1?username:'');
-      if(j%3===0) beep(800+Math.random()*400,30,'square'); j++; setTimeout(typeChar,35);
-    }else{ if(i===1){ document.getElementById('avatarContainer').style.opacity='1'; beep(1000,300,'sawtooth'); } setTimeout(()=>typeMessages(messages,i+1),900); }
-  }
-  typeChar();
-}
+// DISPLAY TEXT
+const displayTextEl=document.getElementById('displayText'); let username='';
+let startupMessages=["Neural pathways synapsing...\nBoot sequence initiated...","Decrypting avatar matrix...\nLoading nodes...","Calibrating quantum entanglement...\nSystems online...","Avatar manifestation complete.\nWelcome, Neural Operative: "];
+function typeMessages(messages,i=0){ if(i>=messages.length){ setTimeout(()=>{ document.getElementById('terminal').style.display='block'; document.getElementById('terminalInput').focus(); beep(1200,200,'triangle'); },1000); return; } let msg=messages[i]; let j=0; function typeChar(){ if(j<=msg.length){ displayTextEl.textContent=msg.substring(0,j)+(i===messages.length-1?username:''); if(j%3===0) beep(800+Math.random()*400,30,'square'); j++; setTimeout(typeChar,35); } else { if(i===1){ document.getElementById('avatarContainer').style.opacity='1'; beep(1000,300,'sawtooth'); } setTimeout(()=>typeMessages(messages,i+1),900); } } typeChar(); }
 
-// TERMINAL SYSTEM
-const terminal=document.getElementById('terminal');
-const output=document.getElementById('terminalOutput');
-const input=document.getElementById('terminalInput');
+// TERMINAL
+const terminal=document.getElementById('terminal'); const output=document.getElementById('terminalOutput'); const input=document.getElementById('terminalInput');
 const commands={
   help:()=> "Available: help | clear | status | scan | echo [msg] | hack | whoami | x | youtube | project89",
   clear:()=>{ output.innerHTML=''; return ''; },
   status:()=>`Node: ACTIVE | User: ${username} | Link: SECURE | Uptime: ${Math.floor(performance.now()/1000)}s`,
-  scan:()=> "Scanning neural net... [OK] 127.0.0.1 | [OK] Avatar Core | [OK] Quantum Relay",
-  echo:(args)=>args.join(' ')||'echo',
+  scan:()=>"Scanning neural net... [OK] 127.0.0.1 | [OK] Avatar Core | [OK] Quantum Relay",
+  echo:(args)=> args.join(' ')||'echo',
   hack:()=>{ beep(200,500,'square'); setTimeout(()=>beep(100,400,'square'),100); return "ACCESS GRANTED. Reality firewall bypassed."; },
   whoami:()=>`You are ${username}, Neural Operative. Rank: Elite. Avatar: Cyber Witch.`,
-  x:()=>{ print('Opening X...'); setTimeout(()=>window.open('https://x.com/brandon_manus','_blank'),300); return 'Opening https://x.com/brandon_manus'; },
-  youtube:()=>{ print('Opening YouTube...'); setTimeout(()=>window.open('https://www.youtube.com/@brandonmanus','_blank'),300); return 'Opening https://www.youtube.com/@brandonmanus'; },
-  project89:()=>{ print('Opening Project89...'); setTimeout(()=>window.open('https://project89.org','_blank'),300); return 'Opening https://project89.org'; }
+  x:()=>{ window.open('https://x.com/brandon_manus','_blank'); return 'Opening X...'; },
+  youtube:()=>{ window.open('https://www.youtube.com/@brandonmanus','_blank'); return 'Opening YouTube...'; },
+  project89:()=>{ window.open('https://project89.org','_blank'); return 'Opening Project89...'; }
 };
-function print(line){ const div=document.createElement('div'); div.className='output'; div.textContent=line; output.appendChild(div); output.scrollTop=output.scrollHeight; }
-input.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const cmd=input.value.trim(); print(`> ${cmd}`); input.value=''; const [command,...args]=cmd.split(' '); const handler=commands[command.toLowerCase()]||(()=>`Command not found: ${command}. Type 'help'.`); const result=handler(args); if(result) print(result); beep(600,80); }});
+function print(line){ const div=document.createElement('div'); div.className='output'; if(typeof line==='string'){ div.innerHTML=line; } else { div.appendChild(line); } output.appendChild(div); output.scrollTop=output.scrollHeight; }
+input.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const cmd=input.value.trim(); print(`> ${cmd}`); input.value=''; const [command,...args]=cmd.split(' '); const handler=commands[command.toLowerCase()]||(()=>`Command not found: ${command}. Type 'help'.`); const result=handler(args); if(result) print(result); beep(600,80); } });
 
 // CRYPTO DASHBOARD
 async function fetchCryptoPrices(){
   try{
-    const response=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd');
-    const data=await response.json();
+    const res=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd');
+    const data=await res.json();
     document.querySelector('#btc-card .price').textContent=`$${data.bitcoin?.usd?.toLocaleString()||'N/A'}`;
     document.querySelector('#eth-card .price').textContent=`$${data.ethereum?.usd?.toLocaleString()||'N/A'}`;
     document.querySelector('#sol-card .price').textContent=`$${data.solana?.usd?.toLocaleString()||'N/A'}`;
-  }catch(error){ console.error(error); document.querySelectorAll('.price').forEach(p=>p.textContent='$Error'); }
+  } catch(err){ console.error(err); document.querySelectorAll('.crypto-card .price').forEach(p=>p.textContent='$Error'); }
 }
-if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', fetchCryptoPrices); } else fetchCryptoPrices();
-setInterval(fetchCryptoPrices,30000);
+fetchCryptoPrices(); setInterval(fetchCryptoPrices,30000);
 
 // START NODE
 function startNode(){
   username=document.getElementById('usernameInput').value||'Echo';
-  const overlay=document.getElementById('loginOverlay');
-  overlay.style.opacity='0';
+  const overlay=document.getElementById('loginOverlay'); overlay.style.opacity='0';
   setTimeout(()=>{
     overlay.style.display='none';
     document.getElementById('mainContent').style.display='block';
-    initAudio(); playBootSequence(); initParticles();
-    setInterval(drawMatrix,50); typeMessages(startupMessages);
+    initAudio(); playBootSequence(); initParticles(); setInterval(drawMatrix,50); typeMessages(startupMessages);
   },800);
 }
 
 window.onload=()=>{ document.getElementById('usernameInput').focus(); };
 </script>
+
 </body>
 </html>
