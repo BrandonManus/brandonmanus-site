@@ -199,15 +199,21 @@ document.addEventListener("DOMContentLoaded", () => {
   function animate(){ pctx.fillStyle="rgba(0,0,0,0.06)"; pctx.fillRect(0,0,particleCanvas.width,particleCanvas.height); particles.forEach(p=>{p.update();p.draw();}); requestAnimationFrame(animate); }
 
   // CRYPTO
-  async function fetchCrypto(){
-    try{
-      const res=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd');
-      const data=await res.json();
-      document.querySelector('#btc-card .price').textContent=`$${data.bitcoin.usd.toLocaleString()}`;
-      document.querySelector('#eth-card .price').textContent=`$${data.ethereum.usd.toLocaleString()}`;
-      document.querySelector('#sol-card .price').textContent=`$${data.solana.usd.toLocaleString()}`;
-    }catch{ document.querySelectorAll('.crypto-card .price').forEach(p=>p.textContent="$Err"); }
+async function fetchCrypto(){
+  try{
+    const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd');
+    const data = await res.json();
+
+    // ← PUT IT HERE
+    const formatPrice = (price) => `$${Math.floor(price).toLocaleString()}`;
+
+    document.querySelector('#btc-card .price').textContent = formatPrice(data.bitcoin.usd);
+    document.querySelector('#eth-card .price').textContent = formatPrice(data.ethereum.usd);
+    document.querySelector('#sol-card .price').textContent = formatPrice(data.solana.usd);
+  } catch {
+    document.querySelectorAll('.crypto-card .price').forEach(p => p.textContent = "$Err");
   }
+}
 
   // TERMINAL
   const commands = {
