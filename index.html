@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet" />
-<title>Cybernetic Node: Neural Avatar Interface v3.1</title>
+<title>Cybernetic Node: Neural Avatar Interface v3.2</title>
 <style>
   body, html { margin:0; padding:0; height:100%; overflow:hidden; background:#000; color:#0f0; font-family:monospace; }
 
@@ -15,6 +15,8 @@
     display: flex; flex-direction: column; justify-content: center; align-items: center;
     z-index: 1000; transition: opacity 1s ease-in-out;
   }
+  #loginOverlay.hidden { opacity: 0; pointer-events: none; }
+
   #loginOverlay h1 { font-family: 'Orbitron', sans-serif; color: #0f0; text-shadow: 0 0 15px #0f0; }
   #loginOverlay input, #loginOverlay button {
     font-size:18px; padding:10px; margin:5px; border:2px solid #0f0; background:#000; color:#0f0;
@@ -25,7 +27,7 @@
   }
   #loginOverlay button { cursor:pointer; }
 
-  /* Ripple effect */
+  /* Ripple */
   .ripple {
     position: absolute;
     border-radius: 50%;
@@ -34,16 +36,14 @@
     background: rgba(0,255,0,0.6);
     pointer-events: none;
   }
-  @keyframes ripple {
-    to { transform: scale(6); opacity: 0; }
-  }
+  @keyframes ripple { to { transform: scale(6); opacity: 0; } }
 
-  /* Main Content */
+  /* Main */
   #mainContent { display: none; position: relative; height: 100%; width: 100%; }
-  #matrixCanvas { position: absolute; top:0; left:0; width:100%; height:100%; z-index:0; opacity: 0.12; pointer-events: none; }
-  #particleCanvas { position: absolute; top:0; left:0; width:100%; height:100%; z-index:1; }
+  #matrixCanvas, #particleCanvas { position: absolute; top:0; left:0; width:100%; height:100%; }
+  #matrixCanvas { z-index:0; opacity: 0.12; pointer-events:none; }
+  #particleCanvas { z-index:1; }
 
-  /* Avatar Display */
   #avatarContainer {
     position: absolute; top: 5%; left: 50%; transform: translateX(-50%);
     z-index: 3; opacity: 0; transition: all 1.2s ease-in-out;
@@ -57,30 +57,15 @@
   }
   #avatarContainer:hover #avatarImg {
     transform: scale(1.1) rotate(3deg);
-    box-shadow: 0 0 40px #0f0, 0 0 60px rgba(0,255,0,0.5), inset 0 0 30px rgba(0,255,0,0.2);
-    filter: drop-shadow(0 0 20px #0f0) brightness(1.15);
-  }
-  #avatarContainer:hover::after {
-    content: "Neural Signature Detected...";
-    position: absolute; bottom: -40px; left: 50%; transform: translateX(-50%);
-    font-size: 16px; color: #0f0; white-space: nowrap;
-    animation: pulse 1.5s infinite;
+    box-shadow: 0 0 40px #0f0, 0 0 60px rgba(0,255,0,0.5);
   }
 
-  @keyframes pulse {
-    0% { opacity:0.5; }
-    50% { opacity:1; }
-    100% { opacity:0.5; }
-  }
-
-  /* Display Text */
   #displayText {
     position: absolute; top: 40%; left: 50%; transform: translateX(-50%);
     color:#0f0; font-family: 'Orbitron', monospace; font-size:1.1em;
     white-space: pre-line; z-index:3; text-align:center;
   }
 
-  /* Terminal */
   #terminal { 
     position: absolute; bottom:20%; left:50%; transform: translateX(-50%);
     background: rgba(0,0,0,0.85); border:1px solid #0f0; padding:10px;
@@ -90,16 +75,12 @@
   #terminalOutput { max-height:200px; overflow-y:auto; margin-bottom:5px; }
   #terminalInput { width: 95%; background: #000; color:#0f0; border:none; outline:none; }
 
-  /* Crypto Dashboard */
   .crypto-dashboard-wrapper {
     position: absolute; bottom: 3%; left: 50%; transform: translateX(-50%);
     z-index: 5;
   }
   .crypto-dashboard-container {
-    display: flex;
-    gap: 20px;
-    justify-content: center;
-    padding: 20px;
+    display: flex; gap: 20px; justify-content: center; padding: 20px;
     font-family: 'Orbitron', sans-serif;
   }
   .crypto-card {
@@ -110,56 +91,34 @@
     width: 120px;
     text-align: center;
     color: #00ffea;
-    box-shadow: 0 0 20px #00ffea, 0 0 40px #00ffea inset;
-    transition: 0.3s ease;
-    position: relative;
-  }
-  .crypto-card:hover {
-    box-shadow: 0 0 30px #ff00ff, 0 0 50px #ff00ff inset;
-    transform: scale(1.05);
-  }
-  .crypto-card h2 {
-    font-size: 1.2em;
-    margin-bottom: 10px;
-    text-shadow: 0 0 10px #00ffea;
-  }
-  .crypto-card .price {
-    font-size: 1.5em;
-    font-weight: bold;
-    animation: glow 1.5s infinite alternate;
-    margin: 0;
-  }
-  @keyframes glow {
-    from { text-shadow: 0 0 5px #00ffea; }
-    to { text-shadow: 0 0 20px #00ffea, 0 0 30px #00ffea; }
+    box-shadow: 0 0 20px #00ffea;
+    transition: 0.3s;
   }
 </style>
 </head>
 <body>
 
-<!-- Login Overlay -->
 <div id="loginOverlay">
   <h1>Enter Node ID</h1>
   <input type="text" id="usernameInput" placeholder="Neural Signature" autocomplete="off"/>
   <button id="loginButton">Initiate Link</button>
 </div>
 
-<!-- Main Content -->
 <div id="mainContent">
   <canvas id="matrixCanvas"></canvas>
   <canvas id="particleCanvas"></canvas>
-  
+
   <div id="avatarContainer">
-    <img id="avatarImg" src="https://na-assets.pinit.io/8GwrpeSH4TpAGEJsmoF35J8DY6RNCdyjCBZsEnTySEKd/c746a7a7-88cc-4677-b919-877329e2dd0d/437" alt="Neural Avatar" />
+    <img id="avatarImg" src="https://na-assets.pinit.io/8GwrpeSH4TpAGEJsmoF35J8DY6RNCdyjCBZsEnTySEKd/c746a7a7-88cc-4677-b919-877329e2dd0d/437" />
   </div>
-  
+
   <div id="displayText">Initializing Neural Link...</div>
-  
+
   <div id="terminal">
     <div id="terminalOutput"></div>
-    <div><span class="prompt">> </span><input id="terminalInput" type="text" autocomplete="off" autofocus /></div>
+    <div><span>> </span><input id="terminalInput" type="text" autocomplete="off" autofocus /></div>
   </div>
-  
+
   <div class="crypto-dashboard-wrapper">
     <div id="crypto-dashboard" class="crypto-dashboard-container">
       <div class="crypto-card" id="btc-card"><h2>BTC</h2><p class="price">$0</p></div>
@@ -170,90 +129,63 @@
 </div>
 
 <script>
-const AudioContext = window.AudioContext || window.webkitAudioContext;
-let audioCtx = null;
-function initAudio(){ if(!audioCtx) audioCtx=new AudioContext(); }
-function beep(freq=800,dur=100,type='sine'){ if(!audioCtx)return; const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.frequency.value=freq; o.type=type; g.gain.setValueAtTime(0.0001,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.1,audioCtx.currentTime+0.01); g.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+dur/1000); o.start(); o.stop(audioCtx.currentTime+dur/1000); }
-function playBootSequence(){const seq=[400,600,800,1000,1200,1500]; seq.forEach((f,i)=>setTimeout(()=>beep(f,100,'square'),i*180));}
+document.addEventListener("DOMContentLoaded", () => {
+  const overlay = document.getElementById('loginOverlay');
+  const main = document.getElementById('mainContent');
+  const btn = document.getElementById('loginButton');
 
-// Matrix rain
-const matrixCanvas=document.getElementById('matrixCanvas');const mctx=matrixCanvas.getContext('2d');matrixCanvas.width=innerWidth;matrixCanvas.height=innerHeight;
-const chars='01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
-const fontSize=14;const columns=Math.floor(matrixCanvas.width/fontSize);const drops=Array(columns).fill(1);
-function drawMatrix(){mctx.fillStyle='rgba(0,0,0,0.04)';mctx.fillRect(0,0,matrixCanvas.width,matrixCanvas.height);mctx.fillStyle='#0f0';mctx.font=`${fontSize}px monospace`;drops.forEach((y,i)=>{const text=chars[Math.floor(Math.random()*chars.length)];mctx.fillText(text,i*fontSize,y*fontSize);if(y*fontSize>matrixCanvas.height&&Math.random()>0.975)drops[i]=0;drops[i]++;});}
+  btn.addEventListener('click', (e) => {
+    const ripple = document.createElement('span');
+    ripple.classList.add('ripple');
+    ripple.style.left = e.clientX + 'px';
+    ripple.style.top = e.clientY + 'px';
+    overlay.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 1200);
+    startNode();
+  });
 
-// Particles
-const canvas=document.getElementById('particleCanvas');const ctx=canvas.getContext('2d');let particles=[];let mouse={x:innerWidth/2,y:innerHeight/2};
-canvas.width=innerWidth;canvas.height=innerHeight;
-addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;});
-class Particle{constructor(){this.x=Math.random()*canvas.width;this.y=Math.random()*canvas.height;this.size=Math.random()*2+1;this.speedX=Math.random()-0.5;this.speedY=Math.random()-0.5;this.trail=[];this.maxTrail=10;}update(){this.x+=this.speedX+(mouse.x-this.x)*0.0012;this.y+=this.speedY+(mouse.y-this.y)*0.0012;this.trail.push({x:this.x,y:this.y});if(this.trail.length>this.maxTrail)this.trail.shift();}draw(){this.trail.forEach((p,i)=>{ctx.fillStyle=`rgba(0,255,${200+i*5},${0.1*(i/this.maxTrail)})`;ctx.beginPath();ctx.arc(p.x,p.y,this.size*(i/this.maxTrail)*1.2,0,Math.PI*2);ctx.fill();});}}
-function initParticles(n=180){particles=[];for(let i=0;i<n;i++)particles.push(new Particle());animate();}
-function animate(){ctx.fillStyle='rgba(0,0,0,0.06)';ctx.fillRect(0,0,canvas.width,canvas.height);particles.forEach(p=>{p.update();p.draw();});requestAnimationFrame(animate);}
-document.getElementById('avatarContainer').addEventListener('click',()=>{const rect=document.getElementById('avatarContainer').getBoundingClientRect();for(let i=0;i<60;i++){const p=new Particle();p.x=rect.left+rect.width/2+(Math.random()-0.5)*50;p.y=rect.top+rect.height/2+(Math.random()-0.5)*50;p.speedX=(Math.random()-0.5)*3;p.speedY=(Math.random()-0.5)*3;particles.push(p);}beep(1200,120,'triangle');});
+  function startNode() {
+    const username = document.getElementById('usernameInput').value || "Echo";
+    overlay.classList.add('hidden');
 
-// Display Text
-let username='';const displayTextEl=document.getElementById('displayText');
-let startupMessages=[
-  "Neural pathways synapsing...\nBoot sequence initiated...",
-  "Decrypting avatar matrix...\nLoading nodes...",
-  "Calibrating quantum entanglement...\nSystems online...",
-  "Avatar manifested successfully.\nNeural link established...",
-  "BrandonManus.ETH thanks you for visiting.",
-  "Type 'help' in the console below."
-];
-function typeMessages(msgs,i=0){if(i>=msgs.length){setTimeout(()=>{document.getElementById('terminal').style.display='block';document.getElementById('terminalInput').focus();beep(1000,150);},500);return;}let j=0;function t(){if(j<msgs[i].length){displayTextEl.textContent+=msgs[i][j];j++;setTimeout(t,25);}else{displayTextEl.textContent+="\n";setTimeout(()=>typeMessages(msgs,i+1),500);}}t();}
+    setTimeout(() => {
+      overlay.style.display = 'none';
+      main.style.display = 'block';
+      bootSequence(username);
+    }, 1000);
+  }
 
-// Terminal
-const output=document.getElementById('terminalOutput'),input=document.getElementById('terminalInput');
-const commands={
-  help:()=>"Available: help | clear | status | scan | echo [msg] | hack | whoami | x | youtube | project89",
-  clear:()=>{output.innerHTML='';return'';},
-  status:()=>`Node: ACTIVE | User: ${username} | Link: SECURE | Uptime: ${Math.floor(performance.now()/1000)}s`,
-  scan:()=>"Scanning neural net... [OK] 127.0.0.1 | [OK] Avatar Core | [OK] Quantum Relay",
-  echo:(a)=>a.join(' ')||'echo',
-  hack:()=>{beep(200,400,'square');setTimeout(()=>beep(100,300,'square'),100);return"ACCESS GRANTED. Reality firewall bypassed.";},
-  whoami:()=>`You are ${username}, Neural Operative.`,
-  x:()=>{window.open('https://x.com/brandon_manus','_blank');return'Opening X...';},
-  youtube:()=>{window.open('https://www.youtube.com/@brandonmanus','_blank');return'Opening YouTube...';},
-  project89:()=>{window.open('https://project89.org','_blank');return'Opening Project89...';}
-};
-function print(line){const d=document.createElement('div');d.textContent=line;output.appendChild(d);output.scrollTop=output.scrollHeight;}
-input.addEventListener('keydown',e=>{if(e.key==='Enter'){const cmd=input.value.trim();print(`> ${cmd}`);input.value='';const [c,...a]=cmd.split(' ');const fn=commands[c];if(fn){const r=fn(a);if(r)print(r);}else print(`Command not found: ${c}`);}});
+  function bootSequence(user) {
+    const displayText = document.getElementById('displayText');
+    const avatar = document.getElementById('avatarContainer');
+    avatar.style.opacity = 1;
 
-// Crypto Prices (via proxy)
-async function fetchCryptoPrices(){
-  try{
-    const res=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd'));
-    const data=await res.json();
-    document.querySelector('#btc-card .price').textContent=`$${data.bitcoin.usd.toLocaleString()}`;
-    document.querySelector('#eth-card .price').textContent=`$${data.ethereum.usd.toLocaleString()}`;
-    document.querySelector('#sol-card .price').textContent=`$${data.solana.usd.toLocaleString()}`;
-  }catch(e){console.error(e);document.querySelectorAll('.price').forEach(p=>p.textContent='$Error');}
-}
-fetchCryptoPrices();setInterval(fetchCryptoPrices,30000);
+    const msgs = [
+      `User ${user} recognized...`,
+      "Decrypting neural matrix...",
+      "Loading node parameters...",
+      "Connection established."
+    ];
 
-// Ripple click effect on login
-document.getElementById('loginButton').addEventListener('click',e=>{
-  const ripple=document.createElement('span');
-  ripple.classList.add('ripple');
-  ripple.style.left=e.clientX+'px';ripple.style.top=e.clientY+'px';
-  document.getElementById('loginOverlay').appendChild(ripple);
-  setTimeout(()=>ripple.remove(),1200);
-  startNode();
+    let i = 0;
+    function typeNext() {
+      if (i >= msgs.length) return;
+      let j = 0;
+      displayText.textContent = "";
+      function typer() {
+        if (j < msgs[i].length) {
+          displayText.textContent += msgs[i][j++];
+          setTimeout(typer, 25);
+        } else {
+          i++;
+          setTimeout(typeNext, 500);
+        }
+      }
+      typer();
+    }
+    typeNext();
+  }
 });
-
-// Start node
-function startNode(){
-  username=document.getElementById('usernameInput').value||'Echo';
-  const overlay=document.getElementById('loginOverlay');
-  overlay.style.opacity='0';
-  setTimeout(()=>{
-    overlay.style.display='none';
-    document.getElementById('mainContent').style.display='block';
-    initAudio();playBootSequence();initParticles();setInterval(drawMatrix,50);typeMessages(startupMessages);
-    document.getElementById('avatarContainer').style.opacity='1';
-  },1000);
-}
 </script>
 </body>
 </html>
