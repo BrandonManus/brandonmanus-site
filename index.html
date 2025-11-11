@@ -213,5 +213,10 @@ document.addEventListener("DOMContentLoaded", () => {
   terminalInput.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const cmdLine=terminalInput.value.trim(); print(`> ${cmdLine}`); terminalInput.value=''; const [cmd,...args]=cmdLine.split(' '); const fn=commands[cmd.toLowerCase()]; if(fn) print(fn(args)||''); else print(`Command not found: ${cmd}`); }});
 });
 </script>
+
+<br><br>
+<div style="text-align:center;">
+  <a href="/play"><button style="background:#000;color:#0f0;border:2px solid #0f0;padding:15px 30px;font-size:1.2em;cursor:pointer;">GO TO /PLAY</button></a>
+</div>  
 </body>
 </html>
