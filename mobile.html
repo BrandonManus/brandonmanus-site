@@ -2,88 +2,85 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Brandon Manus (Mobile)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet" />
+  <title>Cybernetic Node v4.0 [Mobile]</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    * { margin:0; padding:0; box-sizing:border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      line-height: 1.6;
-      padding: 1.5rem;
-      background: #f9f9f9;
-      color: #333;
+      background:#000; color:#0f0; font-family:'Orbitron', monospace;
+      line-height:1.6; padding:1.5rem; min-height:100vh;
+      overflow-x:hidden;
     }
-    .container { max-width: 100%; margin: 0 auto; }
-    header { text-align: center; margin-bottom: 2rem; }
-    h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+    .container { max-width:100%; margin:0 auto; }
+    header { text-align:center; margin-bottom:2rem; text-shadow:0 0 10px #0f0; }
+    h1 { font-size:2rem; font-weight:700; letter-spacing:2px; }
     nav ul {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      margin: 2rem 0;
+      list-style:none; display:flex; flex-direction:column; gap:1rem; margin:2rem 0;
     }
     nav a {
-      display: block;
-      padding: 1rem;
-      background: #007bff;
-      color: white;
-      text-decoration: none;
-      border-radius: 12px;
-      font-weight: 600;
-      text-align: center;
-      font-size: 1.1rem;
+      display:block; padding:1rem; background:rgba(0,255,0,0.1);
+      border:1px solid #0f0; color:#0f0; text-decoration:none; text-align:center;
+      border-radius:8px; font-weight:500; transition:0.3s;
+      box-shadow:0 0 15px rgba(0,255,0,0.2);
     }
-    nav a:hover { background: #0056b3; }
-    main { max-width: 800px; margin: 0 auto; }
-    section { margin-bottom: 2.5rem; }
-    h2 { font-size: 1.6rem; margin: 1.5rem 0 1rem; border-bottom: 2px solid #007bff; padding-bottom: 0.5rem; }
-    p { margin-bottom: 1rem; }
-    img { max-width: 100%; height: auto; border-radius: 12px; margin: 1rem 0; }
-    footer { text-align: center; margin-top: 3rem; color: #666; font-size: 0.9rem; }
-    @media (min-width: 768px) {
-      body { padding: 2rem; }
-      nav ul { flex-direction: row; justify-content: center; }
-      nav a { padding: 0.8rem 1.5rem; }
+    nav a:hover { background:rgba(0,255,0,0.3); box-shadow:0 0 25px rgba(0,255,0,0.5); }
+    main section {
+      margin-bottom:2.5rem; padding:1.5rem; background:rgba(0,0,0,0.5);
+      border:1px dashed #0f0; border-radius:8px;
+    }
+    h2 { color:#0f0; margin-bottom:1rem; font-size:1.5rem; text-shadow:0 0 8px #0f0; }
+    p, li { font-size:1rem; margin-bottom:0.8rem; }
+    .desktop-link { text-align:center; margin-top:3rem; font-size:0.9rem; }
+    .desktop-link a { color:#0af; text-decoration:underline; }
+    @media (min-width:768px) {
+      body { padding:2rem; }
+      nav ul { flex-direction:row; justify-content:center; }
+      nav a { padding:0.8rem 1.5rem; }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>Brandon Manus</h1>
-      <p>Software Engineer | Denver, CO</p>
+      <h1>CYBERNETIC NODE v4.0</h1>
+      <p>Neural Interface Active</p>
     </header>
 
     <nav>
       <ul>
-        <li><a href="#about">About</a></li>
-        <li><a href="#projects">Projects</a></li>
-        <li><a href="#contact">Contact</a></li>
+        <li><a href="#core">CORE</a></li>
+        <li><a href="#modules">MODULES</a></li>
+        <li><a href="#access">ACCESS</a></li>
       </ul>
     </nav>
 
     <main>
-      <section id="about">
-        <h2>About Me</h2>
-        <p>I'm a full-stack developer passionate about clean code, great UX, and building things that work everywhere — especially on mobile.</p>
+      <section id="core">
+        <h2>SYSTEM CORE</h2>
+        <p>Brandon Manus — Full-Stack Engineer<br>Denver, CO<br>Protocol: HTTPS / WebSocket</p>
       </section>
 
-      <section id="projects">
-        <h2>Projects</h2>
-        <p>Coming soon! Working on open-source tools and personal apps.</p>
+      <section id="modules">
+        <h2>ACTIVE MODULES</h2>
+        <ul>
+          <li>React / Node.js / Python</li>
+          <li>Cloudflare / Vercel / AWS</li>
+          <li>AI Integration Layer</li>
+          <li>Real-time Data Sync</li>
+        </ul>
       </section>
 
-      <section id="contact">
-        <h2>Contact</h2>
-        <p>Email: brandon@example.com<br>
-        GitHub: <a href="https://github.com/BrandonManus" style="color:#007bff;">@BrandonManus</a></p>
+      <section id="access">
+        <h2>ACCESS POINT</h2>
+        <p>GitHub: <a href="https://github.com/BrandonManus" style="color:#0f0;">@BrandonManus</a><br>
+        X: <a href="https://x.com/brandon_manus" style="color:#0f0;">@brandon_manus</a></p>
       </section>
     </main>
 
-    <footer>
-      <p>Mobile version • <a href="index.html" style="color:#007bff;">View Desktop Site</a></p>
-    </footer>
+    <div class="desktop-link">
+      <p><a href="index.html">Launch Desktop Terminal</a></p>
+    </div>
   </div>
 </body>
 </html>
