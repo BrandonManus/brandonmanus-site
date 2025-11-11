@@ -3,27 +3,35 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Fly Around Earth with Live Flights</title>
+  <title>BrandonAir — Fly Around Earth with Live Flights</title>
+
+  <!-- ✅ Three.js core + controls -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.167.1/examples/js/controls/PointerLockControls.js"></script>
+
   <style>
     body { margin: 0; overflow: hidden; background: #000; }
     canvas { display: block; }
     #info {
       position: absolute; top: 10px; left: 10px; color: white;
-      font-family: Arial; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px;
+      font-family: "Share Tech Mono", monospace;
+      background: rgba(0,0,0,0.5);
+      padding: 10px; border-radius: 5px; font-size: 14px;
     }
     #controls {
       position: absolute; bottom: 10px; left: 10px; color: white;
-      font-family: Arial; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px;
+      font-family: "Share Tech Mono", monospace;
+      background: rgba(0,0,0,0.5);
+      padding: 10px; border-radius: 5px; font-size: 14px;
     }
   </style>
 </head>
 <body>
-  <div id="info">Live Flights on Earth | WASD + Mouse to Fly</div>
+  <div id="info">🌍 BrandonAir | WASD + Mouse to Fly</div>
   <div id="controls">W/S: Throttle | A/D: Yaw | Mouse: Pitch/Roll | Space: Boost</div>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.167.1/examples/js/controls/PointerLockControls.js"></script>
+
   <script>
-    // Scene setup
+    // === Scene Setup ===
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -31,25 +39,25 @@
     renderer.setPixelRatio(window.devicePixelRatio);
     document.body.appendChild(renderer.domElement);
 
-    // Pointer lock controls (first-person flying)
+    // === Controls ===
     const controls = new THREE.PointerLockControls(camera, document.body);
     document.body.addEventListener('click', () => controls.lock());
 
-    // Earth
+    // === Earth ===
     const earthGeometry = new THREE.SphereGeometry(100, 64, 64);
-    const earthTexture = new THREE.TextureLoader().load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg');
+    const loader = new THREE.TextureLoader();
     const earthMaterial = new THREE.MeshPhongMaterial({
-      map: earthTexture,
-      bumpMap: new THREE.TextureLoader().load('https://threejs.org/examples/textures/planets/earth_normal_2048.jpg'),
+      map: loader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg'),
+      bumpMap: loader.load('https://threejs.org/examples/textures/planets/earth_normal_2048.jpg'),
       bumpScale: 5,
-      specularMap: new THREE.TextureLoader().load('https://threejs.org/examples/textures/planets/earth_specular_2048.jpg'),
+      specularMap: loader.load('https://threejs.org/examples/textures/planets/earth_specular_2048.jpg'),
       specular: new THREE.Color('grey'),
       shininess: 10
     });
     const earth = new THREE.Mesh(earthGeometry, earthMaterial);
     scene.add(earth);
 
-    // Atmosphere glow
+    // === Atmosphere ===
     const atmosphere = new THREE.Mesh(
       new THREE.SphereGeometry(105, 64, 64),
       new THREE.MeshBasicMaterial({
@@ -61,61 +69,53 @@
     );
     scene.add(atmosphere);
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0x404040);
-    scene.add(ambientLight);
+    // === Lighting ===
+    scene.add(new THREE.AmbientLight(0x404040));
     const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
     sunLight.position.set(300, 0, 100);
     scene.add(sunLight);
 
-    // Stars
-    const starsGeometry = new THREE.BufferGeometry();
-    const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 });
+    // === Stars ===
+    const starGeometry = new THREE.BufferGeometry();
+    const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 });
     const starVertices = [];
     for (let i = 0; i < 10000; i++) {
-      const x = (Math.random() - 0.5) * 2000;
-      const y = (Math.random() - 0.5) * 2000;
-      const z = (Math.random() - 0.5) * 2000;
-      starVertices.push(x, y, z);
+      starVertices.push((Math.random() - 0.5) * 2000, (Math.random() - 0.5) * 2000, (Math.random() - 0.5) * 2000);
     }
-    starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
-    const stars = new THREE.Points(starsGeometry, starsMaterial);
+    starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+    const stars = new THREE.Points(starGeometry, starMaterial);
     scene.add(stars);
 
-    // Flight data
+    // === Flights ===
     let flights = [];
     const flightMeshes = new THREE.Group();
     scene.add(flightMeshes);
 
     const planeGeometry = new THREE.ConeGeometry(0.8, 2.5, 4);
-    const planeMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+    const baseMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
 
     async function fetchFlights() {
       try {
-        // Using OpenSky Network API (free, no key needed for basic use)
-        const response = await fetch('https://opensky-network.org/api/states/all');
-        const data = await response.json();
+        const res = await fetch('https://opensky-network.org/api/states/all');
+        const data = await res.json();
         if (!data || !data.states) return;
 
-        // Clear old flights
         flightMeshes.clear();
         flights = [];
 
         data.states.forEach(state => {
-          const [icao24, callsign, origin, timePos, timeVel, lon, lat, altBaro, vel, heading, vertRate, sensors, altGeom, squawk, spi, posSource] = state;
-
+          const [icao24, callsign, origin, timePos, timeVel, lon, lat, altBaro, vel, heading] = state;
           if (!lon || !lat || !callsign) return;
 
           const phi = (90 - lat) * (Math.PI / 180);
           const theta = (lon + 180) * (Math.PI / 180);
-
-          const radius = 100 + (altBaro ? altBaro / 300 : 10); // scale altitude
+          const radius = 100 + (altBaro ? altBaro / 300 : 10);
 
           const x = -(radius * Math.sin(phi) * Math.cos(theta));
           const y = radius * Math.cos(phi);
           const z = radius * Math.sin(phi) * Math.sin(theta);
 
-          const plane = new THREE.Mesh(planeGeometry, planeMaterial.clone());
+          const plane = new THREE.Mesh(planeGeometry, baseMaterial.clone());
           plane.position.set(x, y, z);
           plane.rotation.z = -heading * Math.PI / 180 || 0;
           plane.rotation.x = Math.PI / 2;
@@ -124,23 +124,23 @@
 
           flights.push({ mesh: plane, callsign: callsign.trim() });
         });
-      } catch (e) {
-        console.log("Flight data fetch failed (rate-limited or CORS)", e);
+      } catch (err) {
+        console.log("Flight data fetch failed (rate-limited or CORS)", err);
       }
     }
 
-    // Initial camera position (above Earth)
+    // === Camera and Controls ===
     camera.position.set(0, 120, 200);
     controls.getObject().add(camera);
 
-    // Flight controls
+    // === Flight Movement ===
     const velocity = new THREE.Vector3();
     const direction = new THREE.Vector3();
     let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, boost = false;
     const speed = 2.0;
     const boostMultiplier = 3;
 
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', e => {
       switch (e.code) {
         case 'KeyW': moveForward = true; break;
         case 'KeyS': moveBackward = true; break;
@@ -149,7 +149,7 @@
         case 'Space': boost = true; e.preventDefault(); break;
       }
     });
-    document.addEventListener('keyup', (e) => {
+    document.addEventListener('keyup', e => {
       switch (e.code) {
         case 'KeyW': moveForward = false; break;
         case 'KeyS': moveBackward = false; break;
@@ -159,20 +159,19 @@
       }
     });
 
-    // Resize handler
+    // === Resize Handling ===
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // Animation loop
+    // === Animation Loop ===
     const clock = new THREE.Clock();
     function animate() {
       requestAnimationFrame(animate);
       const delta = clock.getDelta();
 
-      // Flight movement
       if (controls.isLocked) {
         velocity.x -= velocity.x * 10.0 * delta;
         velocity.z -= velocity.z * 10.0 * delta;
@@ -182,7 +181,6 @@
         direction.normalize();
 
         const currentSpeed = speed * (boost ? boostMultiplier : 1);
-
         if (moveForward || moveBackward) velocity.z -= direction.z * currentSpeed * 50 * delta;
         if (moveLeft || moveRight) velocity.x -= direction.x * currentSpeed * 50 * delta;
 
@@ -190,22 +188,16 @@
         controls.moveForward(-velocity.z * delta);
       }
 
-      // Rotate Earth slowly
       earth.rotation.y += 0.0002;
       atmosphere.rotation.y += 0.0002;
 
-      // Update flight labels (optional - simple billboard)
-      flightMeshes.children.forEach(mesh => {
-        mesh.lookAt(camera.position);
-      });
-
+      flightMeshes.children.forEach(mesh => mesh.lookAt(camera.position));
       renderer.render(scene, camera);
     }
 
-    // Fetch flights every 15 seconds
+    // === Start Loops ===
     fetchFlights();
     setInterval(fetchFlights, 15000);
-
     animate();
   </script>
 </body>
