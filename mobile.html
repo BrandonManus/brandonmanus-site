@@ -1,86 +1,70 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet" />
-  <title>Cybernetic Node v4.0 [Mobile]</title>
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body {
-      background:#000; color:#0f0; font-family:'Orbitron', monospace;
-      line-height:1.6; padding:1.5rem; min-height:100vh;
-      overflow-x:hidden;
-    }
-    .container { max-width:100%; margin:0 auto; }
-    header { text-align:center; margin-bottom:2rem; text-shadow:0 0 10px #0f0; }
-    h1 { font-size:2rem; font-weight:700; letter-spacing:2px; }
-    nav ul {
-      list-style:none; display:flex; flex-direction:column; gap:1rem; margin:2rem 0;
-    }
-    nav a {
-      display:block; padding:1rem; background:rgba(0,255,0,0.1);
-      border:1px solid #0f0; color:#0f0; text-decoration:none; text-align:center;
-      border-radius:8px; font-weight:500; transition:0.3s;
-      box-shadow:0 0 15px rgba(0,255,0,0.2);
-    }
-    nav a:hover { background:rgba(0,255,0,0.3); box-shadow:0 0 25px rgba(0,255,0,0.5); }
-    main section {
-      margin-bottom:2.5rem; padding:1.5rem; background:rgba(0,0,0,0.5);
-      border:1px dashed #0f0; border-radius:8px;
-    }
-    h2 { color:#0f0; margin-bottom:1rem; font-size:1.5rem; text-shadow:0 0 8px #0f0; }
-    p, li { font-size:1rem; margin-bottom:0.8rem; }
-    .desktop-link { text-align:center; margin-top:3rem; font-size:0.9rem; }
-    .desktop-link a { color:#0af; text-decoration:underline; }
-    @media (min-width:768px) {
-      body { padding:2rem; }
-      nav ul { flex-direction:row; justify-content:center; }
-      nav a { padding:0.8rem 1.5rem; }
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <header>
-      <h1>CYBERNETIC NODE v4.0</h1>
-      <p>Neural Interface Active</p>
-    </header>
+<style>
+  body, html { margin:0; padding:0; height:100%; overflow:hidden; background:#000; color:#0f0; font-family:'Orbitron', monospace; }
 
-    <nav>
-      <ul>
-        <li><a href="#core">CORE</a></li>
-        <li><a href="#modules">MODULES</a></li>
-        <li><a href="#access">ACCESS</a></li>
-      </ul>
-    </nav>
+  /* LOGIN */
+  #loginOverlay {
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    background:radial-gradient(circle at center, rgba(0,255,0,0.05), rgba(0,0,0,0.95));
+    display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:1000; transition:opacity 1s ease-in-out;
+    padding:0 10px;
+  }
+  #loginOverlay.hidden { opacity:0; pointer-events:none; }
+  #loginOverlay h1 { color:#00ff88; text-shadow:0 0 15px #00ff88; margin-bottom:15px; text-align:center; font-size:1.8em; }
+  #loginOverlay input, #loginOverlay button {
+    font-size:1.1em; padding:12px; margin:6px; border:2px solid #00ff88;
+    background:#000; color:#00ff88; transition:all .3s; width:100%; max-width:320px;
+  }
+  #loginOverlay input:focus, #loginOverlay button:hover { background:#00ff88; color:#000; box-shadow:0 0 20px #00ff88; }
+  #loginOverlay button { cursor:pointer; }
 
-    <main>
-      <section id="core">
-        <h2>SYSTEM CORE</h2>
-        <p>Brandon Manus — Full-Stack Engineer<br>Denver, CO<br>Protocol: HTTPS / WebSocket</p>
-      </section>
+  /* MAIN */
+  #mainContent { display:none; position:relative; height:100%; width:100%; }
+  #matrixCanvas, #particleCanvas { position:absolute; top:0; left:0; width:100%; height:100%; }
+  #matrixCanvas { z-index:0; opacity:0.12; pointer-events:none; }
+  #particleCanvas { z-index:1; pointer-events:none; }
 
-      <section id="modules">
-        <h2>ACTIVE MODULES</h2>
-        <ul>
-          <li>React / Node.js / Python</li>
-          <li>Cloudflare / Vercel / AWS</li>
-          <li>AI Integration Layer</li>
-          <li>Real-time Data Sync</li>
-        </ul>
-      </section>
+  #avatarContainer {
+    position:absolute; top:6%; left:50%; transform:translateX(-50%);
+    z-index:3; opacity:0; transition:opacity 1.2s ease-in-out;
+  }
+  #avatarImg {
+    width:200px; height:200px; border-radius:50%;
+    border:3px solid #00ff88; box-shadow:0 0 20px #00ff88, inset 0 0 10px rgba(0,255,0,0.3);
+    transition:all .4s;
+  }
+  #avatarContainer:hover #avatarImg { transform:scale(1.05); box-shadow:0 0 30px #00ffaa, 0 0 50px rgba(0,255,200,.5); }
 
-      <section id="access">
-        <h2>ACCESS POINT</h2>
-        <p>GitHub: <a href="https://github.com/BrandonManus" style="color:#0f0;">@BrandonManus</a><br>
-        X: <a href="https://x.com/brandon_manus" style="color:#0f0;">@brandon_manus</a></p>
-      </section>
-    </main>
+  #displayText {
+    position:absolute; top:35%; left:50%; transform:translateX(-50%);
+    color:#00ff88; font-size:1em; white-space:pre-line; z-index:3; text-align:center; padding:0 10px;
+  }
 
-    <div class="desktop-link">
-      <p><a href="index.html">Launch Desktop Terminal</a></p>
-    </div>
-  </div>
-</body>
-</html>
+  #terminal {
+    position:absolute; bottom:20%; left:50%; transform:translateX(-50%);
+    background:rgba(0,0,0,0.85); border:1px solid #0f0; padding:10px;
+    width:95%; max-width:400px; color:#0f0; font-family:monospace; font-size:13px;
+    display:none; z-index:6;
+  }
+  #terminalOutput { max-height:150px; overflow-y:auto; margin-bottom:5px; }
+  #terminalInput { width:95%; background:#000; color:#0f0; border:none; outline:none; }
+
+  .crypto-dashboard-wrapper {
+    position:absolute; bottom:2%; left:50%; transform:translateX(-50%);
+    z-index:5; width:95%;
+  }
+  .crypto-dashboard-container { display:flex; gap:15px; justify-content:center; flex-wrap:wrap; font-family:'Orbitron', sans-serif; }
+  .crypto-card {
+    background:rgba(0,0,0,0.6); border:2px solid #00ffea; border-radius:12px;
+    padding:12px; flex:1 1 90px; text-align:center; color:#00ffea; box-shadow:0 0 15px #00ffea; transition:.3s;
+  }
+  .crypto-card:hover { box-shadow:0 0 25px #ff00ff; transform:scale(1.05); }
+  .crypto-card .price { font-size:1.3em; font-weight:bold; margin:0; }
+
+  /* MOBILE SPECIFIC */
+  @media(max-width:600px){
+    #avatarImg { width:150px; height:150px; }
+    #displayText { font-size:0.9em; top:30%; }
+    #terminal { bottom:15%; max-width:90%; font-size:12px; }
+    .crypto-card { flex:1 1 45%; padding:10px; }
+  }
+</style>
