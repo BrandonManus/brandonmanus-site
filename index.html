@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet" />
+<const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';>
 <title>Cybernetic Node v4.0</title>
 <style>
   body, html {
@@ -197,22 +198,28 @@ document.addEventListener("DOMContentLoaded", () => {
   const fontSize = 14;
   let columns, drops;
   function startMatrix() {
-    columns = Math.floor(matrixCanvas.width / fontSize);
-    drops = Array(columns).fill(1);
-    setInterval(drawMatrix, 50);
-  }
+  const fontSize = 14;
+  matrixCanvas.width = window.innerWidth;
+  matrixCanvas.height = window.innerHeight;
+  const columns = Math.floor(matrixCanvas.width / fontSize);
+  const drops = Array(columns).fill(1);
+
   function drawMatrix() {
-    mctx.fillStyle = 'rgba(0,0,0,0.05)';
+    mctx.fillStyle = 'rgba(0,0,0,0.07)'; // slightly darker trail
     mctx.fillRect(0,0,matrixCanvas.width,matrixCanvas.height);
     mctx.fillStyle = '#00ff88';
     mctx.font = fontSize + "px monospace";
-    drops.forEach((y, i) => {
-      const text = chars[Math.floor(Math.random() * chars.length)];
-      mctx.fillText(text, i*fontSize, y*fontSize);
-      if(y*fontSize > matrixCanvas.height && Math.random()>0.975) drops[i]=0;
+    for(let i=0; i<drops.length; i++) {
+      const text = chars[Math.floor(Math.random()*chars.length)];
+      mctx.fillText(text, i*fontSize, drops[i]*fontSize);
+      if(drops[i]*fontSize > matrixCanvas.height && Math.random() > 0.975) drops[i] = 0;
       drops[i]++;
-    });
+    }
   }
+
+  setInterval(drawMatrix, 50);
+}
+
 
   // PARTICLES
   let particles = [];
