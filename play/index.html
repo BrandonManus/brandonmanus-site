@@ -3,33 +3,210 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Play | BrandonManus</title>
+  <title>Fly Around Earth with Live Flights</title>
   <style>
-    body {
-      background: #000;
-      color: #0f0;
-      font-family: 'Courier New', monospace;
-      text-align: center;
-      padding: 50px;
+    body { margin: 0; overflow: hidden; background: #000; }
+    canvas { display: block; }
+    #info {
+      position: absolute; top: 10px; left: 10px; color: white;
+      font-family: Arial; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px;
     }
-    h1 { font-size: 3em; margin: 0.5em; }
-    button {
-      background: #000;
-      color: #0f0;
-      border: 2px solid #0f0;
-      padding: 15px 30px;
-      font-size: 1.2em;
-      cursor: pointer;
-      margin: 20px;
+    #controls {
+      position: absolute; bottom: 10px; left: 10px; color: white;
+      font-family: Arial; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px;
     }
-    button:hover { background: #0f0; color: #000; }
   </style>
 </head>
 <body>
-  <h1>/play</h1>
-  <p>You're in the playground.</p>
-  <button onclick="alert('Hello from /play!')">Test Me</button>
-  <br><br>
-  <a href="/"><button>← Back Home</button></a>
+  <div id="info">Live Flights on Earth | WASD + Mouse to Fly</div>
+  <div id="controls">W/S: Throttle | A/D: Yaw | Mouse: Pitch/Roll | Space: Boost</div>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.167.1/examples/js/controls/PointerLockControls.js"></script>
+  <script>
+    // Scene setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.body.appendChild(renderer.domElement);
+
+    // Pointer lock controls (first-person flying)
+    const controls = new THREE.PointerLockControls(camera, document.body);
+    document.body.addEventListener('click', () => controls.lock());
+
+    // Earth
+    const earthGeometry = new THREE.SphereGeometry(100, 64, 64);
+    const earthTexture = new THREE.TextureLoader().load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg');
+    const earthMaterial = new THREE.MeshPhongMaterial({
+      map: earthTexture,
+      bumpMap: new THREE.TextureLoader().load('https://threejs.org/examples/textures/planets/earth_normal_2048.jpg'),
+      bumpScale: 5,
+      specularMap: new THREE.TextureLoader().load('https://threejs.org/examples/textures/planets/earth_specular_2048.jpg'),
+      specular: new THREE.Color('grey'),
+      shininess: 10
+    });
+    const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+    scene.add(earth);
+
+    // Atmosphere glow
+    const atmosphere = new THREE.Mesh(
+      new THREE.SphereGeometry(105, 64, 64),
+      new THREE.MeshBasicMaterial({
+        color: 0xaad4ff,
+        transparent: true,
+        opacity: 0.07,
+        side: THREE.BackSide
+      })
+    );
+    scene.add(atmosphere);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+    const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    sunLight.position.set(300, 0, 100);
+    scene.add(sunLight);
+
+    // Stars
+    const starsGeometry = new THREE.BufferGeometry();
+    const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 });
+    const starVertices = [];
+    for (let i = 0; i < 10000; i++) {
+      const x = (Math.random() - 0.5) * 2000;
+      const y = (Math.random() - 0.5) * 2000;
+      const z = (Math.random() - 0.5) * 2000;
+      starVertices.push(x, y, z);
+    }
+    starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+    const stars = new THREE.Points(starsGeometry, starsMaterial);
+    scene.add(stars);
+
+    // Flight data
+    let flights = [];
+    const flightMeshes = new THREE.Group();
+    scene.add(flightMeshes);
+
+    const planeGeometry = new THREE.ConeGeometry(0.8, 2.5, 4);
+    const planeMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+
+    async function fetchFlights() {
+      try {
+        // Using OpenSky Network API (free, no key needed for basic use)
+        const response = await fetch('https://opensky-network.org/api/states/all');
+        const data = await response.json();
+        if (!data || !data.states) return;
+
+        // Clear old flights
+        flightMeshes.clear();
+        flights = [];
+
+        data.states.forEach(state => {
+          const [icao24, callsign, origin, timePos, timeVel, lon, lat, altBaro, vel, heading, vertRate, sensors, altGeom, squawk, spi, posSource] = state;
+
+          if (!lon || !lat || !callsign) return;
+
+          const phi = (90 - lat) * (Math.PI / 180);
+          const theta = (lon + 180) * (Math.PI / 180);
+
+          const radius = 100 + (altBaro ? altBaro / 300 : 10); // scale altitude
+
+          const x = -(radius * Math.sin(phi) * Math.cos(theta));
+          const y = radius * Math.cos(phi);
+          const z = radius * Math.sin(phi) * Math.sin(theta);
+
+          const plane = new THREE.Mesh(planeGeometry, planeMaterial.clone());
+          plane.position.set(x, y, z);
+          plane.rotation.z = -heading * Math.PI / 180 || 0;
+          plane.rotation.x = Math.PI / 2;
+          plane.userData = { callsign: callsign.trim(), alt: altBaro };
+          flightMeshes.add(plane);
+
+          flights.push({ mesh: plane, callsign: callsign.trim() });
+        });
+      } catch (e) {
+        console.log("Flight data fetch failed (rate-limited or CORS)", e);
+      }
+    }
+
+    // Initial camera position (above Earth)
+    camera.position.set(0, 120, 200);
+    controls.getObject().add(camera);
+
+    // Flight controls
+    const velocity = new THREE.Vector3();
+    const direction = new THREE.Vector3();
+    let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, boost = false;
+    const speed = 2.0;
+    const boostMultiplier = 3;
+
+    document.addEventListener('keydown', (e) => {
+      switch (e.code) {
+        case 'KeyW': moveForward = true; break;
+        case 'KeyS': moveBackward = true; break;
+        case 'KeyA': moveLeft = true; break;
+        case 'KeyD': moveRight = true; break;
+        case 'Space': boost = true; e.preventDefault(); break;
+      }
+    });
+    document.addEventListener('keyup', (e) => {
+      switch (e.code) {
+        case 'KeyW': moveForward = false; break;
+        case 'KeyS': moveBackward = false; break;
+        case 'KeyA': moveLeft = false; break;
+        case 'KeyD': moveRight = false; break;
+        case 'Space': boost = false; break;
+      }
+    });
+
+    // Resize handler
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Animation loop
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+
+      // Flight movement
+      if (controls.isLocked) {
+        velocity.x -= velocity.x * 10.0 * delta;
+        velocity.z -= velocity.z * 10.0 * delta;
+
+        direction.z = Number(moveForward) - Number(moveBackward);
+        direction.x = Number(moveRight) - Number(moveLeft);
+        direction.normalize();
+
+        const currentSpeed = speed * (boost ? boostMultiplier : 1);
+
+        if (moveForward || moveBackward) velocity.z -= direction.z * currentSpeed * 50 * delta;
+        if (moveLeft || moveRight) velocity.x -= direction.x * currentSpeed * 50 * delta;
+
+        controls.moveRight(-velocity.x * delta);
+        controls.moveForward(-velocity.z * delta);
+      }
+
+      // Rotate Earth slowly
+      earth.rotation.y += 0.0002;
+      atmosphere.rotation.y += 0.0002;
+
+      // Update flight labels (optional - simple billboard)
+      flightMeshes.children.forEach(mesh => {
+        mesh.lookAt(camera.position);
+      });
+
+      renderer.render(scene, camera);
+    }
+
+    // Fetch flights every 15 seconds
+    fetchFlights();
+    setInterval(fetchFlights, 15000);
+
+    animate();
+  </script>
 </body>
 </html>
