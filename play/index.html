@@ -11,6 +11,7 @@
     overflow: hidden;
     background: linear-gradient(#6dd5fa, #2980b9);
     font-family: monospace;
+    cursor: none; /* hide cursor for immersion */
   }
 
   #sky {
@@ -18,31 +19,23 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
-    perspective: 600px;
   }
 
   .cloud {
     position: absolute;
     background: radial-gradient(white, rgba(255,255,255,0.3));
     border-radius: 50%;
-    opacity: 0.9;
-    animation: fly 10s linear infinite;
-  }
-
-  @keyframes fly {
-    0% { transform: translateZ(0) translateY(0); }
-    100% { transform: translateZ(-600px) translateY(200px); opacity: 0; }
+    opacity: 0.8;
+    transition: transform 0.5s ease;
   }
 
   #plane {
     position: absolute;
-    width: 60px;
-    height: 40px;
-    background: linear-gradient(to right, #f00, #900);
-    clip-path: polygon(0 50%, 40% 30%, 100% 50%, 40% 70%);
-    left: calc(50% - 30px);
-    top: calc(50% - 20px);
-    transform: translateZ(100px);
+    width: 120px;
+    height: auto;
+    pointer-events: none;
+    transition: transform 0.1s linear;
+    filter: drop-shadow(0 0 10px rgba(255,255,255,0.7));
   }
 
   #hud {
@@ -51,12 +44,13 @@
     left: 10px;
     color: white;
     font-size: 14px;
+    text-shadow: 0 0 4px #000;
   }
 </style>
 </head>
 <body>
 <div id="sky">
-  <div id="plane"></div>
+  <img id="plane" src="https://na-assets.pinit.io/8GwrpeSH4TpAGEJsmoF35J8DY6RNCdyjCBZsEnTySEKd/c746a7a7-88cc-4677-b919-877329e2dd0d/437" alt="Plane" />
   <div id="hud">Flying...</div>
 </div>
 
@@ -65,39 +59,57 @@ const sky = document.getElementById("sky");
 const plane = document.getElementById("plane");
 const hud = document.getElementById("hud");
 
-let x = 50, y = 50;
-let speed = 0.1;
+let planeX = window.innerWidth / 2;
+let planeY = window.innerHeight / 2;
+let targetX = planeX;
+let targetY = planeY;
 let clouds = [];
 
+// --- Generate floating clouds ---
 function makeCloud() {
   const c = document.createElement("div");
   c.className = "cloud";
-  const size = 100 + Math.random() * 200;
+  const size = 100 + Math.random() * 250;
   c.style.width = size + "px";
   c.style.height = size * 0.6 + "px";
   c.style.left = Math.random() * window.innerWidth + "px";
   c.style.top = Math.random() * window.innerHeight + "px";
-  c.style.animationDuration = (5 + Math.random() * 15) + "s";
   sky.appendChild(c);
-  setTimeout(() => sky.removeChild(c), 20000);
+  clouds.push(c);
 }
+for (let i = 0; i < 20; i++) makeCloud();
 
-setInterval(makeCloud, 400);
-
-document.addEventListener("keydown", e => {
-  if (e.key === "ArrowUp" || e.key === "w") y -= 2;
-  if (e.key === "ArrowDown" || e.key === "s") y += 2;
-  if (e.key === "ArrowLeft" || e.key === "a") x -= 2;
-  if (e.key === "ArrowRight" || e.key === "d") x += 2;
+// --- Mouse control ---
+document.addEventListener("mousemove", e => {
+  targetX = e.clientX;
+  targetY = e.clientY;
 });
 
+// --- Animation loop ---
 function loop() {
-  plane.style.left = `calc(${x}% - 30px)`;
-  plane.style.top = `calc(${y}% - 20px)`;
-  hud.textContent = "Flying " + (Math.random() * 1000).toFixed(0) + " miles...";
+  // Smooth plane motion
+  planeX += (targetX - planeX) * 0.1;
+  planeY += (targetY - planeY) * 0.1;
+  plane.style.transform = `translate(${planeX - 60}px, ${planeY - 40}px)`;
+
+  // Clouds react subtly to plane position
+  clouds.forEach((c, i) => {
+    const dx = (c.offsetLeft - planeX) / window.innerWidth;
+    const dy = (c.offsetTop - planeY) / window.innerHeight;
+    c.style.transform = `translate(${dx * 40}px, ${dy * 40}px)`;
+  });
+
+  // Fake flight progress
+  hud.textContent = "Altitude: " + (Math.random() * 5000 + 1000).toFixed(0) + " ft";
+
   requestAnimationFrame(loop);
 }
 loop();
+
+window.addEventListener("resize", () => {
+  planeX = window.innerWidth / 2;
+  planeY = window.innerHeight / 2;
+});
 </script>
 </body>
 </html>
