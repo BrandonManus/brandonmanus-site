@@ -5,10 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>BrandonAir — Fly Around Earth with Live Flights</title>
 
-  <!-- ✅ Three.js core + controls -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.167.1/examples/js/controls/PointerLockControls.js"></script>
-
   <style>
     body { margin: 0; overflow: hidden; background: #000; }
     canvas { display: block; }
@@ -30,7 +26,11 @@
   <div id="info">🌍 BrandonAir | WASD + Mouse to Fly</div>
   <div id="controls">W/S: Throttle | A/D: Yaw | Mouse: Pitch/Roll | Space: Boost</div>
 
-  <script>
+  <script type="module">
+    // Import three and controls as modules to ensure THREE is defined in this scope
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js';
+    import { PointerLockControls } from 'https://cdn.jsdelivr.net/npm/three@0.167.1/examples/jsm/controls/PointerLockControls.js';
+
     // === Scene Setup ===
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
@@ -40,7 +40,9 @@
     document.body.appendChild(renderer.domElement);
 
     // === Controls ===
-    const controls = new THREE.PointerLockControls(camera, document.body);
+    const controls = new PointerLockControls(camera, document.body);
+    // Add the controls' object to the scene (this is the object that will move)
+    scene.add(controls.getObject());
     document.body.addEventListener('click', () => controls.lock());
 
     // === Earth ===
@@ -100,12 +102,14 @@
         const data = await res.json();
         if (!data || !data.states) return;
 
-        flightMeshes.clear();
+        // clear previous flight meshes
+        while (flightMeshes.children.length) flightMeshes.remove(flightMeshes.children[0]);
         flights = [];
 
         data.states.forEach(state => {
-          const [icao24, callsign, origin, timePos, timeVel, lon, lat, altBaro, vel, heading] = state;
-          if (!lon || !lat || !callsign) return;
+          // states array fields per OpenSky: [0]=icao24 [1]=callsign ... [5]=longitude [6]=latitude [7]=baroAltitude [9]=velocity [10]=heading
+          const [icao24, callsign, , , , lon, lat, altBaro, vel, heading] = state;
+          if (lon == null || lat == null || !callsign) return;
 
           const phi = (90 - lat) * (Math.PI / 180);
           const theta = (lon + 180) * (Math.PI / 180);
@@ -117,7 +121,7 @@
 
           const plane = new THREE.Mesh(planeGeometry, baseMaterial.clone());
           plane.position.set(x, y, z);
-          plane.rotation.z = -heading * Math.PI / 180 || 0;
+          plane.rotation.z = - (heading || 0) * Math.PI / 180;
           plane.rotation.x = Math.PI / 2;
           plane.userData = { callsign: callsign.trim(), alt: altBaro };
           flightMeshes.add(plane);
@@ -130,8 +134,8 @@
     }
 
     // === Camera and Controls ===
-    camera.position.set(0, 120, 200);
-    controls.getObject().add(camera);
+    // Place the controls' object (which contains the camera) in the desired start position
+    controls.getObject().position.set(0, 120, 200);
 
     // === Flight Movement ===
     const velocity = new THREE.Vector3();
