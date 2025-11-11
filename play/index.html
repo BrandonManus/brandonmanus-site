@@ -3,113 +3,440 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Flying Minigame</title>
+<title>✈️ Sky Odyssey – Epic Flying Minigame</title>
 <style>
   html, body {
     margin: 0;
+    padding: 0;
     height: 100%;
     overflow: hidden;
-    background: linear-gradient(#6dd5fa, #2980b9);
-    font-family: monospace;
-    cursor: none; /* hide cursor for immersion */
+    background: #000;
+    font-family: 'Courier New', monospace;
+    cursor: none;
+    user-select: none;
   }
 
-  #sky {
-    position: relative;
+  canvas {
+    display: block;
     width: 100%;
     height: 100%;
-    overflow: hidden;
-  }
-
-  .cloud {
-    position: absolute;
-    background: radial-gradient(white, rgba(255,255,255,0.3));
-    border-radius: 50%;
-    opacity: 0.8;
-    transition: transform 0.5s ease;
-  }
-
-  #plane {
-    position: absolute;
-    width: 120px;
-    height: auto;
-    pointer-events: none;
-    transition: transform 0.1s linear;
-    filter: drop-shadow(0 0 10px rgba(255,255,255,0.7));
+    image-rendering: pixelated; /* retro vibe */
   }
 
   #hud {
     position: absolute;
-    top: 10px;
-    left: 10px;
-    color: white;
-    font-size: 14px;
-    text-shadow: 0 0 4px #000;
+    top: 15px;
+    left: 15px;
+    color: #0f0;
+    font-size: 16px;
+    text-shadow: 0 0 8px #0f0, 0 0 16px #0f0;
+    letter-spacing: 1px;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  #score {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    color: #ff0;
+    font-size: 18px;
+    text-shadow: 0 0 8px #ff0;
+    z-index: 10;
+  }
+
+  #start-screen, #game-over {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    color: #0f0;
+    font-size: 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    z-index: 20;
+    backdrop-filter: blur(4px);
+    transition: opacity 1s;
+    text-shadow: 0 0 10px #0f0;
+  }
+
+  #game-over {
+    display: none;
+  }
+
+  button {
+    margin-top: 20px;
+    padding: 12px 30px;
+    font-family: inherit;
+    font-size: 20px;
+    background: #000;
+    color: #0f0;
+    border: 2px solid #0f0;
+    cursor: pointer;
+    text-shadow: 0 0 8px #0f0;
+    box-shadow: 0 0 20px #0f0;
+    transition: all 0.3s;
+  }
+
+  button:hover {
+    background: #0f0;
+    color: #000;
+    box-shadow: 0 0 30px #0f0, inset 0 0 20px #000;
+  }
+
+  .pulse {
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
   }
 </style>
 </head>
 <body>
-<div id="sky">
-  <img id="plane" src="https://na-assets.pinit.io/8GwrpeSH4TpAGEJsmoF35J8DY6RNCdyjCBZsEnTySEKd/c746a7a7-88cc-4677-b919-877329e2dd0d/437" alt="Plane" />
-  <div id="hud">Flying...</div>
+
+<canvas id="game"></canvas>
+
+<div id="hud">ALT: <span id="alt">0000</span>ft | SPD: <span id="spd">000</span>kt | FUEL: <span id="fuel">100</span>%</div>
+<div id="score">SCORE: <span id="points">0</span></div>
+
+<div id="start-screen">
+  <h1 class="pulse">✈️ SKY ODYSSEY</h1>
+  <p>Move your mouse to fly. Collect fuel. Avoid storms.</p>
+  <button id="start-btn">LAUNCH</button>
+</div>
+
+<div id="game-over">
+  <h1>MISSION FAILED</h1>
+  <p>Final Score: <span id="final-score">0</span></p>
+  <button id="restart-btn">TRY AGAIN</button>
 </div>
 
 <script>
-const sky = document.getElementById("sky");
-const plane = document.getElementById("plane");
-const hud = document.getElementById("hud");
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-let planeX = window.innerWidth / 2;
-let planeY = window.innerHeight / 2;
-let targetX = planeX;
-let targetY = planeY;
-let clouds = [];
+const hud = {
+  alt: document.getElementById('alt'),
+  spd: document.getElementById('spd'),
+  fuel: document.getElementById('fuel'),
+  points: document.getElementById('points')
+};
 
-// --- Generate floating clouds ---
-function makeCloud() {
-  const c = document.createElement("div");
-  c.className = "cloud";
-  const size = 100 + Math.random() * 250;
-  c.style.width = size + "px";
-  c.style.height = size * 0.6 + "px";
-  c.style.left = Math.random() * window.innerWidth + "px";
-  c.style.top = Math.random() * window.innerHeight + "px";
-  sky.appendChild(c);
-  clouds.push(c);
+const screens = {
+  start: document.getElementById('start-screen'),
+  over: document.getElementById('game-over'),
+  final: document.getElementById('final-score')
+};
+
+// Game state
+let game = {
+  running: false,
+  score: 0,
+  altitude: 3000,
+  speed: 180,
+  fuel: 100,
+  mouseX: canvas.width / 2,
+  mouseY: canvas.height / 2,
+  plane: { x: canvas.width / 2, y: canvas.height / 2, rot: 0 },
+  clouds: [],
+  storms: [],
+  fuels: [],
+  particles: [],
+  stars: []
+};
+
+// Load plane sprite (fallback to emoji if fails)
+const planeImg = new Image();
+planeImg.src = 'https://na-assets.pinit.io/8GwrpeSH4TpAGEJsmoF35J8DY6RNCdyjCBZsEnTySEKd/c746a7a7-88cc-4677-b919-877329e2dd0d/437';
+planeImg.onerror = () => planeImg.src = ''; // fallback
+
+// Generate stars
+for (let i = 0; i < 200; i++) {
+  game.stars.push({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    size: Math.random() * 2,
+    speed: 0.5 + Math.random()
+  });
 }
-for (let i = 0; i < 20; i++) makeCloud();
 
-// --- Mouse control ---
-document.addEventListener("mousemove", e => {
-  targetX = e.clientX;
-  targetY = e.clientY;
+// Cloud generation
+function spawnCloud() {
+  game.clouds.push({
+    x: canvas.width + 200,
+    y: Math.random() * (canvas.height - 200) + 100,
+    size: 80 + Math.random() * 120,
+    speed: 0.5 + Math.random() * 1.5,
+    puff: Math.random() > 0.5
+  });
+}
+
+// Storm (danger!)
+function spawnStorm() {
+  if (Math.random() < 0.3) {
+    game.storms.push({
+      x: canvas.width + 300,
+      y: Math.random() * (canvas.height - 400) + 200,
+      size: 150 + Math.random() * 100,
+      speed: 2 + Math.random() * 3,
+      lightning: 0
+    });
+  }
+}
+
+// Fuel canister
+function spawnFuel() {
+  if (Math.random() < 0.4) {
+    game.fuels.push({
+      x: canvas.width + 100,
+      y: Math.random() * (canvas.height - 100) + 50,
+      size: 40,
+      speed: 3,
+      rot: 0
+    });
+  }
+}
+
+// Particles
+function createParticles(x, y, color = '#ff0', count = 8) {
+  for (let i = 0; i < count; i++) {
+    game.particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 8,
+      vy: (Math.random() - 0.5) * 8,
+      life: 30,
+      color,
+      size: 2 + Math.random() * 3
+    });
+  }
+}
+
+// Mouse control
+canvas.addEventListener('mousemove', e => {
+  game.mouseX = e.clientX;
+  game.mouseY = e.clientY;
 });
 
-// --- Animation loop ---
-function loop() {
-  // Smooth plane motion
-  planeX += (targetX - planeX) * 0.1;
-  planeY += (targetY - planeY) * 0.1;
-  plane.style.transform = `translate(${planeX - 60}px, ${planeY - 40}px)`;
+// Start game
+document.getElementById('start-btn').onclick = () => {
+  screens.start.style.opacity = '0';
+  setTimeout(() => {
+    screens.start.style.display = 'none';
+    startGame();
+  }, 500);
+};
 
-  // Clouds react subtly to plane position
-  clouds.forEach((c, i) => {
-    const dx = (c.offsetLeft - planeX) / window.innerWidth;
-    const dy = (c.offsetTop - planeY) / window.innerHeight;
-    c.style.transform = `translate(${dx * 40}px, ${dy * 40}px)`;
+document.getElementById('restart-btn').onclick = () => {
+  screens.over.style.display = 'none';
+  resetGame();
+  startGame();
+};
+
+function resetGame() {
+  game = {
+    running: true,
+    score: 0,
+    altitude: 3000,
+    speed: 180,
+    fuel: 100,
+    mouseX: canvas.width / 2,
+    mouseY: canvas.height / 2,
+    plane: { x: canvas.width / 2, y: canvas.height / 2, rot: 0 },
+    clouds: [],
+    storms: [],
+    fuels: [],
+    particles: [],
+    stars: game.stars
+  };
+  hud.points.textContent = '0';
+  hud.fuel.textContent = '100';
+}
+
+function startGame() {
+  game.running = true;
+  gameLoop();
+  setInterval(spawnCloud, 800);
+  setInterval(spawnStorm, 4000);
+  setInterval(spawnFuel, 3000);
+}
+
+// Main game loop
+function gameLoop() {
+  if (!game.running) return;
+
+  ctx.fillStyle = '#001122';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Stars (parallax)
+  game.stars.forEach(s => {
+    s.x -= s.speed * (game.speed / 200);
+    if (s.x < 0) s.x = canvas.width;
+    ctx.fillStyle = '#fff';
+    ctx.globalAlpha = s.size > 1 ? 1 : 0.6;
+    ctx.fillRect(s.x, s.y, s.size, s.size);
+  });
+  ctx.globalAlpha = 1;
+
+  // Update plane
+  const dx = game.mouseX - game.plane.x;
+  const dy = game.mouseY - game.plane.y;
+  game.plane.x += dx * 0.08;
+  game.plane.y += dy * 0.08;
+  game.plane.rot = Math.atan2(dy, dx) * 0.8;
+
+  // Altitude & speed based on position
+  const targetAlt = Math.max(1000, Math.min(8000, (canvas.height - game.plane.y) * 15));
+  game.altitude += (targetAlt - game.altitude) * 0.02;
+  game.speed = 150 + (8000 - game.altitude) * 0.03;
+  game.fuel = Math.max(0, game.fuel - 0.015 - (game.speed > 300 ? 0.03 : 0));
+
+  // HUD
+  hud.alt.textContent = Math.round(game.altitude);
+  hud.spd.textContent = Math.round(game.speed);
+  hud.fuel.textContent = Math.round(game.fuel);
+  hud.points.textContent = game.score;
+
+  // Draw plane
+  ctx.save();
+  ctx.translate(game.plane.x, game.plane.y);
+  ctx.rotate(game.plane.rot);
+  if (planeImg.complete && planeImg.naturalHeight !== 0) {
+    ctx.drawImage(planeImg, -60, -40, 120, 80);
+  } else {
+    ctx.font = '60px Arial';
+    ctx.fillStyle = '#fff';
+    ctx.fillText('✈️', -30, 10);
+  }
+  ctx.restore();
+
+  // Clouds
+  game.clouds = game.clouds.filter(c => {
+    c.x -= c.speed * (game.speed / 200);
+    if (c.x < -300) return false;
+
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(c.x, c.y, c.size, c.size * 0.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    if (c.puff) {
+      ctx.beginPath();
+      ctx.ellipse(c.x - c.size * 0.4, c.y, c.size * 0.7, c.size * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(c.x + c.size * 0.4, c.y, c.size * 0.7, c.size * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Collect score
+    if (Math.hypot(c.x - game.plane.x, c.y - game.plane.y) < c.size) {
+      game.score += 10;
+      createParticles(c.x, c.y, '#0ff');
+      return false;
+    }
+    return true;
   });
 
-  // Fake flight progress
-  hud.textContent = "Altitude: " + (Math.random() * 5000 + 1000).toFixed(0) + " ft";
+  // Storms
+  game.storms.forEach((s, i) => {
+    s.x -= s.speed * (game.speed / 200);
+    s.lightning = Math.max(0, s.lightning - 1);
 
-  requestAnimationFrame(loop);
+    if (Math.random() < 0.02) s.lightning = 15;
+
+    // Draw storm
+    ctx.globalAlpha = 0.6;
+    ctx.fillStyle = '#444';
+    ctx.beginPath();
+    ctx.ellipse(s.x, s.y, s.size, s.size * 0.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (s.lightning > 0) {
+      ctx.globalAlpha = s.lightning / 15;
+      ctx.strokeStyle = '#ff0';
+      ctx.lineWidth = 3;
+      for (let j = 0; j < 3; j++) {
+        ctx.beginPath();
+        ctx.moveTo(s.x + (Math.random() - 0.5) * s.size, s.y);
+        ctx.lineTo(s.x + (Math.random() - 0.5) * s.size * 1.5, s.y + (Math.random() - 0.5) * s.size);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // Collision = damage
+    if (Math.hypot(s.x - game.plane.x, s.y - game.plane.y) < s.size * 0.8) {
+      game.fuel -= 20;
+      createParticles(game.plane.x, game.plane.y, '#f00', 15);
+      game.storms.splice(i, 1);
+    }
+  });
+
+  // Fuel canisters
+  game.fuels = game.fuels.filter(f => {
+    f.x -= f.speed * (game.speed / 200);
+    f.rot += 0.1;
+    if (f.x < -100) return false;
+
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.rotate(f.rot);
+    ctx.fillStyle = '#ff0';
+    ctx.fillRect(-f.size/2, -f.size/2, f.size, f.size);
+    ctx.fillStyle = '#0c0';
+    ctx.fillRect(-f.size/3, -f.size/3, f.size/1.5, f.size/1.5);
+    ctx.restore();
+
+    if (Math.hypot(f.x - game.plane.x, f.y - game.plane.y) < 50) {
+      game.fuel = Math.min(100, game.fuel + 25);
+      game.score += 50;
+      createParticles(f.x, f.y, '#0f0', 12);
+      return false;
+    }
+    return true;
+  });
+
+  // Particles
+  game.particles = game.particles.filter(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.2;
+    p.life--;
+    ctx.globalAlpha = p.life / 30;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x, p.y, p.size, p.size);
+    return p.life > 0;
+  });
+  ctx.globalAlpha = 1;
+
+  // Game over?
+  if (game.fuel <= 0 || game.altitude < 500) {
+    game.running = false;
+    screens.final.textContent = game.score;
+    setTimeout(() => {
+      screens.over.style.display = 'flex';
+    }, 1000);
+  }
+
+  requestAnimationFrame(gameLoop);
 }
-loop();
 
-window.addEventListener("resize", () => {
-  planeX = window.innerWidth / 2;
-  planeY = window.innerHeight / 2;
+// Resize
+window.addEventListener('resize', () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 });
+
+// Init
+for (let i = 0; i < 15; i++) spawnCloud();
+
 </script>
 </body>
 </html>
