@@ -5,449 +5,100 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Flying Minigame — BrandonManus.ETH</title>
   <style>
-    html,body { height:100%; margin:0; background:#000; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
-    #container { width:100%; height:100vh; overflow:hidden; position:relative; display:block; }
-    canvas { display:block; width:100%; height:100%; }
-
-    /* HUD */
-    .hud {
-      position: absolute;
-      left: 12px;
-      top: 12px;
-      color: #dfefff;
-      text-shadow: 0 1px 4px rgba(0,0,0,0.7);
-      background: linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.15));
-      padding: 10px 12px;
-      border-radius: 10px;
-      backdrop-filter: blur(4px);
-      min-width: 140px;
-      font-size: 13px;
-    }
-    .hud .line { margin-bottom:6px; }
-    .hud .label { opacity:0.7; font-size:11px; }
-    .hud .value { font-weight:700; font-size:16px; }
-
-    /* Start overlay (fake clouds) */
-    #startOverlay {
-      position:absolute;
-      inset:0;
-      background: radial-gradient(ellipse at 50% 30%, rgba(255,255,255,0.05), rgba(0,0,0,0.25));
-      z-index: 30;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      pointer-events: none;
-      transition:opacity 1s ease, transform 0.9s ease;
-    }
-    #startOverlay.hidden { opacity:0; transform:translateY(-8px); pointer-events:none; }
-    .clouds-wrap {
-      width:90%;
-      max-width:1100px;
-      height:220px;
-      border-radius:12px;
-      overflow:hidden;
-      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
-      box-shadow: 0 10px 40px rgba(0,0,0,0.6);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      flex-direction:column;
-      gap:10px;
-      padding:18px;
-    }
-    .cloud-bands {
-      position:relative;
-      width:100%;
-      height:120px;
-      overflow:hidden;
-    }
-    .cloud-bands img { position:absolute; top:0; left:0; width:200%; height:100%; object-fit:cover; opacity:0.9; transform: translateX(0); animation:clouds-anim 11s linear infinite; filter: blur(6px) saturate(1.1); }
-    .cloud-bands img.layer2 { animation-duration:18s; opacity:0.6; filter: blur(10px) saturate(0.9) contrast(0.95); transform: translateX(0); }
-    @keyframes clouds-anim {
-      0% { transform:translateX(0); }
-      100% { transform:translateX(-50%); }
-    }
-    .start-text { color:#eaf6ff; font-weight:700; letter-spacing:0.7px; font-size:18px; }
-
-    /* Controls hint */
-    .hint {
-      position:absolute;
-      right:12px;
-      bottom:12px;
-      z-index:20;
-      color:#dfefff;
-      background:rgba(0,0,0,0.22);
-      padding:10px 12px;
-      border-radius:10px;
-      font-size:13px;
-      text-align:right;
-      backdrop-filter: blur(3px);
-    }
-
-    /* Minimal on-screen touch controls */
-    .touch-controls {
-      position:absolute;
-      left:12px;
-      bottom:12px;
-      z-index:20;
-      display:flex;
-      gap:8px;
-    }
-    .touch-button {
-      width:58px;
-      height:58px;
-      border-radius:12px;
-      background:rgba(255,255,255,0.06);
-      color:#eaf6ff;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-weight:700;
-      user-select:none;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.5);
-      backdrop-filter: blur(3px);
-      touch-action: none;
-    }
-
-    /* small UI polish */
-    .powered {
-      position:absolute;
-      left:12px;
-      bottom:80px;
-      color:rgba(223,239,255,0.6);
-      font-size:12px;
-      z-index:20;
-    }
-
-    /* pointer lock hint */
-    #pointerHint {
-      position:absolute;
-      left:50%;
-      transform:translateX(-50%);
-      top:calc(50% + 140px);
-      background:rgba(0,0,0,0.4);
-      padding:8px 12px;
-      border-radius:8px;
-      color:#dfefff;
-      font-size:13px;
-      z-index:25;
-      user-select:none;
-    }
-
-    @media (max-width:720px) {
-      .hud { left:8px; top:8px; font-size:12px; padding:8px; min-width:120px; }
-      .clouds-wrap { height:160px; }
-      #pointerHint { top:calc(50% + 100px); }
-    }
+    html,body {margin:0;height:100%;background:#000;overflow:hidden;}
+    canvas {display:block;width:100%;height:100%;}
+    #hud {position:fixed;top:10px;left:10px;color:#fff;font-family:monospace;background:rgba(0,0,0,0.4);padding:8px 12px;border-radius:6px;}
+    #overlay {position:fixed;inset:0;background:radial-gradient(circle,#fff1,#000 80%);display:flex;align-items:center;justify-content:center;color:#fff;font-family:monospace;font-size:1.2em;transition:opacity 1s;}
+    #overlay.hidden {opacity:0;pointer-events:none;}
   </style>
 </head>
 <body>
-  <div id="container"></div>
-
-  <div class="hud" id="hud">
-    <div class="line"><div class="label">SPEED</div><div class="value" id="hudSpeed">0 m/s</div></div>
-    <div class="line"><div class="label">ALTITUDE</div><div class="value" id="hudAlt">120 km</div></div>
-    <div class="line"><div class="label">MODE</div><div class="value" id="hudMode">FLIGHT</div></div>
-  </div>
-
-  <div id="startOverlay">
-    <div class="clouds-wrap" role="dialog" aria-label="Flight starting">
-      <div class="cloud-bands">
-        <!-- simple animated cloud bands (data URLs avoided to keep file small; we load external images) -->
-        <img src="https://images.unsplash.com/photo-1501630834273-4b5604d2ee31?q=80&w=1600&auto=format&fit=crop&ixlib=rb-4.0.3&s=8db7b8fba27a9b8e7b8a27c7f1c8bb79" alt="" class="layer1">
-        <img src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?q=80&w=1600&auto=format&fit=crop&ixlib=rb-4.0.3&s=5f6d7e372d5b2e0ab9d6bfc1f6b9db9e" alt="" class="layer2">
-      </div>
-      <div class="start-text">ENGAGING FLIGHT — Clouds clearing...</div>
-    </div>
-  </div>
-
-  <div id="pointerHint">Click to engage controls • W/S accelerate • A/D turn</div>
-
-  <div class="hint">No takeoff or landing — continuous flight</div>
-
-  <div class="powered">GitHub Pages friendly • One file</div>
-
-  <div class="touch-controls" id="touchControls" style="display:none;">
-    <div class="touch-button" id="btnAccel">W</div>
-    <div class="touch-button" id="btnBrake">S</div>
-  </div>
-
-  <!-- scripts as module -->
+  <div id="hud">Speed: <span id="spd">0</span> | Altitude: 120km</div>
+  <div id="overlay">Flying through clouds...</div>
   <script type="module">
-    import * as THREE from 'https://unpkg.com/three@0.153.0/build/three.module.js';
-    import { PointerLockControls } from 'https://unpkg.com/three@0.153.0/examples/jsm/controls/PointerLockControls.js';
-    import { RGBELoader } from 'https://unpkg.com/three@0.153.0/examples/jsm/loaders/RGBELoader.js';
-    // common textures via cdn; if offline these will 404 but code degrades gracefully
-    const EARTH_IMG = 'https://threejs.org/examples/textures/land_ocean_ice_cloud_2048.jpg';
-    const EARTH_NORM = 'https://threejs.org/examples/textures/earth_normalmap_2048.jpg';
-    const EARTH_SPEC = 'https://threejs.org/examples/textures/earthspec1k.jpg';
-    const CLOUDS_IMG = 'https://threejs.org/examples/textures/earthcloudmap.jpg';
-    const STARFIELD_IMG = 'https://threejs.org/examples/textures/galaxy_starfield.png';
+    import * as THREE from "https://unpkg.com/three@0.153.0/build/three.module.js";
+    import { PointerLockControls } from "https://unpkg.com/three@0.153.0/examples/jsm/controls/PointerLockControls.js";
 
-    // basic setup
-    const container = document.getElementById('container');
+    // Scene, camera, renderer
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 2000);
-    camera.position.set(0, 25, 180); // camera sits outward from globe center (altitude simulated)
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 2000);
+    camera.position.z = 180;
+    const renderer = new THREE.WebGLRenderer({antialias:true});
     renderer.setSize(innerWidth, innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    container.appendChild(renderer.domElement);
+    document.body.appendChild(renderer.domElement);
 
-    // lights
-    const ambient = new THREE.AmbientLight(0xffffff, 0.55);
-    scene.add(ambient);
-    const sun = new THREE.DirectionalLight(0xffffff, 0.9);
-    sun.position.set(100, 50, 100);
-    scene.add(sun);
-
-    // starfield
+    // Earth
     const loader = new THREE.TextureLoader();
-    loader.load(STARFIELD_IMG, tex => {
-      const starsGeo = new THREE.SphereGeometry(900, 32, 32);
-      const starsMat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, transparent: true, opacity: 0.9 });
-      const stars = new THREE.Mesh(starsGeo, starsMat);
-      scene.add(stars);
-    }, undefined, () => {
-      // fallback: dark fog/particles
-      scene.background = new THREE.Color(0x000011);
-    });
+    const earthTex = loader.load("https://threejs.org/examples/textures/land_ocean_ice_cloud_2048.jpg");
+    const earth = new THREE.Mesh(
+      new THREE.SphereGeometry(60,64,64),
+      new THREE.MeshPhongMaterial({map:earthTex,shininess:8})
+    );
+    scene.add(earth);
 
-    // globe
-    const earthGroup = new THREE.Group();
-    scene.add(earthGroup);
+    // Clouds
+    const cloudsTex = loader.load("https://threejs.org/examples/textures/earthcloudmap.jpg");
+    const clouds = new THREE.Mesh(
+      new THREE.SphereGeometry(61,64,64),
+      new THREE.MeshPhongMaterial({map:cloudsTex,transparent:true,opacity:0.5,depthWrite:false})
+    );
+    scene.add(clouds);
 
-    const sphereGeom = new THREE.SphereGeometry(60, 64, 64);
-
-    // load earth textures
-    const texLoader = new THREE.TextureLoader();
-    const earthMat = new THREE.MeshPhongMaterial({
-      map: null,
-      normalMap: null,
-      specularMap: null,
-      shininess: 8,
-    });
-
-    texLoader.load(EARTH_IMG, (map) => {
-      earthMat.map = map;
-      earthMat.needsUpdate = true;
-    }, undefined, () => {});
-
-    texLoader.load(EARTH_NORM, (map) => {
-      earthMat.normalMap = map;
-      earthMat.needsUpdate = true;
-    }, undefined, () => {});
-
-    texLoader.load(EARTH_SPEC, (map) => {
-      earthMat.specularMap = map;
-      earthMat.needsUpdate = true;
-    }, undefined, () => {});
-
-    const earthMesh = new THREE.Mesh(sphereGeom, earthMat);
-    earthGroup.add(earthMesh);
-
-    // clouds layer (semi-transparent slightly larger sphere)
-    const cloudMat = new THREE.MeshPhongMaterial({
-      map: null,
-      transparent: true,
-      opacity: 0.6,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-      shininess: 0
-    });
-    texLoader.load(CLOUDS_IMG, (map) => { cloudMat.map = map; cloudMat.needsUpdate = true; }, undefined, () => {});
-    const cloudMesh = new THREE.Mesh(new THREE.SphereGeometry(61, 64, 64), cloudMat);
-    earthGroup.add(cloudMesh);
-
-    // subtle atmosphere glow
-    const atmosphereMat = new THREE.MeshPhongMaterial({
-      color: 0x89cff0,
-      transparent: true,
-      opacity: 0.06,
-      side: THREE.BackSide
-    });
-    const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(64.2, 64, 64), atmosphereMat);
-    earthGroup.add(atmosphere);
-
-    // variables for flight
-    let speed = 60; // meters per second equivalent - this is game units
-    let minSpeed = 10, maxSpeed = 1000;
-    let targetSpeed = speed;
-    let bank = 0; // roll angle for visuals
-    const hudSpeed = document.getElementById('hudSpeed');
-    const hudAlt = document.getElementById('hudAlt');
-
-    // We will simulate forward movement by rotating the earthGroup about its Y axis.
-    // The forward direction maps to east-west rotation. We also rotate cloud layer slightly faster.
+    // Lighting
+    scene.add(new THREE.AmbientLight(0xffffff,0.5));
+    const sun = new THREE.DirectionalLight(0xffffff,1);
+    sun.position.set(100,50,100);
+    scene.add(sun);
 
     // Controls
     const controls = new PointerLockControls(camera, renderer.domElement);
-    let pointerLocked = false;
-    document.addEventListener('click', (e) => {
-      // clicking the canvas engages pointer lock
-      if (!pointerLocked) {
-        controls.lock();
-      }
-    });
+    let locked = false;
+    document.addEventListener("click",()=>{if(!locked){controls.lock();}});
+    controls.addEventListener("lock",()=>locked=true);
+    controls.addEventListener("unlock",()=>locked=false);
 
-    controls.addEventListener('lock', () => {
-      pointerLocked = true;
-      document.getElementById('pointerHint').style.display = 'none';
-    });
-    controls.addEventListener('unlock', () => {
-      pointerLocked = false;
-      document.getElementById('pointerHint').style.display = 'block';
-    });
+    // Keyboard
+    const keys={};
+    onkeydown=e=>keys[e.code]=true;
+    onkeyup=e=>keys[e.code]=false;
 
-    // keyboard
-    const keyState = {};
-    window.addEventListener('keydown', (e) => { keyState[e.code] = true; });
-    window.addEventListener('keyup', (e) => { keyState[e.code] = false; });
+    // Flight vars
+    let speed=60,target=60;
+    const spdEl=document.getElementById("spd");
 
-    // touch buttons for mobile
-    const touchControls = document.getElementById('touchControls');
-    const btnAccel = document.getElementById('btnAccel');
-    const btnBrake = document.getElementById('btnBrake');
-
-    function showTouchIfNeeded() {
-      if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || innerWidth < 720) {
-        touchControls.style.display = 'flex';
-      } else {
-        touchControls.style.display = 'none';
-      }
-    }
-    showTouchIfNeeded();
-
-    // handle touch start/stop
-    function touchDown(e, key) { e.preventDefault(); keyState[key] = true; }
-    function touchUp(e, key) { e.preventDefault(); keyState[key] = false; }
-    btnAccel.addEventListener('touchstart', (e)=>touchDown(e,'KeyW')); btnAccel.addEventListener('touchend', (e)=>touchUp(e,'KeyW'));
-    btnBrake.addEventListener('touchstart', (e)=>touchDown(e,'KeyS')); btnBrake.addEventListener('touchend', (e)=>touchUp(e,'KeyS'));
-
-    // Resize handling
-    window.addEventListener('resize', () => {
-      camera.aspect = innerWidth / innerHeight;
+    // Resize
+    onresize=()=>{
+      camera.aspect=innerWidth/innerHeight;
       camera.updateProjectionMatrix();
-      renderer.setSize(innerWidth, innerHeight);
-      showTouchIfNeeded();
-    });
+      renderer.setSize(innerWidth,innerHeight);
+    };
 
-    // initial fake altitude (we keep it constant)
-    const altitudeKm = 120; // displayed altitude (for flavor)
-    hudAlt.textContent = `${altitudeKm} km`;
+    // Fake startup clouds
+    const overlay=document.getElementById("overlay");
+    setTimeout(()=>overlay.classList.add("hidden"),2500);
 
-    // startup overlay: fake clouds showing flight
-    const startOverlay = document.getElementById('startOverlay');
-    setTimeout(() => {
-      startOverlay.classList.add('hidden');
-    }, 2600); // fade after ~2.6s for dramatic effect
+    // Animation
+    let last=performance.now();
+    function loop(now){
+      const dt=(now-last)/1000;last=now;
+      if(keys["KeyW"])target+=200*dt;
+      if(keys["KeyS"])target-=240*dt;
+      target=Math.max(10,Math.min(1000,target));
+      speed+= (target-speed)*3*dt;
 
-    // main loop variables
-    let last = performance.now();
-    function animate(now) {
-      const dt = Math.min((now - last) / 1000, 0.06); // cap dt for stability
-      last = now;
+      // Turn left/right
+      if(keys["KeyA"]) earth.rotation.y += 0.8*dt;
+      if(keys["KeyD"]) earth.rotation.y -= 0.8*dt;
 
-      // input: W accelerates, S decelerates, A/D roll/turn
-      if (keyState['KeyW']) { targetSpeed += 200 * dt; }
-      if (keyState['KeyS']) { targetSpeed -= 240 * dt; }
-      if (keyState['KeyA']) { bank = THREE.MathUtils.lerp(bank, 0.8, 3*dt); // visual bank left
-        earthGroup.rotation.z = bank * 0.05; // slight tilt of world to simulate bank
-        // yaw turn: rotate Y slightly in opposite direction
-        earthGroup.rotation.y += 0.6 * dt;
-      } else if (keyState['KeyD']) { bank = THREE.MathUtils.lerp(bank, -0.8, 3*dt);
-        earthGroup.rotation.z = bank * 0.05;
-        earthGroup.rotation.y -= 0.6 * dt;
-      } else {
-        bank = THREE.MathUtils.lerp(bank, 0, 2*dt);
-        earthGroup.rotation.z = THREE.MathUtils.lerp(earthGroup.rotation.z, 0, 2*dt);
-      }
+      // Simulate motion
+      earth.rotation.y += (speed/800)*dt;
+      clouds.rotation.y += (speed/700)*dt;
 
-      // clamp speed smoothly
-      targetSpeed = THREE.MathUtils.clamp(targetSpeed, minSpeed, maxSpeed);
-      // slowly approach target speed to avoid abrupt changes
-      speed = THREE.MathUtils.lerp(speed, targetSpeed, 3 * dt);
-
-      // rotate earth to simulate forward movement
-      // rotation speed proportional to 'speed' and camera pitch (we'll get camera direction)
-      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
-      // amount to rotate globe per second
-      const rotationRate = (speed / 1000) * 0.5; // tune factor for pleasant feel
-      // rotate around camera's right axis to simulate pitch effect
-      // simpler approach: rotate about Y to move east/west
-      earthGroup.rotation.y += rotationRate * dt;
-
-      // clouds spin slightly faster for parallax
-      cloudMesh.rotation.y += rotationRate * 1.15 * dt;
-
-      // subtle day-night effect: slightly modulate ambient via angle to 'sun'
-      const sunDir = new THREE.Vector3().copy(sun.position).normalize();
-      const toCamera = new THREE.Vector3().subVectors(camera.position, new THREE.Vector3(0,0,0)).normalize();
-      const lightFactor = Math.max(0.2, sunDir.dot(toCamera) * 0.8 + 0.2);
-      ambient.intensity = 0.45 + (lightFactor * 0.45);
-
-      // HUD updates
-      hudSpeed.textContent = `${Math.round(speed)} m/s`;
-
-      renderer.render(scene, camera);
-      requestAnimationFrame(animate);
+      spdEl.textContent=Math.round(speed);
+      renderer.render(scene,camera);
+      requestAnimationFrame(loop);
     }
-
-    // start loop
-    requestAnimationFrame(animate);
-
-    // small user-friendly camera "float" to keep it dynamic
-    let floatStart = performance.now();
-    function subtleFloat() {
-      const t = (performance.now() - floatStart) / 1000;
-      // small oscillation of camera on Y axis to simulate bob
-      const bob = Math.sin(t * 0.6) * 0.4 + Math.cos(t * 0.9) * 0.2;
-      camera.position.y = 25 + bob;
-      requestAnimationFrame(subtleFloat);
-    }
-    subtleFloat();
-
-    // friendly fallback if textures fail, keep game playable
-    setTimeout(() => {
-      if (!earthMat.map) {
-        // procedural fallback: blue-green material
-        earthMat.color = new THREE.Color(0x2b87c4);
-        earthMat.opacity = 1;
-        earthMat.needsUpdate = true;
-      }
-      if (!cloudMat.map) {
-        cloudMat.color = new THREE.Color(0xffffff);
-        cloudMat.opacity = 0.18;
-        cloudMat.needsUpdate = true;
-      }
-    }, 2200);
-
-    // small instructions for keyboard and pointer lock; hidden after starting
-    setTimeout(() => {
-      const hint = document.getElementById('pointerHint');
-      if (!pointerLocked) hint.style.display = 'block';
-    }, 800);
-
-    // optional: prevent accidental touch scroll while touching onscreen buttons
-    let lastTouchY = null;
-    window.addEventListener('touchstart', (e)=>{ lastTouchY = e.touches[0].clientY; }, { passive:false });
-    window.addEventListener('touchmove', (e)=> {
-      // if touching controls, prevent page scroll
-      const t = e.touches[0];
-      if (t.clientY && lastTouchY !== null) e.preventDefault();
-    }, { passive:false });
-
-    // accessibility: if user wants to disengage pointer
-    window.addEventListener('keydown', (e) => {
-      if (e.code === 'Escape') controls.unlock();
-    });
-
-    // small debug: show/hide pointer hint on mobile
-    if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-      document.getElementById('pointerHint').textContent = 'Tap to look around • Use on-screen W/S to throttle';
-    }
-
-    // end of module
+    loop();
   </script>
 </body>
 </html>
