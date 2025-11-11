@@ -132,7 +132,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   function bootSequence() {
-    const messages = [`User ${username} recognized...`, "Decrypting neural matrix...", "Stabilizing data stream...", "Neural link established."];
+    const messages = [`User ${username} recognized...`, "Decrypting neural matrix...", "Stabilizing data stream...", "Neural link established.", "Type help for more info"];
     let i=0;
     function typeNext() {
       if(i>=messages.length) {
@@ -142,7 +142,7 @@ document.addEventListener("DOMContentLoaded", () => {
         startMatrix();
         startParticles();
         fetchCrypto();
-        setInterval(fetchCrypto,30000);
+        setInterval(fetchCrypto,5000);
         return;
       }
       let j=0; displayText.textContent="";
