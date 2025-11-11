@@ -1,12 +1,40 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet" />
-<title>Cybernetic Node v4.0</title>
-<style>
-  body, html { margin:0; padding:0; height:100%; overflow:hidden; background:#000; color:#0f0; font-family:'Orbitron', monospace; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet" />
+  <title>Cybernetic Node v4.0</title>
+
+  <!-- Mobile redirect – must be AFTER viewport -->
+  <script>
+    if (/Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+      window.location.href = "mobile.html";
+    }
+  </script>
+
+  <style>
+    body, html { 
+      margin:0; 
+      padding:0; 
+      height:100%; 
+      overflow:hidden; 
+      background:#000; 
+      color:#0f0; 
+      font-family:'Orbitron', monospace; 
+    }
+    /* Your full desktop styles go here – keep everything you already have */
+  </style>
+</head>
+<body>
+  <!-- Your existing desktop content (canvas, animations, etc.) -->
+  <!-- Example placeholder – replace with your real content -->
+  <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;">
+    <h1>CYBERNETIC NODE v4.0</h1>
+    <p>Neural Interface Active</p>
+  </div>
+</body>
+</html>
 
   /* LOGIN */
   #loginOverlay {
