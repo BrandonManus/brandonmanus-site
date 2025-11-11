@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet" />
-<title>Cybernetic Node v3.3</title>
+<title>Cybernetic Node v4.0</title>
 <style>
   body, html {
     margin:0; padding:0; height:100%; overflow:hidden;
@@ -59,6 +59,16 @@
     z-index:3; text-align:center;
   }
 
+  /* TERMINAL */
+  #terminal {
+    position:absolute; bottom:10%; left:50%; transform:translateX(-50%);
+    background:rgba(0,0,0,0.85); border:1px solid #0f0; padding:10px;
+    width:90%; max-width:600px; color:#0f0; font-family:monospace; font-size:14px;
+    display:none; z-index:6;
+  }
+  #terminalOutput { max-height:200px; overflow-y:auto; margin-bottom:5px; }
+  #terminalInput { width:95%; background:#000; color:#0f0; border:none; outline:none; }
+
   /* CRYPTO DASHBOARD */
   .crypto-dashboard-wrapper {
     position:absolute; bottom:4%; left:50%; transform:translateX(-50%);
@@ -74,9 +84,7 @@
     padding:16px; width:120px; text-align:center;
     color:#00ffea; box-shadow:0 0 20px #00ffea; transition:.3s;
   }
-  .crypto-card:hover {
-    box-shadow:0 0 30px #ff00ff; transform:scale(1.05);
-  }
+  .crypto-card:hover { box-shadow:0 0 30px #ff00ff; transform:scale(1.05); }
   .crypto-card .price { font-size:1.5em; font-weight:bold; margin:0; }
 </style>
 </head>
@@ -100,6 +108,11 @@
 
   <div id="displayText">Initializing Neural Link...</div>
 
+  <div id="terminal">
+    <div id="terminalOutput"></div>
+    <div><span>&gt; </span><input id="terminalInput" type="text" autocomplete="off"/></div>
+  </div>
+
   <div class="crypto-dashboard-wrapper">
     <div id="crypto-dashboard" class="crypto-dashboard-container">
       <div class="crypto-card" id="btc-card"><h2>BTC</h2><p class="price">$0</p></div>
@@ -115,10 +128,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const main = document.getElementById('mainContent');
   const displayText = document.getElementById('displayText');
   const avatar = document.getElementById('avatarContainer');
+  const terminal = document.getElementById('terminal');
+  const terminalInput = document.getElementById('terminalInput');
+  const terminalOutput = document.getElementById('terminalOutput');
   const matrixCanvas = document.getElementById('matrixCanvas');
   const mctx = matrixCanvas.getContext('2d');
   const particleCanvas = document.getElementById('particleCanvas');
   const pctx = particleCanvas.getContext('2d');
+  let username = "";
 
   // Resize canvases
   function resize() {
@@ -128,19 +145,19 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener('resize', resize);
   resize();
 
-  // LOGIN BUTTON
+  // LOGIN
   document.getElementById('loginButton').addEventListener('click', () => {
-    const username = document.getElementById('usernameInput').value || "Echo";
+    username = document.getElementById('usernameInput').value || "Echo";
     overlay.classList.add('hidden');
     setTimeout(() => {
       overlay.style.display = 'none';
       main.style.display = 'block';
-      bootSequence(username);
+      bootSequence();
     }, 1000);
   });
 
   // BOOT SEQUENCE
-  function bootSequence(username) {
+  function bootSequence() {
     const messages = [
       `User ${username} recognized...`,
       "Decrypting neural matrix...",
@@ -151,10 +168,12 @@ document.addEventListener("DOMContentLoaded", () => {
     function typeNext() {
       if (i >= messages.length) {
         avatar.style.opacity = 1;
+        terminal.style.display = 'block';
+        terminalInput.focus();
         startMatrix();
         startParticles();
-        updatePrices();
-        setInterval(updatePrices, 30000);
+        fetchCrypto();
+        setInterval(fetchCrypto, 30000);
         return;
       }
       let j = 0;
@@ -173,7 +192,7 @@ document.addEventListener("DOMContentLoaded", () => {
     typeNext();
   }
 
-  // MATRIX RAIN
+  // MATRIX
   const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノ';
   const fontSize = 14;
   let columns, drops;
@@ -189,8 +208,8 @@ document.addEventListener("DOMContentLoaded", () => {
     mctx.font = fontSize + "px monospace";
     drops.forEach((y, i) => {
       const text = chars[Math.floor(Math.random() * chars.length)];
-      mctx.fillText(text, i * fontSize, y * fontSize);
-      if (y * fontSize > matrixCanvas.height && Math.random() > 0.975) drops[i] = 0;
+      mctx.fillText(text, i*fontSize, y*fontSize);
+      if(y*fontSize > matrixCanvas.height && Math.random()>0.975) drops[i]=0;
       drops[i]++;
     });
   }
@@ -203,47 +222,78 @@ document.addEventListener("DOMContentLoaded", () => {
     constructor() {
       this.x = Math.random() * particleCanvas.width;
       this.y = Math.random() * particleCanvas.height;
-      this.size = Math.random() * 2 + 1;
-      this.speedX = Math.random() - 0.5;
-      this.speedY = Math.random() - 0.5;
+      this.size = Math.random()*2+1;
+      this.speedX = Math.random()-0.5;
+      this.speedY = Math.random()-0.5;
     }
     update() {
-      this.x += this.speedX + (mouse.x - this.x) * 0.001;
-      this.y += this.speedY + (mouse.y - this.y) * 0.001;
-      if (this.x < 0 || this.x > particleCanvas.width) this.speedX *= -1;
-      if (this.y < 0 || this.y > particleCanvas.height) this.speedY *= -1;
+      this.x += this.speedX + (mouse.x-this.x)*0.001;
+      this.y += this.speedY + (mouse.y-this.y)*0.001;
+      if(this.x<0||this.x>particleCanvas.width) this.speedX*=-1;
+      if(this.y<0||this.y>particleCanvas.height) this.speedY*=-1;
     }
     draw() {
-      pctx.fillStyle = "rgba(0,255,200,0.2)";
+      pctx.fillStyle="rgba(0,255,200,0.2)";
       pctx.beginPath();
-      pctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+      pctx.arc(this.x,this.y,this.size,0,Math.PI*2);
       pctx.fill();
     }
   }
-  function startParticles(num = 180) {
-    particles = [];
-    for (let i = 0; i < num; i++) particles.push(new Particle());
+  function startParticles(num=180) {
+    particles=[];
+    for(let i=0;i<num;i++) particles.push(new Particle());
     animate();
   }
   function animate() {
-    pctx.fillStyle = "rgba(0,0,0,0.06)";
+    pctx.fillStyle="rgba(0,0,0,0.06)";
     pctx.fillRect(0,0,particleCanvas.width,particleCanvas.height);
-    particles.forEach(p => { p.update(); p.draw(); });
+    particles.forEach(p=>{p.update();p.draw();});
     requestAnimationFrame(animate);
   }
 
-  // CRYPTO DASHBOARD
-  async function updatePrices() {
+  // CRYPTO
+  async function fetchCrypto() {
     try {
       const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd');
       const data = await res.json();
-      document.querySelector('#btc-card .price').textContent = `$${data.bitcoin.usd.toLocaleString()}`;
-      document.querySelector('#eth-card .price').textContent = `$${data.ethereum.usd.toLocaleString()}`;
-      document.querySelector('#sol-card .price').textContent = `$${data.solana.usd.toLocaleString()}`;
-    } catch {
-      document.querySelectorAll('.crypto-card .price').forEach(p => p.textContent = "$Err");
-    }
+      document.querySelector('#btc-card .price').textContent=`$${data.bitcoin.usd.toLocaleString()}`;
+      document.querySelector('#eth-card .price').textContent=`$${data.ethereum.usd.toLocaleString()}`;
+      document.querySelector('#sol-card .price').textContent=`$${data.solana.usd.toLocaleString()}`;
+    } catch { document.querySelectorAll('.crypto-card .price').forEach(p=>p.textContent="$Err"); }
   }
+
+  // TERMINAL
+  const commands = {
+    help:()=>`Available commands: help | clear | status | scan | echo [msg] | hack | whoami | x | youtube | project89`,
+    clear:()=>{ terminalOutput.innerHTML=''; return ''; },
+    status:()=>`Node: ACTIVE | User: ${username} | Link: SECURE | Uptime: ${Math.floor(performance.now()/1000)}s`,
+    scan:()=>`Scanning neural net... [OK] Avatar Core | [OK] Quantum Relay | [OK] 127.0.0.1`,
+    echo:(args)=> args.join(' '),
+    hack:()=>`ACCESS GRANTED. Reality firewall bypassed.`,
+    whoami:()=>`You are ${username}, Neural Operative. Rank: Elite. Avatar: Cyber Witch.`,
+    x:()=>{ window.open('https://x.com/brandon_manus','_blank'); return 'Opening X...'; },
+    youtube:()=>{ window.open('https://www.youtube.com/@brandonmanus','_blank'); return 'Opening YouTube...'; },
+    project89:()=>{ window.open('https://www.project89.org/','_blank'); return 'Opening Project89...'; }
+  };
+
+  function print(line) {
+    const div = document.createElement('div');
+    div.textContent = line;
+    terminalOutput.appendChild(div);
+    terminalOutput.scrollTop = terminalOutput.scrollHeight;
+  }
+
+  terminalInput.addEventListener('keydown', e=>{
+    if(e.key==='Enter') {
+      const cmdLine = terminalInput.value.trim();
+      print(`> ${cmdLine}`);
+      terminalInput.value='';
+      const [cmd,...args] = cmdLine.split(' ');
+      const fn = commands[cmd.toLowerCase()];
+      if(fn) print(fn(args)||'');
+      else print(`Command not found: ${cmd}`);
+    }
+  });
 });
 </script>
 </body>
