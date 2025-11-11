@@ -4,40 +4,28 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet" />
-<const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';>
 <title>Cybernetic Node v4.0</title>
 <style>
-  body, html {
-    margin:0; padding:0; height:100%; overflow:hidden;
-    background:#000; color:#0f0; font-family:'Orbitron', monospace;
-  }
+  body, html { margin:0; padding:0; height:100%; overflow:hidden; background:#000; color:#0f0; font-family:'Orbitron', monospace; }
 
-  /* LOGIN SCREEN */
+  /* LOGIN */
   #loginOverlay {
     position:fixed; top:0; left:0; width:100%; height:100%;
     background:radial-gradient(circle at center, rgba(0,255,0,0.05), rgba(0,0,0,0.95));
-    display:flex; flex-direction:column; justify-content:center; align-items:center;
-    z-index:1000; transition:opacity 1s ease-in-out;
+    display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:1000; transition:opacity 1s ease-in-out;
   }
   #loginOverlay.hidden { opacity:0; pointer-events:none; }
-  #loginOverlay h1 {
-    color:#00ff88; text-shadow:0 0 15px #00ff88; margin-bottom:15px;
-  }
+  #loginOverlay h1 { color:#00ff88; text-shadow:0 0 15px #00ff88; margin-bottom:15px; }
   #loginOverlay input, #loginOverlay button {
     font-size:18px; padding:10px; margin:5px; border:2px solid #00ff88;
     background:#000; color:#00ff88; transition:all .3s;
   }
-  #loginOverlay input:focus, #loginOverlay button:hover {
-    background:#00ff88; color:#000; box-shadow:0 0 20px #00ff88;
-  }
+  #loginOverlay input:focus, #loginOverlay button:hover { background:#00ff88; color:#000; box-shadow:0 0 20px #00ff88; }
   #loginOverlay button { cursor:pointer; }
 
-  /* MAIN LAYER */
+  /* MAIN */
   #mainContent { display:none; position:relative; height:100%; width:100%; }
-
-  #matrixCanvas, #particleCanvas {
-    position:absolute; top:0; left:0; width:100%; height:100%;
-  }
+  #matrixCanvas, #particleCanvas { position:absolute; top:0; left:0; width:100%; height:100%; }
   #matrixCanvas { z-index:0; opacity:0.12; pointer-events:none; }
   #particleCanvas { z-index:1; pointer-events:none; }
 
@@ -50,17 +38,13 @@
     border:3px solid #00ff88; box-shadow:0 0 30px #00ff88, inset 0 0 15px rgba(0,255,0,0.3);
     transition:all .4s;
   }
-  #avatarContainer:hover #avatarImg {
-    transform:scale(1.05); box-shadow:0 0 40px #00ffaa, 0 0 70px rgba(0,255,200,.5);
-  }
+  #avatarContainer:hover #avatarImg { transform:scale(1.05); box-shadow:0 0 40px #00ffaa, 0 0 70px rgba(0,255,200,.5); }
 
   #displayText {
     position:absolute; top:42%; left:50%; transform:translateX(-50%);
-    color:#00ff88; font-size:1.1em; white-space:pre-line;
-    z-index:3; text-align:center;
+    color:#00ff88; font-size:1.1em; white-space:pre-line; z-index:3; text-align:center;
   }
 
-  /* TERMINAL */
   #terminal {
     position:absolute; bottom:25%; left:50%; transform:translateX(-50%);
     background:rgba(0,0,0,0.85); border:1px solid #0f0; padding:10px;
@@ -70,20 +54,14 @@
   #terminalOutput { max-height:200px; overflow-y:auto; margin-bottom:5px; }
   #terminalInput { width:95%; background:#000; color:#0f0; border:none; outline:none; }
 
-  /* CRYPTO DASHBOARD */
   .crypto-dashboard-wrapper {
     position:absolute; bottom:4%; left:50%; transform:translateX(-50%);
     z-index:5;
   }
-  .crypto-dashboard-container {
-    display:flex; gap:25px; justify-content:center; flex-wrap:wrap;
-    font-family:'Orbitron', sans-serif;
-  }
+  .crypto-dashboard-container { display:flex; gap:25px; justify-content:center; flex-wrap:wrap; font-family:'Orbitron', sans-serif; }
   .crypto-card {
-    background:rgba(0,0,0,0.6);
-    border:2px solid #00ffea; border-radius:12px;
-    padding:16px; width:120px; text-align:center;
-    color:#00ffea; box-shadow:0 0 20px #00ffea; transition:.3s;
+    background:rgba(0,0,0,0.6); border:2px solid #00ffea; border-radius:12px;
+    padding:16px; width:120px; text-align:center; color:#00ffea; box-shadow:0 0 20px #00ffea; transition:.3s;
   }
   .crypto-card:hover { box-shadow:0 0 30px #ff00ff; transform:scale(1.05); }
   .crypto-card .price { font-size:1.5em; font-weight:bold; margin:0; }
@@ -91,14 +69,12 @@
 </head>
 <body>
 
-<!-- LOGIN OVERLAY -->
 <div id="loginOverlay">
   <h1>Enter Node ID</h1>
   <input type="text" id="usernameInput" placeholder="Neural Signature" autocomplete="off"/>
   <button id="loginButton">Initiate Link</button>
 </div>
 
-<!-- MAIN CONTENT -->
 <div id="mainContent">
   <canvas id="matrixCanvas"></canvas>
   <canvas id="particleCanvas"></canvas>
@@ -138,11 +114,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const pctx = particleCanvas.getContext('2d');
   let username = "";
 
-  // Resize canvases
-  function resize() {
-    matrixCanvas.width = particleCanvas.width = window.innerWidth;
-    matrixCanvas.height = particleCanvas.height = window.innerHeight;
-  }
+  const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
+
+  function resize() { matrixCanvas.width = particleCanvas.width = window.innerWidth; matrixCanvas.height = particleCanvas.height = window.innerHeight; }
   window.addEventListener('resize', resize);
   resize();
 
@@ -157,36 +131,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 1000);
   });
 
-  // BOOT SEQUENCE
   function bootSequence() {
-    const messages = [
-      `User ${username} recognized...`,
-      "Decrypting neural matrix...",
-      "Stabilizing data stream...",
-      "Neural link established."
-    ];
-    let i = 0;
+    const messages = [`User ${username} recognized...`, "Decrypting neural matrix...", "Stabilizing data stream...", "Neural link established."];
+    let i=0;
     function typeNext() {
-      if (i >= messages.length) {
-        avatar.style.opacity = 1;
-        terminal.style.display = 'block';
+      if(i>=messages.length) {
+        avatar.style.opacity=1;
+        terminal.style.display='block';
         terminalInput.focus();
         startMatrix();
         startParticles();
         fetchCrypto();
-        setInterval(fetchCrypto, 30000);
+        setInterval(fetchCrypto,30000);
         return;
       }
-      let j = 0;
-      displayText.textContent = "";
+      let j=0; displayText.textContent="";
       function typer() {
-        if (j < messages[i].length) {
-          displayText.textContent += messages[i][j++];
-          setTimeout(typer, 30);
-        } else {
-          i++;
-          setTimeout(typeNext, 500);
-        }
+        if(j<messages[i].length){ displayText.textContent+=messages[i][j++]; setTimeout(typer,30); }
+        else { i++; setTimeout(typeNext,500); }
       }
       typer();
     }
@@ -194,83 +156,47 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // MATRIX
-  const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノ';
-  const fontSize = 14;
-  let columns, drops;
+  const fontSize=14;
+  let columns=Math.floor(matrixCanvas.width/fontSize), drops=Array(columns).fill(1);
   function startMatrix() {
-  const fontSize = 14;
-  matrixCanvas.width = window.innerWidth;
-  matrixCanvas.height = window.innerHeight;
-  const columns = Math.floor(matrixCanvas.width / fontSize);
-  const drops = Array(columns).fill(1);
-
-  function drawMatrix() {
-    mctx.fillStyle = 'rgba(0,0,0,0.07)'; // slightly darker trail
-    mctx.fillRect(0,0,matrixCanvas.width,matrixCanvas.height);
-    mctx.fillStyle = '#00ff88';
-    mctx.font = fontSize + "px monospace";
-    for(let i=0; i<drops.length; i++) {
-      const text = chars[Math.floor(Math.random()*chars.length)];
-      mctx.fillText(text, i*fontSize, drops[i]*fontSize);
-      if(drops[i]*fontSize > matrixCanvas.height && Math.random() > 0.975) drops[i] = 0;
-      drops[i]++;
+    function drawMatrix() {
+      mctx.fillStyle='rgba(0,0,0,0.07)'; mctx.fillRect(0,0,matrixCanvas.width,matrixCanvas.height);
+      mctx.fillStyle='#00ff88'; mctx.shadowColor='#00ff88'; mctx.shadowBlur=8;
+      mctx.font=fontSize+"px monospace";
+      for(let i=0;i<drops.length;i++){
+        const text=chars[Math.floor(Math.random()*chars.length)];
+        mctx.fillText(text,i*fontSize,drops[i]*fontSize);
+        if(drops[i]*fontSize>matrixCanvas.height && Math.random()>0.975) drops[i]=0;
+        drops[i]++;
+      }
     }
+    setInterval(drawMatrix,50);
   }
-
-  setInterval(drawMatrix, 50);
-}
-
 
   // PARTICLES
-  let particles = [];
-  let mouse = { x: window.innerWidth/2, y: window.innerHeight/2 };
-  window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  let particles=[], mouse={x:window.innerWidth/2,y:window.innerHeight/2};
+  window.addEventListener('mousemove',e=>{ mouse.x=e.clientX; mouse.y=e.clientY; });
   class Particle {
-    constructor() {
-      this.x = Math.random() * particleCanvas.width;
-      this.y = Math.random() * particleCanvas.height;
-      this.size = Math.random()*2+1;
-      this.speedX = Math.random()-0.5;
-      this.speedY = Math.random()-0.5;
-    }
-    update() {
-      this.x += this.speedX + (mouse.x-this.x)*0.001;
-      this.y += this.speedY + (mouse.y-this.y)*0.001;
-      if(this.x<0||this.x>particleCanvas.width) this.speedX*=-1;
-      if(this.y<0||this.y>particleCanvas.height) this.speedY*=-1;
-    }
-    draw() {
-      pctx.fillStyle="rgba(0,255,200,0.2)";
-      pctx.beginPath();
-      pctx.arc(this.x,this.y,this.size,0,Math.PI*2);
-      pctx.fill();
-    }
+    constructor(){ this.x=Math.random()*particleCanvas.width; this.y=Math.random()*particleCanvas.height; this.size=Math.random()*2+1; this.speedX=Math.random()-0.5; this.speedY=Math.random()-0.5; }
+    update(){ this.x+=this.speedX+(mouse.x-this.x)*0.001; this.y+=this.speedY+(mouse.y-this.y)*0.001; if(this.x<0||this.x>particleCanvas.width)this.speedX*=-1; if(this.y<0||this.y>particleCanvas.height)this.speedY*=-1; }
+    draw(){ pctx.fillStyle="rgba(0,255,200,0.2)"; pctx.beginPath(); pctx.arc(this.x,this.y,this.size,0,Math.PI*2); pctx.fill(); }
   }
-  function startParticles(num=180) {
-    particles=[];
-    for(let i=0;i<num;i++) particles.push(new Particle());
-    animate();
-  }
-  function animate() {
-    pctx.fillStyle="rgba(0,0,0,0.06)";
-    pctx.fillRect(0,0,particleCanvas.width,particleCanvas.height);
-    particles.forEach(p=>{p.update();p.draw();});
-    requestAnimationFrame(animate);
-  }
+  function startParticles(num=180){ particles=[]; for(let i=0;i<num;i++) particles.push(new Particle()); animate(); }
+  function animate(){ pctx.fillStyle="rgba(0,0,0,0.06)"; pctx.fillRect(0,0,particleCanvas.width,particleCanvas.height); particles.forEach(p=>{p.update();p.draw();}); requestAnimationFrame(animate); }
 
   // CRYPTO
-  async function fetchCrypto() {
-    try {
-      const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd');
-      const data = await res.json();
+  async function fetchCrypto(){
+    try{
+      const res=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd');
+      const data=await res.json();
       document.querySelector('#btc-card .price').textContent=`$${data.bitcoin.usd.toLocaleString()}`;
       document.querySelector('#eth-card .price').textContent=`$${data.ethereum.usd.toLocaleString()}`;
       document.querySelector('#sol-card .price').textContent=`$${data.solana.usd.toLocaleString()}`;
-    } catch { document.querySelectorAll('.crypto-card .price').forEach(p=>p.textContent="$Err"); }
+    }catch{ document.querySelectorAll('.crypto-card .price').forEach(p=>p.textContent="$Err"); }
   }
 
   // TERMINAL
-  const commands = {
+  const commands={
     help:()=>`Available commands: help | clear | status | scan | echo [msg] | hack | whoami | x | youtube | project89`,
     clear:()=>{ terminalOutput.innerHTML=''; return ''; },
     status:()=>`Node: ACTIVE | User: ${username} | Link: SECURE | Uptime: ${Math.floor(performance.now()/1000)}s`,
@@ -283,24 +209,8 @@ document.addEventListener("DOMContentLoaded", () => {
     project89:()=>{ window.open('https://www.project89.org/','_blank'); return 'Opening Project89...'; }
   };
 
-  function print(line) {
-    const div = document.createElement('div');
-    div.textContent = line;
-    terminalOutput.appendChild(div);
-    terminalOutput.scrollTop = terminalOutput.scrollHeight;
-  }
-
-  terminalInput.addEventListener('keydown', e=>{
-    if(e.key==='Enter') {
-      const cmdLine = terminalInput.value.trim();
-      print(`> ${cmdLine}`);
-      terminalInput.value='';
-      const [cmd,...args] = cmdLine.split(' ');
-      const fn = commands[cmd.toLowerCase()];
-      if(fn) print(fn(args)||'');
-      else print(`Command not found: ${cmd}`);
-    }
-  });
+  function print(line){ const div=document.createElement('div'); div.textContent=line; terminalOutput.appendChild(div); terminalOutput.scrollTop=terminalOutput.scrollHeight; }
+  terminalInput.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const cmdLine=terminalInput.value.trim(); print(`> ${cmdLine}`); terminalInput.value=''; const [cmd,...args]=cmdLine.split(' '); const fn=commands[cmd.toLowerCase()]; if(fn) print(fn(args)||''); else print(`Command not found: ${cmd}`); }});
 });
 </script>
 </body>
