@@ -1,82 +1,91 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BrandonAir — Minimal Flight Demo</title>
-<style>
-  html, body { margin:0; height:100%; overflow:hidden; background:#000; }
-  canvas { display:block; }
-  #hud {
-    position:absolute; top:10px; left:10px; color:#0f0;
-    font-family: monospace; font-size:14px; background:rgba(0,0,0,0.4);
-    padding:8px; border-radius:6px;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BrandonAir — Holo Flight Chamber</title>
+  <style>
+    body, html { margin: 0; overflow: hidden; height: 100%; background: #000; }
+    canvas { display: block; }
+  </style>
 </head>
 <body>
-<div id="hud">W/S: Pitch | A/D: Roll | Space: Boost</div>
-<canvas id="game"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
+
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-canvas.width = innerWidth;
-canvas.height = innerHeight;
+  let scene, camera, renderer, cube, particles;
 
-let plane = {x:0, y:0, z:500, pitch:0, roll:0, speed:2};
-const keys = {};
-document.addEventListener("keydown", e => keys[e.code] = true);
-document.addEventListener("keyup", e => keys[e.code] = false);
-window.addEventListener("resize", () => {
-  canvas.width = innerWidth; canvas.height = innerHeight;
-});
+  init();
+  animate();
 
-function update() {
-  if(keys["KeyW"]) plane.pitch -= 0.02;
-  if(keys["KeyS"]) plane.pitch += 0.02;
-  if(keys["KeyA"]) plane.roll -= 0.03;
-  if(keys["KeyD"]) plane.roll += 0.03;
-  if(keys["Space"]) plane.speed = 6; else plane.speed = 2.5;
+  function init() {
+    scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x000010, 0.02);
 
-  plane.x += Math.sin(plane.roll) * plane.speed;
-  plane.y += Math.sin(plane.pitch) * plane.speed;
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 5;
 
-  draw();
-  requestAnimationFrame(update);
-}
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x000010);
+    document.body.appendChild(renderer.domElement);
 
-function draw() {
-  ctx.fillStyle = "black";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+    // Lighting
+    const ambient = new THREE.AmbientLight(0x4488ff, 0.5);
+    const point = new THREE.PointLight(0x66ccff, 2, 50);
+    point.position.set(0, 0, 10);
+    scene.add(ambient, point);
 
-  // fake horizon
-  let horizonY = canvas.height/2 + plane.pitch * 200;
-  ctx.fillStyle = "#001133";
-  ctx.fillRect(0, 0, canvas.width, horizonY);
-  ctx.fillStyle = "#003300";
-  ctx.fillRect(0, horizonY, canvas.width, canvas.height - horizonY);
+    // Floating object (ship placeholder)
+    const geo = new THREE.BoxGeometry(1, 0.5, 3);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x00ffff,
+      metalness: 0.8,
+      roughness: 0.2,
+      emissive: 0x0066ff
+    });
+    cube = new THREE.Mesh(geo, mat);
+    scene.add(cube);
 
-  // airplane crosshair
-  ctx.strokeStyle = "#0f0";
-  ctx.beginPath();
-  ctx.moveTo(canvas.width/2 - 10, canvas.height/2);
-  ctx.lineTo(canvas.width/2 + 10, canvas.height/2);
-  ctx.moveTo(canvas.width/2, canvas.height/2 - 10);
-  ctx.lineTo(canvas.width/2, canvas.height/2 + 10);
-  ctx.stroke();
+    // Particle field
+    const starGeo = new THREE.BufferGeometry();
+    const starCount = 800;
+    const posArray = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount * 3; i++) {
+      posArray[i] = (Math.random() - 0.5) * 100;
+    }
+    starGeo.setAttribute("position", new THREE.BufferAttribute(posArray, 3));
+    const starMat = new THREE.PointsMaterial({ color: 0x00ffff, size: 0.15 });
+    particles = new THREE.Points(starGeo, starMat);
+    scene.add(particles);
 
-  // artificial horizon roll effect
-  ctx.save();
-  ctx.translate(canvas.width/2, canvas.height/2);
-  ctx.rotate(plane.roll * 0.5);
-  ctx.strokeStyle = "#0f0";
-  ctx.beginPath();
-  ctx.moveTo(-100, 0);
-  ctx.lineTo(100, 0);
-  ctx.stroke();
-  ctx.restore();
-}
-update();
+    window.addEventListener("resize", onWindowResize);
+  }
+
+  function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  let time = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+    time += 0.01;
+
+    // Smooth rotation + breathing motion
+    cube.rotation.x += 0.01;
+    cube.rotation.y += 0.02;
+    cube.position.y = Math.sin(time * 1.2) * 0.3;
+
+    // Slow camera drift
+    camera.position.x = Math.sin(time * 0.3) * 2;
+    camera.lookAt(0, 0, 0);
+
+    particles.rotation.y += 0.0008;
+
+    renderer.render(scene, camera);
+  }
 </script>
 </body>
 </html>
