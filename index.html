@@ -4,106 +4,92 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet" />
-<title>Cybernetic Node: Neural Avatar Interface v3.2</title>
+<title>Cybernetic Node v3.3</title>
 <style>
-  body, html { margin:0; padding:0; height:100%; overflow:hidden; background:#000; color:#0f0; font-family:monospace; }
+  body, html {
+    margin:0; padding:0; height:100%; overflow:hidden;
+    background:#000; color:#0f0; font-family:'Orbitron', monospace;
+  }
 
-  /* Login Overlay */
+  /* LOGIN SCREEN */
   #loginOverlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: radial-gradient(circle at center, rgba(0,255,0,0.05), rgba(0,0,0,0.95));
-    display: flex; flex-direction: column; justify-content: center; align-items: center;
-    z-index: 1000; transition: opacity 1s ease-in-out;
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    background:radial-gradient(circle at center, rgba(0,255,0,0.05), rgba(0,0,0,0.95));
+    display:flex; flex-direction:column; justify-content:center; align-items:center;
+    z-index:1000; transition:opacity 1s ease-in-out;
   }
-  #loginOverlay.hidden { opacity: 0; pointer-events: none; }
-
-  #loginOverlay h1 { font-family: 'Orbitron', sans-serif; color: #0f0; text-shadow: 0 0 15px #0f0; }
+  #loginOverlay.hidden { opacity:0; pointer-events:none; }
+  #loginOverlay h1 {
+    color:#00ff88; text-shadow:0 0 15px #00ff88; margin-bottom:15px;
+  }
   #loginOverlay input, #loginOverlay button {
-    font-size:18px; padding:10px; margin:5px; border:2px solid #0f0; background:#000; color:#0f0;
-    transition: all 0.3s;
+    font-size:18px; padding:10px; margin:5px; border:2px solid #00ff88;
+    background:#000; color:#00ff88; transition:all .3s;
   }
-  #loginOverlay input:focus, #loginOverlay button:hover { 
-    background:#0f0; color:#000; box-shadow: 0 0 15px #0f0; 
+  #loginOverlay input:focus, #loginOverlay button:hover {
+    background:#00ff88; color:#000; box-shadow:0 0 20px #00ff88;
   }
   #loginOverlay button { cursor:pointer; }
 
-  /* Ripple */
-  .ripple {
-    position: absolute;
-    border-radius: 50%;
-    transform: scale(0);
-    animation: ripple 1.2s linear;
-    background: rgba(0,255,0,0.6);
-    pointer-events: none;
-  }
-  @keyframes ripple { to { transform: scale(6); opacity: 0; } }
+  /* MAIN LAYER */
+  #mainContent { display:none; position:relative; height:100%; width:100%; }
 
-  /* Main */
-  #mainContent { display: none; position: relative; height: 100%; width: 100%; }
-  #matrixCanvas, #particleCanvas { position: absolute; top:0; left:0; width:100%; height:100%; }
-  #matrixCanvas { z-index:0; opacity: 0.12; pointer-events:none; }
-  #particleCanvas { z-index:1; }
+  #matrixCanvas, #particleCanvas {
+    position:absolute; top:0; left:0; width:100%; height:100%;
+  }
+  #matrixCanvas { z-index:0; opacity:0.12; pointer-events:none; }
+  #particleCanvas { z-index:1; pointer-events:none; }
 
   #avatarContainer {
-    position: absolute; top: 5%; left: 50%; transform: translateX(-50%);
-    z-index: 3; opacity: 0; transition: all 1.2s ease-in-out;
-    cursor: pointer;
+    position:absolute; top:8%; left:50%; transform:translateX(-50%);
+    z-index:3; opacity:0; transition:opacity 1.2s ease-in-out;
   }
   #avatarImg {
-    width: 300px; height: 300px; border-radius: 50%; 
-    border: 3px solid #0f0; box-shadow: 0 0 25px #0f0, inset 0 0 25px rgba(0,255,0,0.15);
-    filter: drop-shadow(0 0 12px #0f0);
-    transition: all 0.5s ease;
+    width:260px; height:260px; border-radius:50%;
+    border:3px solid #00ff88; box-shadow:0 0 30px #00ff88, inset 0 0 15px rgba(0,255,0,0.3);
+    transition:all .4s;
   }
   #avatarContainer:hover #avatarImg {
-    transform: scale(1.1) rotate(3deg);
-    box-shadow: 0 0 40px #0f0, 0 0 60px rgba(0,255,0,0.5);
+    transform:scale(1.05); box-shadow:0 0 40px #00ffaa, 0 0 70px rgba(0,255,200,.5);
   }
 
   #displayText {
-    position: absolute; top: 40%; left: 50%; transform: translateX(-50%);
-    color:#0f0; font-family: 'Orbitron', monospace; font-size:1.1em;
-    white-space: pre-line; z-index:3; text-align:center;
+    position:absolute; top:42%; left:50%; transform:translateX(-50%);
+    color:#00ff88; font-size:1.1em; white-space:pre-line;
+    z-index:3; text-align:center;
   }
 
-  #terminal { 
-    position: absolute; bottom:20%; left:50%; transform: translateX(-50%);
-    background: rgba(0,0,0,0.85); border:1px solid #0f0; padding:10px;
-    width: 90%; max-width:600px; color:#0f0; font-family: monospace; font-size:14px;
-    display:none; z-index:6;
-  }
-  #terminalOutput { max-height:200px; overflow-y:auto; margin-bottom:5px; }
-  #terminalInput { width: 95%; background: #000; color:#0f0; border:none; outline:none; }
-
+  /* CRYPTO DASHBOARD */
   .crypto-dashboard-wrapper {
-    position: absolute; bottom: 3%; left: 50%; transform: translateX(-50%);
-    z-index: 5;
+    position:absolute; bottom:4%; left:50%; transform:translateX(-50%);
+    z-index:5;
   }
   .crypto-dashboard-container {
-    display: flex; gap: 20px; justify-content: center; padding: 20px;
-    font-family: 'Orbitron', sans-serif;
+    display:flex; gap:25px; justify-content:center; flex-wrap:wrap;
+    font-family:'Orbitron', sans-serif;
   }
   .crypto-card {
-    background: rgba(0, 0, 0, 0.6);
-    border: 2px solid #00ffea;
-    border-radius: 12px;
-    padding: 20px;
-    width: 120px;
-    text-align: center;
-    color: #00ffea;
-    box-shadow: 0 0 20px #00ffea;
-    transition: 0.3s;
+    background:rgba(0,0,0,0.6);
+    border:2px solid #00ffea; border-radius:12px;
+    padding:16px; width:120px; text-align:center;
+    color:#00ffea; box-shadow:0 0 20px #00ffea; transition:.3s;
   }
+  .crypto-card:hover {
+    box-shadow:0 0 30px #ff00ff; transform:scale(1.05);
+  }
+  .crypto-card .price { font-size:1.5em; font-weight:bold; margin:0; }
 </style>
 </head>
 <body>
 
+<!-- LOGIN OVERLAY -->
 <div id="loginOverlay">
   <h1>Enter Node ID</h1>
   <input type="text" id="usernameInput" placeholder="Neural Signature" autocomplete="off"/>
   <button id="loginButton">Initiate Link</button>
 </div>
 
+<!-- MAIN CONTENT -->
 <div id="mainContent">
   <canvas id="matrixCanvas"></canvas>
   <canvas id="particleCanvas"></canvas>
@@ -113,11 +99,6 @@
   </div>
 
   <div id="displayText">Initializing Neural Link...</div>
-
-  <div id="terminal">
-    <div id="terminalOutput"></div>
-    <div><span>> </span><input id="terminalInput" type="text" autocomplete="off" autofocus /></div>
-  </div>
 
   <div class="crypto-dashboard-wrapper">
     <div id="crypto-dashboard" class="crypto-dashboard-container">
@@ -132,50 +113,56 @@
 document.addEventListener("DOMContentLoaded", () => {
   const overlay = document.getElementById('loginOverlay');
   const main = document.getElementById('mainContent');
-  const btn = document.getElementById('loginButton');
+  const displayText = document.getElementById('displayText');
+  const avatar = document.getElementById('avatarContainer');
+  const matrixCanvas = document.getElementById('matrixCanvas');
+  const mctx = matrixCanvas.getContext('2d');
+  const particleCanvas = document.getElementById('particleCanvas');
+  const pctx = particleCanvas.getContext('2d');
 
-  btn.addEventListener('click', (e) => {
-    const ripple = document.createElement('span');
-    ripple.classList.add('ripple');
-    ripple.style.left = e.clientX + 'px';
-    ripple.style.top = e.clientY + 'px';
-    overlay.appendChild(ripple);
-    setTimeout(() => ripple.remove(), 1200);
-    startNode();
-  });
+  // Resize canvases
+  function resize() {
+    matrixCanvas.width = particleCanvas.width = window.innerWidth;
+    matrixCanvas.height = particleCanvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
 
-  function startNode() {
+  // LOGIN BUTTON
+  document.getElementById('loginButton').addEventListener('click', () => {
     const username = document.getElementById('usernameInput').value || "Echo";
     overlay.classList.add('hidden');
-
     setTimeout(() => {
       overlay.style.display = 'none';
       main.style.display = 'block';
       bootSequence(username);
     }, 1000);
-  }
+  });
 
-  function bootSequence(user) {
-    const displayText = document.getElementById('displayText');
-    const avatar = document.getElementById('avatarContainer');
-    avatar.style.opacity = 1;
-
-    const msgs = [
-      `User ${user} recognized...`,
+  // BOOT SEQUENCE
+  function bootSequence(username) {
+    const messages = [
+      `User ${username} recognized...`,
       "Decrypting neural matrix...",
-      "Loading node parameters...",
-      "Connection established."
+      "Stabilizing data stream...",
+      "Neural link established."
     ];
-
     let i = 0;
     function typeNext() {
-      if (i >= msgs.length) return;
+      if (i >= messages.length) {
+        avatar.style.opacity = 1;
+        startMatrix();
+        startParticles();
+        updatePrices();
+        setInterval(updatePrices, 30000);
+        return;
+      }
       let j = 0;
       displayText.textContent = "";
       function typer() {
-        if (j < msgs[i].length) {
-          displayText.textContent += msgs[i][j++];
-          setTimeout(typer, 25);
+        if (j < messages[i].length) {
+          displayText.textContent += messages[i][j++];
+          setTimeout(typer, 30);
         } else {
           i++;
           setTimeout(typeNext, 500);
@@ -184,6 +171,78 @@ document.addEventListener("DOMContentLoaded", () => {
       typer();
     }
     typeNext();
+  }
+
+  // MATRIX RAIN
+  const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノ';
+  const fontSize = 14;
+  let columns, drops;
+  function startMatrix() {
+    columns = Math.floor(matrixCanvas.width / fontSize);
+    drops = Array(columns).fill(1);
+    setInterval(drawMatrix, 50);
+  }
+  function drawMatrix() {
+    mctx.fillStyle = 'rgba(0,0,0,0.05)';
+    mctx.fillRect(0,0,matrixCanvas.width,matrixCanvas.height);
+    mctx.fillStyle = '#00ff88';
+    mctx.font = fontSize + "px monospace";
+    drops.forEach((y, i) => {
+      const text = chars[Math.floor(Math.random() * chars.length)];
+      mctx.fillText(text, i * fontSize, y * fontSize);
+      if (y * fontSize > matrixCanvas.height && Math.random() > 0.975) drops[i] = 0;
+      drops[i]++;
+    });
+  }
+
+  // PARTICLES
+  let particles = [];
+  let mouse = { x: window.innerWidth/2, y: window.innerHeight/2 };
+  window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  class Particle {
+    constructor() {
+      this.x = Math.random() * particleCanvas.width;
+      this.y = Math.random() * particleCanvas.height;
+      this.size = Math.random() * 2 + 1;
+      this.speedX = Math.random() - 0.5;
+      this.speedY = Math.random() - 0.5;
+    }
+    update() {
+      this.x += this.speedX + (mouse.x - this.x) * 0.001;
+      this.y += this.speedY + (mouse.y - this.y) * 0.001;
+      if (this.x < 0 || this.x > particleCanvas.width) this.speedX *= -1;
+      if (this.y < 0 || this.y > particleCanvas.height) this.speedY *= -1;
+    }
+    draw() {
+      pctx.fillStyle = "rgba(0,255,200,0.2)";
+      pctx.beginPath();
+      pctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+      pctx.fill();
+    }
+  }
+  function startParticles(num = 180) {
+    particles = [];
+    for (let i = 0; i < num; i++) particles.push(new Particle());
+    animate();
+  }
+  function animate() {
+    pctx.fillStyle = "rgba(0,0,0,0.06)";
+    pctx.fillRect(0,0,particleCanvas.width,particleCanvas.height);
+    particles.forEach(p => { p.update(); p.draw(); });
+    requestAnimationFrame(animate);
+  }
+
+  // CRYPTO DASHBOARD
+  async function updatePrices() {
+    try {
+      const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd');
+      const data = await res.json();
+      document.querySelector('#btc-card .price').textContent = `$${data.bitcoin.usd.toLocaleString()}`;
+      document.querySelector('#eth-card .price').textContent = `$${data.ethereum.usd.toLocaleString()}`;
+      document.querySelector('#sol-card .price').textContent = `$${data.solana.usd.toLocaleString()}`;
+    } catch {
+      document.querySelectorAll('.crypto-card .price').forEach(p => p.textContent = "$Err");
+    }
   }
 });
 </script>
