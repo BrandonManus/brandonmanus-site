@@ -260,6 +260,23 @@ function animate(){
   requestAnimationFrame(animate); 
 }
 
+// PARTICLE BURST ON AVATAR CLICK
+document.getElementById('avatarContainer').addEventListener('click', () => {
+  // spawn 50 new particles near the avatar
+  const rect = document.getElementById('avatarContainer').getBoundingClientRect();
+  for (let i = 0; i < 50; i++) {
+    const p = new Particle();
+    p.x = rect.left + rect.width / 2 + (Math.random() - 0.5) * 50;
+    p.y = rect.top + rect.height / 2 + (Math.random() - 0.5) * 50;
+    p.size = Math.random() * 2 + 1;
+    p.speedX = (Math.random() - 0.5) * 3;
+    p.speedY = (Math.random() - 0.5) * 3;
+    particles.push(p);
+  }
+  beep(1200, 100, 'triangle');
+});
+
+ 
 // DISPLAY TEXT
 const displayTextEl=document.getElementById('displayText'); 
 let username='';
@@ -268,8 +285,8 @@ let startupMessages = [
   "Decrypting avatar matrix...\nLoading nodes...",
   "Calibrating quantum entanglement...\nSystems online...",
   "Avatar manifested successfully.\nNeural link established..."
-  "BrandonManus.ETH thanks you for visiting"
-  "Type help in the console below"
+  "BrandonManus.ETH thanks you for visiting",
+  "Type help in the console below",
 ];
 
 function typeMessages(messages,i=0){
