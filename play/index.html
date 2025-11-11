@@ -1,104 +1,103 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Flying Minigame — BrandonManus.ETH</title>
-  <style>
-    html,body {margin:0;height:100%;background:#000;overflow:hidden;}
-    canvas {display:block;width:100%;height:100%;}
-    #hud {position:fixed;top:10px;left:10px;color:#fff;font-family:monospace;background:rgba(0,0,0,0.4);padding:8px 12px;border-radius:6px;}
-    #overlay {position:fixed;inset:0;background:radial-gradient(circle,#fff1,#000 80%);display:flex;align-items:center;justify-content:center;color:#fff;font-family:monospace;font-size:1.2em;transition:opacity 1s;}
-    #overlay.hidden {opacity:0;pointer-events:none;}
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Flying Minigame</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: linear-gradient(#6dd5fa, #2980b9);
+    font-family: monospace;
+  }
+
+  #sky {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    perspective: 600px;
+  }
+
+  .cloud {
+    position: absolute;
+    background: radial-gradient(white, rgba(255,255,255,0.3));
+    border-radius: 50%;
+    opacity: 0.9;
+    animation: fly 10s linear infinite;
+  }
+
+  @keyframes fly {
+    0% { transform: translateZ(0) translateY(0); }
+    100% { transform: translateZ(-600px) translateY(200px); opacity: 0; }
+  }
+
+  #plane {
+    position: absolute;
+    width: 60px;
+    height: 40px;
+    background: linear-gradient(to right, #f00, #900);
+    clip-path: polygon(0 50%, 40% 30%, 100% 50%, 40% 70%);
+    left: calc(50% - 30px);
+    top: calc(50% - 20px);
+    transform: translateZ(100px);
+  }
+
+  #hud {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: white;
+    font-size: 14px;
+  }
+</style>
 </head>
 <body>
-  <div id="hud">Speed: <span id="spd">0</span> | Altitude: 120km</div>
-  <div id="overlay">Flying through clouds...</div>
-  <script type="module">
-    import * as THREE from "https://unpkg.com/three@0.153.0/build/three.module.js";
-    import { PointerLockControls } from "https://unpkg.com/three@0.153.0/examples/jsm/controls/PointerLockControls.js";
+<div id="sky">
+  <div id="plane"></div>
+  <div id="hud">Flying...</div>
+</div>
 
-    // Scene, camera, renderer
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 2000);
-    camera.position.z = 180;
-    const renderer = new THREE.WebGLRenderer({antialias:true});
-    renderer.setSize(innerWidth, innerHeight);
-    document.body.appendChild(renderer.domElement);
+<script>
+const sky = document.getElementById("sky");
+const plane = document.getElementById("plane");
+const hud = document.getElementById("hud");
 
-    // Earth
-    const loader = new THREE.TextureLoader();
-    const earthTex = loader.load("https://threejs.org/examples/textures/land_ocean_ice_cloud_2048.jpg");
-    const earth = new THREE.Mesh(
-      new THREE.SphereGeometry(60,64,64),
-      new THREE.MeshPhongMaterial({map:earthTex,shininess:8})
-    );
-    scene.add(earth);
+let x = 50, y = 50;
+let speed = 0.1;
+let clouds = [];
 
-    // Clouds
-    const cloudsTex = loader.load("https://threejs.org/examples/textures/earthcloudmap.jpg");
-    const clouds = new THREE.Mesh(
-      new THREE.SphereGeometry(61,64,64),
-      new THREE.MeshPhongMaterial({map:cloudsTex,transparent:true,opacity:0.5,depthWrite:false})
-    );
-    scene.add(clouds);
+function makeCloud() {
+  const c = document.createElement("div");
+  c.className = "cloud";
+  const size = 100 + Math.random() * 200;
+  c.style.width = size + "px";
+  c.style.height = size * 0.6 + "px";
+  c.style.left = Math.random() * window.innerWidth + "px";
+  c.style.top = Math.random() * window.innerHeight + "px";
+  c.style.animationDuration = (5 + Math.random() * 15) + "s";
+  sky.appendChild(c);
+  setTimeout(() => sky.removeChild(c), 20000);
+}
 
-    // Lighting
-    scene.add(new THREE.AmbientLight(0xffffff,0.5));
-    const sun = new THREE.DirectionalLight(0xffffff,1);
-    sun.position.set(100,50,100);
-    scene.add(sun);
+setInterval(makeCloud, 400);
 
-    // Controls
-    const controls = new PointerLockControls(camera, renderer.domElement);
-    let locked = false;
-    document.addEventListener("click",()=>{if(!locked){controls.lock();}});
-    controls.addEventListener("lock",()=>locked=true);
-    controls.addEventListener("unlock",()=>locked=false);
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowUp" || e.key === "w") y -= 2;
+  if (e.key === "ArrowDown" || e.key === "s") y += 2;
+  if (e.key === "ArrowLeft" || e.key === "a") x -= 2;
+  if (e.key === "ArrowRight" || e.key === "d") x += 2;
+});
 
-    // Keyboard
-    const keys={};
-    onkeydown=e=>keys[e.code]=true;
-    onkeyup=e=>keys[e.code]=false;
-
-    // Flight vars
-    let speed=60,target=60;
-    const spdEl=document.getElementById("spd");
-
-    // Resize
-    onresize=()=>{
-      camera.aspect=innerWidth/innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(innerWidth,innerHeight);
-    };
-
-    // Fake startup clouds
-    const overlay=document.getElementById("overlay");
-    setTimeout(()=>overlay.classList.add("hidden"),2500);
-
-    // Animation
-    let last=performance.now();
-    function loop(now){
-      const dt=(now-last)/1000;last=now;
-      if(keys["KeyW"])target+=200*dt;
-      if(keys["KeyS"])target-=240*dt;
-      target=Math.max(10,Math.min(1000,target));
-      speed+= (target-speed)*3*dt;
-
-      // Turn left/right
-      if(keys["KeyA"]) earth.rotation.y += 0.8*dt;
-      if(keys["KeyD"]) earth.rotation.y -= 0.8*dt;
-
-      // Simulate motion
-      earth.rotation.y += (speed/800)*dt;
-      clouds.rotation.y += (speed/700)*dt;
-
-      spdEl.textContent=Math.round(speed);
-      renderer.render(scene,camera);
-      requestAnimationFrame(loop);
-    }
-    loop();
-  </script>
+function loop() {
+  plane.style.left = `calc(${x}% - 30px)`;
+  plane.style.top = `calc(${y}% - 20px)`;
+  hud.textContent = "Flying " + (Math.random() * 1000).toFixed(0) + " miles...";
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
 </body>
 </html>
