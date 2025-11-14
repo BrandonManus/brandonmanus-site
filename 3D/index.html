@@ -2,6 +2,8 @@
   import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164/build/three.module.js";
 
   let scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x030303);
+
   let camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
   camera.position.z = 3;
 
@@ -9,50 +11,37 @@
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  // Load your Earth screenshot texture
   const textureLoader = new THREE.TextureLoader();
   const earthTexture = textureLoader.load("./assets/ScreenShot of Earth.png");
 
-  // Sphere with your custom texture
   let geo = new THREE.SphereGeometry(1, 64, 64);
   let mat = new THREE.MeshStandardMaterial({
     map: earthTexture,
-    roughness: 0.6,
+    roughness: 0.5,
     metalness: 0.1
   });
 
   let sphere = new THREE.Mesh(geo, mat);
   scene.add(sphere);
 
-  // Strong key light
-let keyLight = new THREE.PointLight(0xffffff, 2.2);
-keyLight.position.set(3, 2, 4);
-scene.add(keyLight);
+  // --- FIXED LIGHTING SETUP ---
+  let keyLight = new THREE.PointLight(0xffffff, 2.2);
+  keyLight.position.set(3, 2, 4);
+  scene.add(keyLight);
 
-  // Soft fill light
-let fillLight = new THREE.HemisphereLight(0xffffff, 0x202020, 1.0);
-scene.add(fillLight);
+  let fillLight = new THREE.HemisphereLight(0xffffff, 0x202020, 1.0);
+  scene.add(fillLight);
 
-  // Ambient fill (tiny boost)
-let ambient = new THREE.AmbientLight(0xffffff, 0.4);
-scene.add(ambient);
-
-  // Subtle ambient light so the dark side isn't pitch black
-  let ambient = new THREE.AmbientLight(0x404040, 0.8);
+  let ambient = new THREE.AmbientLight(0xffffff, 0.4);
   scene.add(ambient);
 
-  // Animation loop
   function animate() {
     requestAnimationFrame(animate);
-
     sphere.rotation.y += 0.002;
-    sphere.rotation.x += 0.0005;
-
     renderer.render(scene, camera);
   }
   animate();
 
-  // Resize fix
   window.addEventListener("resize", () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
