@@ -45,7 +45,7 @@
     position:absolute; top:8%; left:50%; transform:translateX(-50%); z-index:3; opacity:0;
     transition:opacity 1.2s ease-in-out; display:flex; flex-direction:column; align-items:center; gap:2px;
   }
-  #avatarContainer.visible { opacity:1; } /* FIXED: use .visible instead of .active */
+  #avatarContainer.visible { opacity:1; }
 
   #avatarImg {
     width:260px; height:260px; border-radius:50%; border:3px solid var(--accent);
@@ -74,7 +74,7 @@
 
   /* TERMINAL */
   #terminal{
-    position:absolute; bottom:22%; left:50%; transform:translateX(-50%); background:var(--terminal-bg);
+    position:absolute; bottom:28%; left:50%; transform:translateX(-50%); background:var(--terminal-bg);
     border:1px solid var(--border-soft); padding:10px; width:90%; max-width:650px; color:#0f0;
     font-family:monospace; font-size:14px; display:none; z-index:6; box-shadow:0 0 25px rgba(0,255,136,.25);
     border-radius:6px; backdrop-filter:blur(3px);
@@ -92,34 +92,77 @@
   #terminalPrompt{color:var(--accent);animation:blink 1s step-end infinite;}
   @keyframes blink{0%,50%{opacity:1}51%,100%{opacity:0}}
 
-  /* CRYPTO */
-  .crypto-dashboard-wrapper{position:absolute;bottom:4%;left:50%;transform:translateX(-50%);z-index:5;}
-  .crypto-dashboard-container{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;font-family:'Orbitron',sans-serif;}
-  .crypto-card{
-    background:linear-gradient(145deg,rgba(0,0,0,.8),rgba(0,30,25,.95)); border:2px solid var(--accent-alt);
-    border-radius:12px; padding:14px; width:130px; text-align:center; color:var(--accent-alt);
-    box-shadow:0 0 20px rgba(0,255,234,.4); transition:transform .25s,box-shadow .25s;
+  /* CRYPTO DASHBOARD – NEW: Tiny horizontal bar at bottom */
+  .crypto-dashboard-wrapper {
+    position: absolute;
+    bottom: 8px; /* Just above bottom edge */
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    width: 100%;
+    padding: 0 12px;
+    pointer-events: none; /* Let taps go to terminal */
   }
-  .crypto-card:hover{box-shadow:0 0 32px #ff00ff;transform:translateY(-4px) scale(1.05);border-color:#ff00ff;}
-  .crypto-card .price{font-size:1.5em;font-weight:bold;margin:0;}
-  .crypto-card .label{font-size:.65rem;text-transform:uppercase;letter-spacing:.18em;color:rgba(0,255,234,.7);margin-top:6px;}
+  .crypto-dashboard-container {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 6px 0;
+    scrollbar-width: none;
+  }
+  .crypto-dashboard-container::-webkit-scrollbar { display: none; }
 
-  /* MOBILE */
+  .crypto-card {
+    flex: 0 0 auto;
+    background: rgba(0, 30, 25, 0.92);
+    border: 1px solid var(--accent-alt);
+    border-radius: 8px;
+    padding: 6px 8px;
+    width: 78px;
+    text-align: center;
+    color: var(--accent-alt);
+    font-size: 0.68rem;
+    box-shadow: 0 0 12px rgba(0, 255, 234, 0.3);
+    transition: all 0.25s ease;
+    backdrop-filter: blur(2px);
+    pointer-events: auto;
+  }
+  .crypto-card:active { /* Mobile tap feedback */
+    transform: scale(0.94);
+    box-shadow: 0 0 16px #ff00ff;
+    border-color: #ff00ff;
+  }
+  .crypto-card h2 {
+    margin: 0 0 2px;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    color: #0f0;
+  }
+  .crypto-card .price {
+    font-size: 0.85rem;
+    font-weight: bold;
+    margin: 0;
+    color: var(--accent);
+  }
+  .crypto-card .label {
+    font-size: 0.48rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: rgba(0, 255, 234, 0.6);
+    margin-top: 2px;
+  }
+
+  /* MOBILE TWEAKS */
   @media (max-width: 480px) {
     #avatarImg{width:190px;height:190px;}
     .avatar-ring{width:230px;height:230px;}
     #avatarContainer{top:6%;}
     #displayText{top:44%;font-size:.95em;max-width:92%;padding:3px 10px;}
-    #terminal{bottom:18%;font-size:13px;max-width:94%;}
-    .crypto-dashboard-container{gap:16px;}
-    .crypto-card{width:110px;padding:12px;}
-    .crypto-card .price{font-size:1.3em;}
-  }
-  @media (max-width: 380px) {
-    #avatarImg{width:170px;height:170px;}
-    .avatar-ring{width:210px;height:210px;}
-    .crypto-card{width:100px;padding:10px;}
-    .crypto-card .price{font-size:1.2em;}
+    #terminal{bottom:26%;font-size:13px;max-width:94%;}
+    .crypto-card { width: 70px; padding: 5px 6px; }
+    .crypto-card .price { font-size: 0.78rem; }
   }
 </style>
 </head>
@@ -151,6 +194,7 @@
     </div>
   </div>
 
+  <!-- CRYPTO BAR AT BOTTOM -->
   <div class="crypto-dashboard-wrapper">
     <div class="crypto-dashboard-container">
       <div class="crypto-card" id="btc-card"><h2>BTC</h2><p class="price">$0</p><div class="label">Core Signal</div></div>
@@ -177,7 +221,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
 
-  // Canvas resize
+  // Resize
   function resize() {
     matrixCanvas.width = particleCanvas.width = window.innerWidth;
     matrixCanvas.height = particleCanvas.height = window.innerHeight;
@@ -211,9 +255,9 @@ document.addEventListener("DOMContentLoaded", () => {
     let i = 0;
     const typeNext = () => {
       if (i >= msgs.length) {
-        avatar.classList.add('visible'); // FIXED: now triggers opacity
+        avatar.classList.add('visible');
         terminal.style.display = 'block';
-        setTimeout(() => terminalInput.focus(), 100); // FIXED: focus after render
+        setTimeout(() => terminalInput.focus(), 100);
         startMatrix();
         startParticles();
         fetchCrypto();
@@ -287,7 +331,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd');
       if(!r.ok) throw new Error();
       const d=await r.json();
-      const fmt=p=>`$${Number(p).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
+      const fmt=p=>`$${Number(p).toLocaleString('en-US', {minimumFractionDigits:0,maximumFractionDigits:0})}`;
       document.querySelector('#btc-card .price').textContent = fmt(d.bitcoin.usd);
       document.querySelector('#eth-card .price').textContent = fmt(d.ethereum.usd);
       document.querySelector('#sol-card .price').textContent = fmt(d.solana.usd);
