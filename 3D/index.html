@@ -24,10 +24,18 @@
   let sphere = new THREE.Mesh(geo, mat);
   scene.add(sphere);
 
-  // Light
-  let light = new THREE.PointLight(0xffffff, 1.4);
-  light.position.set(2, 2, 3);
-  scene.add(light);
+  // Strong key light
+let keyLight = new THREE.PointLight(0xffffff, 2.2);
+keyLight.position.set(3, 2, 4);
+scene.add(keyLight);
+
+  // Soft fill light
+let fillLight = new THREE.HemisphereLight(0xffffff, 0x202020, 1.0);
+scene.add(fillLight);
+
+  // Ambient fill (tiny boost)
+let ambient = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambient);
 
   // Subtle ambient light so the dark side isn't pitch black
   let ambient = new THREE.AmbientLight(0x404040, 0.8);
