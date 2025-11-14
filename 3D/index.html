@@ -3,350 +3,128 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>✦ Interactive 3D Earth & Galaxy ✦</title>
+  <title>3D Earth Galaxy</title>
   <style>
-    body { margin: 0; overflow: hidden; background: #000; cursor: none; }
-    canvas { display: block; }
-    .info {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      color: #fff;
-      font-family: Arial, sans-serif;
-      background: rgba(0,0,0,0.4);
-      padding: 10px 15px;
-      border-radius: 8px;
-      pointer-events: none;
-      opacity: 0.8;
+    body { 
+      margin: 0; 
+      overflow: hidden; 
+      background: #0b001b; 
+      cursor: none; 
     }
+    canvas { display: block; }
   </style>
 </head>
 <body>
-  <div class="info">Drag to orbit • Scroll to zoom • Move mouse for magic light • Enjoy the view ✨</div>
-
+  <!-- Include dat.GUI via CDN -->
   <script src="https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.min.js"></script>
 
   <script type="module">
-    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.164/build/three.module.js';
-    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.164/examples/jsm/controls/OrbitControls.js';
-    import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.164/examples/jsm/postprocessing/EffectComposer.js';
-    import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.164/examples/jsm/postprocessing/RenderPass.js';
-    import { UnrealBloomPass } from 'https://cdn.jsdelivr.net/npm/three@0.164/examples/jsm/postprocessing/UnrealBloomPass.js';
+    import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164/build/three.module.js";
 
-    // Helpful logger for texture loading / CORS issues
-    const log = (s) => console.log('[3D] ' + s);
-
-    // Scene setup
+    // Scene & camera
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.z = 3;
 
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
-    camera.position.set(0, 1, 4);
-    camera.lookAt(0, 0, 0);
-
+    // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setClearColor(0x000000);
-    renderer.outputEncoding = THREE.sRGBEncoding;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
     document.body.appendChild(renderer.domElement);
 
-    // Post-processing (bloom)
-    const composer = new EffectComposer(renderer);
-    composer.addPass(new RenderPass(scene, camera));
-    const bloomPass = new UnrealBloomPass(
-      new THREE.Vector2(window.innerWidth, window.innerHeight),
-      1.4, // strength
-      0.4, // radius
-      0.1  // threshold
-    );
-    composer.addPass(bloomPass);
-    composer.setSize(window.innerWidth, window.innerHeight);
+    // Load Earth texture
+    const loader = new THREE.TextureLoader();
+    const earthTexture = loader.load("../assets/earth.png");
 
-    // Controls
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.07;
-    controls.minDistance = 2.5;
-    controls.maxDistance = 12;
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.5;
+    // Earth sphere
+    const geo = new THREE.SphereGeometry(1, 64, 64);
+    const mat = new THREE.MeshStandardMaterial({
+      map: earthTexture,
+      roughness: 0.4,
+      metalness: 0
+    });
+    const earth = new THREE.Mesh(geo, mat);
+    scene.add(earth);
 
     // Lights
-    scene.add(new THREE.AmbientLight(0x404060, 1)); // base ambient
-    scene.add(new THREE.AmbientLight(0x6600cc, 0.3)); // color tint ambient
+    const ambient1 = new THREE.AmbientLight(0x444444, 0.6);
+    const ambient2 = new THREE.AmbientLight(0x6600cc, 0.3);
+    scene.add(ambient1, ambient2);
 
-    const sunLight = new THREE.PointLight(0xffffff, 1.6, 200);
-    sunLight.position.set(12, 8, 10);
-    scene.add(sunLight);
+    const pointLight = new THREE.PointLight(0xffffff, 1.2);
+    pointLight.position.set(2, 2, 3);
+    scene.add(pointLight);
 
-    const mouseLight = new THREE.PointLight(0xff66ff, 1.5, 20);
-    mouseLight.position.set(0, 0, 3);
+    const mouseLight = new THREE.PointLight(0xff66ff, 0.8, 5);
     scene.add(mouseLight);
 
-    // Texture loader with promise interface and CORS hint
-    const loader = new THREE.TextureLoader();
-    // Some servers require anonymous crossOrigin; helps with CORS errors in console
-    try { loader.setCrossOrigin('anonymous'); } catch (e) {} // best-effort
-
-    function loadTexturePromise(url) {
-      return new Promise((resolve, reject) => {
-        loader.load(
-          url,
-          (tex) => {
-            // ensure correct encoding for color maps
-            try { tex.encoding = THREE.sRGBEncoding; } catch (e) {}
-            tex.needsUpdate = true;
-            resolve(tex);
-          },
-          undefined,
-          (err) => {
-            console.warn('[3D] Texture load failed:', url, err);
-            reject(new Error('Failed to load ' + url));
-          }
-        );
-      });
-    }
-
-    const baseTextureUrl = 'https://www.solarsystemscope.com/textures/download/2k_';
-
-    async function initScene() {
-      // Preload textures; if any fails we fall back to simple materials
-      const textureNames = {
-        day: 'earth_daymap.jpg',
-        normal: 'earth_normal_map.jpg',
-        night: 'earth_nightmap.jpg',
-        clouds: 'earth_clouds.jpg',
-        moon: 'moon.jpg'
-      };
-
-      let textures = {};
-      let allLoaded = true;
-      try {
-        const promises = Object.entries(textureNames).map(([k, name]) =>
-          loadTexturePromise(baseTextureUrl + name).then(t => { textures[k] = t; })
-        );
-        await Promise.all(promises);
-        log('All textures loaded');
-      } catch (err) {
-        allLoaded = false;
-        console.warn('[3D] One or more textures failed to load. Falling back to basic materials. See console for CORS or network errors.');
-      }
-
-      // Earth group & tilt
-      const earthGroup = new THREE.Group();
-      scene.add(earthGroup);
-      earthGroup.rotation.x = THREE.MathUtils.degToRad(23.4);
-
-      // Earth geometry
-      const earthGeo = new THREE.SphereGeometry(1, 128, 128);
-
-      // Choose materials depending on whether textures loaded
-      let earthMat;
-      if (allLoaded) {
-        earthMat = new THREE.MeshStandardMaterial({
-          map: textures.day,
-          normalMap: textures.normal,
-          emissiveMap: textures.night,
-          emissive: new THREE.Color(0x222222),
-          emissiveIntensity: 0.6,
-          roughness: 0.9,
-          metalness: 0
-        });
-      } else {
-        earthMat = new THREE.MeshStandardMaterial({
-          color: 0x2266dd,
-          roughness: 0.8,
-          metalness: 0.0
-        });
-      }
-      const earthMesh = new THREE.Mesh(earthGeo, earthMat);
-      earthGroup.add(earthMesh);
-
-      // Clouds (if we have them)
-      if (allLoaded && textures.clouds) {
-        const cloudsGeo = new THREE.SphereGeometry(1.012, 128, 128);
-        const cloudsMat = new THREE.MeshStandardMaterial({
-          map: textures.clouds,
-          alphaMap: textures.clouds,
-          transparent: true,
-          depthWrite: false,
-          opacity: 0.9
-        });
-        const cloudsMesh = new THREE.Mesh(cloudsGeo, cloudsMat);
-        earthGroup.add(cloudsMesh);
-
-        // animate clouds
-        earthMesh.userData.clouds = cloudsMesh;
-      }
-
-      // Atmosphere glow
-      const atmosphereGeo = new THREE.SphereGeometry(1.35, 64, 64);
-      const atmosphereMat = new THREE.ShaderMaterial({
-        vertexShader: `
-          varying vec3 vNormal;
-          void main() {
-            vNormal = normalize(normalMatrix * normal);
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          }
-        `,
-        fragmentShader: `
-          varying vec3 vNormal;
-          void main() {
-            float intensity = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
-            gl_FragColor = vec4(0.3, 0.6, 1.0, 0.6) * intensity;
-          }
-        `,
-        blending: THREE.AdditiveBlending,
-        side: THREE.BackSide,
-        transparent: true,
-        depthWrite: false
-      });
-      const atmosphere = new THREE.Mesh(atmosphereGeo, atmosphereMat);
-      earthGroup.add(atmosphere);
-
-      // Moon
-      const moonPivot = new THREE.Object3D();
-      earthGroup.add(moonPivot);
-
-      const moonGeo = new THREE.SphereGeometry(0.27, 64, 64);
-      let moonMat;
-      if (allLoaded && textures.moon) {
-        moonMat = new THREE.MeshStandardMaterial({ map: textures.moon });
-      } else {
-        moonMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
-      }
-      const moon = new THREE.Mesh(moonGeo, moonMat);
-      moon.position.set(2.2, 0, 0);
-      moonPivot.add(moon);
-
-      // Stars (spiral)
-      const starCount = 12000;
-      const positions = new Float32Array(starCount * 3);
-      const colors = new Float32Array(starCount * 3);
-
-      for (let i = 0; i < starCount; i++) {
-        const i3 = i * 3;
-        const radius = Math.random() ** 0.8 * 60;
-        const spinAngle = radius * 4;
-        const branchAngle = (i % 5) * (Math.PI * 2 / 5) + (Math.random() - 0.5) * 0.3;
-
-        const randomX = Math.pow(Math.random(), 2) * (Math.random() < 0.5 ? 1 : -1) * 3;
-        const randomY = (Math.random() - 0.5) * 8;
-        const randomZ = Math.pow(Math.random(), 2) * (Math.random() < 0.5 ? 1 : -1) * 3;
-
-        positions[i3]     = Math.cos(spinAngle + branchAngle) * radius + randomX;
-        positions[i3 + 1] = randomY;
-        positions[i3 + 2] = Math.sin(spinAngle + branchAngle) * radius + randomZ;
-
-        const color = new THREE.Color().setHSL(0.55 + Math.random() * 0.2, 0.6, 0.9);
-        colors[i3]     = color.r;
-        colors[i3 + 1] = color.g;
-        colors[i3 + 2] = color.b;
-      }
-
-      const starsGeo = new THREE.BufferGeometry();
-      starsGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      starsGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-      const starsMat = new THREE.PointsMaterial({
-        size: 0.7,
-        sizeAttenuation: true,
-        vertexColors: true,
-        blending: THREE.AdditiveBlending,
-        transparent: true,
-        depthWrite: false
-      });
-
-      const starField = new THREE.Points(starsGeo, starsMat);
-      scene.add(starField);
-
-      // Hook these into animation loop
-      earthMesh.userData.starField = starField;
-      earthMesh.userData.starsMat = starsMat;
-      earthMesh.userData.moonPivot = moonPivot;
-      earthMesh.userData.earthGroup = earthGroup;
-      earthMesh.userData.cloudsMesh = earthMesh.userData.clouds || null;
-
-      // Expose to outer scope by attaching to window for easy debugging
-      window._earthDebug = {
-        earthMesh,
-        moon,
-        moonPivot,
-        starField,
-        starsMat,
-        cloudsMesh: earthMesh.userData.clouds
-      };
-
-      log('Scene initialized.');
-    }
-
-    initScene().catch(err => {
-      console.error('[3D] initScene error', err);
-    });
-
-    // Mouse tracking for magic light
+    // Mouse tracking
     const mouse = { x: 0, y: 0 };
-    window.addEventListener('mousemove', (e) => {
+    window.addEventListener("mousemove", (e) => {
       mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
       mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     });
 
-    // GUI
-    const gui = new dat.GUI({ width: 300 });
-    gui.add(controls, 'autoRotate').name('Auto Rotate');
-    gui.add(controls, 'autoRotateSpeed', -5, 5).name('Auto Speed');
-    gui.add(bloomPass, 'strength', 0, 3, 0.01).name('Bloom Strength');
-    gui.add(bloomPass, 'radius', 0, 1, 0.01).name('Bloom Radius');
-    gui.addColor({ lightColor: '#ff66ff' }, 'lightColor').name('Magic Light').onChange(v => mouseLight.color.set(v));
-    gui.addColor({ sunColor: '#ffffff' }, 'sunColor').name('Sun Color').onChange(v => sunLight.color.set(v));
+    // Procedural galaxy background
+    const starCount = 2000;
+    const starsGeometry = new THREE.BufferGeometry();
+    const starPositions = [];
+
+    for (let i = 0; i < starCount; i++) {
+      starPositions.push(
+        (Math.random() - 0.5) * 200,
+        (Math.random() - 0.5) * 200,
+        (Math.random() - 0.5) * 200
+      );
+    }
+
+    starsGeometry.setAttribute("position", new THREE.Float32BufferAttribute(starPositions, 3));
+    const starsMaterial = new THREE.PointsMaterial({ color: 0xbb00ff, size: 0.2, sizeAttenuation: true });
+    const starField = new THREE.Points(starsGeometry, starsMaterial);
+    scene.add(starField);
+
+    // GUI controls
+    const gui = new dat.GUI();
+    const controls = {
+      rotationSpeedY: 0.01,
+      rotationSpeedX: 0.003,
+      lightColor: "#ffffff"
+    };
+
+    gui.add(controls, 'rotationSpeedY', 0, 0.1).name("Rotate Y speed");
+    gui.add(controls, 'rotationSpeedX', 0, 0.05).name("Rotate X speed");
+    gui.addColor(controls, 'lightColor').name("Point Light Color").onChange((val) => {
+      pointLight.color.set(val);
+    });
 
     // Animation loop
-    const clock = new THREE.Clock();
     function animate() {
       requestAnimationFrame(animate);
 
-      const elapsed = clock.getElapsedTime();
+      // Rotate Earth
+      earth.rotation.y += controls.rotationSpeedY;
+      earth.rotation.x += controls.rotationSpeedX;
 
-      // Find earthMesh if available
-      const earthMesh = window._earthDebug && window._earthDebug.earthMesh;
-      if (earthMesh) {
-        // Earth & clouds rotation
-        earthMesh.rotation.y += 0.002;
-        if (window._earthDebug.cloudsMesh) {
-          window._earthDebug.cloudsMesh.rotation.y += 0.0035;
-        }
+      // Rotate galaxy slowly
+      starField.rotation.y += 0.0005;
+      starField.rotation.x += 0.0002;
 
-        // Moon orbit
-        window._earthDebug.moonPivot.rotation.y += 0.005;
+      // Mouse light
+      mouseLight.position.x = mouse.x * 5;
+      mouseLight.position.y = mouse.y * 5;
+      mouseLight.position.z = 2;
 
-        // Galaxy slow spin
-        window._earthDebug.starField.rotation.y += 0.00015;
-
-        // Gentle star twinkle
-        window._earthDebug.starsMat.size = 0.7 + Math.sin(elapsed * 3) * 0.15;
-      }
-
-      // Magic mouse light follows cursor
-      mouseLight.position.set(mouse.x * 7, mouse.y * 7, 3);
-
-      controls.update();
-      composer.render();
+      renderer.render(scene, camera);
     }
 
     animate();
 
-    // Resize handler
-    window.addEventListener('resize', () => {
+    // Resize
+    window.addEventListener("resize", () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
-      composer.setSize(window.innerWidth, window.innerHeight);
     });
-
-    // Quick debugging tip: open devtools (F12) and check Console for texture/network/CORS errors.
-    log('Script loaded. If you only see a black screen, check the console for texture loading errors (CORS / 403).');
   </script>
 </body>
 </html>
+
