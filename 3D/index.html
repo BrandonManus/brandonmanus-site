@@ -3,11 +3,50 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3D Earth – brandonmanus-site</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>3D Test</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #000; }
+    canvas { display: block; }
+  </style>
 </head>
 <body>
-  <!-- Three.js will inject the canvas here -->
-  <script type="module" src="script.js"></script>
+  <script type="module">
+    import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164/build/three.module.js";
+
+    let scene = new THREE.Scene();
+    let camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.z = 3;
+
+    let renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Simple colored sphere (no texture)
+    let geo = new THREE.SphereGeometry(1, 32, 32);
+    let mat = new THREE.MeshStandardMaterial({ color: 0x3399ff, roughness: 0.4 });
+    let sphere = new THREE.Mesh(geo, mat);
+    scene.add(sphere);
+
+    // Light
+    let light = new THREE.PointLight(0xffffff, 1.2);
+    light.position.set(2, 2, 3);
+    scene.add(light);
+
+    // Animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+      sphere.rotation.y += 0.01;
+      sphere.rotation.x += 0.003;
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Resize fix
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
 </body>
 </html>
