@@ -3,9 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3D Earth</title>
+  <title>3D Earth Galaxy</title>
   <style>
-    body { margin: 0; overflow: hidden; background: #000; }
+    body { 
+      margin: 0; 
+      overflow: hidden; 
+      background: #0b001b; /* fallback dark purple */ 
+      cursor: none; /* optional: hide cursor */
+    }
     canvas { display: block; }
   </style>
 </head>
@@ -13,47 +18,89 @@
   <script type="module">
     import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164/build/three.module.js";
 
-    let scene = new THREE.Scene();
-    let camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+    // Scene & camera
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
     camera.position.z = 3;
 
-    let renderer = new THREE.WebGLRenderer({ antialias: true });
+    // Renderer
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // Load the texture
-    const textureLoader = new THREE.TextureLoader();
-    const earthTexture = textureLoader.load("../assets/earth.png"); // adjust path if needed
+    // Load Earth texture
+    const loader = new THREE.TextureLoader();
+    const earthTexture = loader.load("../assets/earth.png");
 
-    // Sphere with texture
-    let geo = new THREE.SphereGeometry(1, 64, 64);
-    let mat = new THREE.MeshStandardMaterial({ 
-      map: earthTexture, 
-      roughness: 0.4, 
-      metalness: 0 
+    // Earth sphere
+    const geo = new THREE.SphereGeometry(1, 64, 64);
+    const mat = new THREE.MeshStandardMaterial({
+      map: earthTexture,
+      roughness: 0.4,
+      metalness: 0
     });
-    let sphere = new THREE.Mesh(geo, mat);
-    scene.add(sphere);
+    const earth = new THREE.Mesh(geo, mat);
+    scene.add(earth);
 
-    // Light
-    let light = new THREE.PointLight(0xffffff, 1.2);
-    light.position.set(2, 2, 3);
-    scene.add(light);
+    // Lights
+    const ambient1 = new THREE.AmbientLight(0x444444, 0.6);
+    const ambient2 = new THREE.AmbientLight(0x6600cc, 0.3);
+    scene.add(ambient1, ambient2);
 
-    // Optional: Ambient light for softer shading
-    let ambientLight = new THREE.AmbientLight(0x333333);
-    scene.add(ambientLight);
+    const pointLight = new THREE.PointLight(0xffffff, 1.2);
+    pointLight.position.set(2, 2, 3);
+    scene.add(pointLight);
+
+    const mouseLight = new THREE.PointLight(0xff66ff, 0.8, 5);
+    scene.add(mouseLight);
+
+    // Mouse tracking
+    const mouse = { x: 0, y: 0 };
+    window.addEventListener("mousemove", (e) => {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    });
+
+    // Procedural galaxy background (particles)
+    const starCount = 2000;
+    const starsGeometry = new THREE.BufferGeometry();
+    const starPositions = [];
+
+    for (let i = 0; i < starCount; i++) {
+      const x = (Math.random() - 0.5) * 200;
+      const y = (Math.random() - 0.5) * 200;
+      const z = (Math.random() - 0.5) * 200;
+      starPositions.push(x, y, z);
+    }
+
+    starsGeometry.setAttribute("position", new THREE.Float32BufferAttribute(starPositions, 3));
+    const starsMaterial = new THREE.PointsMaterial({ color: 0xbb00ff, size: 0.2, sizeAttenuation: true });
+    const starField = new THREE.Points(starsGeometry, starsMaterial);
+    scene.add(starField);
 
     // Animation loop
     function animate() {
       requestAnimationFrame(animate);
-      sphere.rotation.y += 0.01;
-      sphere.rotation.x += 0.003;
+
+      // Rotate Earth
+      earth.rotation.y += 0.01;
+      earth.rotation.x += 0.003;
+
+      // Rotate galaxy slowly
+      starField.rotation.y += 0.0005;
+      starField.rotation.x += 0.0002;
+
+      // Update mouse light position
+      mouseLight.position.x = mouse.x * 5;
+      mouseLight.position.y = mouse.y * 5;
+      mouseLight.position.z = 2;
+
       renderer.render(scene, camera);
     }
+
     animate();
 
-    // Resize fix
+    // Handle resize
     window.addEventListener("resize", () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
