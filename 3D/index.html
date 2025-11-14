@@ -8,13 +8,16 @@
     body { 
       margin: 0; 
       overflow: hidden; 
-      background: #0b001b; /* fallback dark purple */ 
-      cursor: none; /* optional: hide cursor */
+      background: #0b001b; 
+      cursor: none; 
     }
     canvas { display: block; }
   </style>
 </head>
 <body>
+  <!-- Include dat.GUI via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.min.js"></script>
+
   <script type="module">
     import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164/build/three.module.js";
 
@@ -61,16 +64,17 @@
       mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     });
 
-    // Procedural galaxy background (particles)
+    // Procedural galaxy background
     const starCount = 2000;
     const starsGeometry = new THREE.BufferGeometry();
     const starPositions = [];
 
     for (let i = 0; i < starCount; i++) {
-      const x = (Math.random() - 0.5) * 200;
-      const y = (Math.random() - 0.5) * 200;
-      const z = (Math.random() - 0.5) * 200;
-      starPositions.push(x, y, z);
+      starPositions.push(
+        (Math.random() - 0.5) * 200,
+        (Math.random() - 0.5) * 200,
+        (Math.random() - 0.5) * 200
+      );
     }
 
     starsGeometry.setAttribute("position", new THREE.Float32BufferAttribute(starPositions, 3));
@@ -78,19 +82,33 @@
     const starField = new THREE.Points(starsGeometry, starsMaterial);
     scene.add(starField);
 
+    // GUI controls
+    const gui = new dat.GUI();
+    const controls = {
+      rotationSpeedY: 0.01,
+      rotationSpeedX: 0.003,
+      lightColor: "#ffffff"
+    };
+
+    gui.add(controls, 'rotationSpeedY', 0, 0.1).name("Rotate Y speed");
+    gui.add(controls, 'rotationSpeedX', 0, 0.05).name("Rotate X speed");
+    gui.addColor(controls, 'lightColor').name("Point Light Color").onChange((val) => {
+      pointLight.color.set(val);
+    });
+
     // Animation loop
     function animate() {
       requestAnimationFrame(animate);
 
       // Rotate Earth
-      earth.rotation.y += 0.01;
-      earth.rotation.x += 0.003;
+      earth.rotation.y += controls.rotationSpeedY;
+      earth.rotation.x += controls.rotationSpeedX;
 
       // Rotate galaxy slowly
       starField.rotation.y += 0.0005;
       starField.rotation.x += 0.0002;
 
-      // Update mouse light position
+      // Mouse light
       mouseLight.position.x = mouse.x * 5;
       mouseLight.position.y = mouse.y * 5;
       mouseLight.position.z = 2;
@@ -100,7 +118,7 @@
 
     animate();
 
-    // Handle resize
+    // Resize
     window.addEventListener("resize", () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
