@@ -26,7 +26,7 @@
 
   // Light
   let light = new THREE.PointLight(0xffffff, 1.4);
-  light.position.set(2, 2, 3);
+  light.position.set(2, 2, 1);
   scene.add(light);
 
   // Subtle ambient light so the dark side isn't pitch black
