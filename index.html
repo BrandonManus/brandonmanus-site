@@ -11,67 +11,364 @@
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet" />
 <title>Cybernetic Node v4.0</title>
 <style>
-  body, html { margin:0; padding:0; height:100%; overflow:hidden; background:#000; color:#0f0; font-family:'Orbitron', monospace; }
+  :root {
+    --accent: #00ff88;
+    --accent-soft: rgba(0, 255, 136, 0.4);
+    --accent-alt: #00ffea;
+    --bg: #000000;
+    --terminal-bg: rgba(0, 0, 0, 0.85);
+    --border-soft: rgba(0, 255, 136, 0.4);
+  }
 
+  * {
+    box-sizing: border-box;
+  }
 
+  body, html {
+    margin:0;
+    padding:0;
+    height:100%;
+    overflow:hidden;
+    background: radial-gradient(circle at top, #021b0a 0%, #000 55%, #000 100%);
+    color:#0f0;
+    font-family:'Orbitron', monospace;
+  }
 
   /* LOGIN */
   #loginOverlay {
-    position:fixed; top:0; left:0; width:100%; height:100%;
-    background:radial-gradient(circle at center, rgba(0,255,0,0.05), rgba(0,0,0,0.95));
-    display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:1000; transition:opacity 1s ease-in-out;
+    position:fixed;
+    inset:0;
+    background:radial-gradient(circle at center, rgba(0,255,0,0.15), rgba(0,0,0,0.97));
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    z-index:1000;
+    transition:opacity 0.9s ease-in-out, transform 0.9s ease-in-out;
+    transform:scale(1);
   }
-  #loginOverlay.hidden { opacity:0; pointer-events:none; }
-  #loginOverlay h1 { color:#00ff88; text-shadow:0 0 15px #00ff88; margin-bottom:15px; }
-  #loginOverlay input, #loginOverlay button {
-    font-size:18px; padding:10px; margin:5px; border:2px solid #00ff88;
-    background:#000; color:#00ff88; transition:all .3s;
+  #loginOverlay.hidden {
+    opacity:0;
+    pointer-events:none;
+    transform:scale(1.05);
   }
-  #loginOverlay input:focus, #loginOverlay button:hover { background:#00ff88; color:#000; box-shadow:0 0 20px #00ff88; }
-  #loginOverlay button { cursor:pointer; }
+  #loginOverlay h1 {
+    color:var(--accent);
+    text-shadow:0 0 20px var(--accent), 0 0 40px rgba(0,255,136,0.6);
+    margin-bottom:15px;
+    letter-spacing:0.2em;
+    text-transform:uppercase;
+    font-size:1.6rem;
+  }
+  #loginOverlay input,
+  #loginOverlay button {
+    font-size:18px;
+    padding:10px 14px;
+    margin:5px;
+    border:2px solid var(--accent);
+    background:#000;
+    color:var(--accent);
+    transition:all .3s;
+    outline:none;
+    border-radius:4px;
+    text-transform:uppercase;
+    letter-spacing:0.1em;
+  }
+  #loginOverlay input::placeholder {
+    color:rgba(0,255,136,0.4);
+  }
+  #loginOverlay input:focus,
+  #loginOverlay button:hover {
+    background:var(--accent);
+    color:#000;
+    box-shadow:0 0 25px var(--accent), 0 0 60px rgba(0,255,136,0.6);
+  }
+  #loginOverlay button {
+    cursor:pointer;
+  }
 
-  /* MAIN */
-  #mainContent { display:none; position:relative; height:100%; width:100%; }
-  #matrixCanvas, #particleCanvas { position:absolute; top:0; left:0; width:100%; height:100%; }
-  #matrixCanvas { z-index:0; opacity:0.12; pointer-events:none; }
-  #particleCanvas { z-index:1; pointer-events:none; }
+  /* MAIN LAYOUT */
+  #mainContent {
+    display:none;
+    position:relative;
+    height:100%;
+    width:100%;
+    overflow:hidden;
+  }
+  #matrixCanvas,
+  #particleCanvas {
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+  }
+  #matrixCanvas {
+    z-index:0;
+    opacity:0.26; /* more visible */
+    pointer-events:none;
+  }
+  #particleCanvas {
+    z-index:1;
+    pointer-events:none;
+  }
 
+  /* AVATAR */
   #avatarContainer {
-    position:absolute; top:8%; left:50%; transform:translateX(-50%);
-    z-index:3; opacity:0; transition:opacity 1.2s ease-in-out;
+    position:absolute;
+    top:10%;
+    left:50%;
+    transform:translateX(-50%);
+    z-index:3;
+    opacity:0;
+    transition:opacity 1.2s ease-in-out, transform 0.8s ease-out;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
   }
+  #avatarContainer.active {
+    transform:translateX(-50%) translateY(0);
+  }
+
   #avatarImg {
-    width:260px; height:260px; border-radius:50%;
-    border:3px solid #00ff88; box-shadow:0 0 30px #00ff88, inset 0 0 15px rgba(0,255,0,0.3);
-    transition:all .4s;
+    width:260px;
+    height:260px;
+    border-radius:50%;
+    border:3px solid var(--accent);
+    box-shadow:
+      0 0 35px var(--accent),
+      0 0 80px rgba(0,255,136,0.55),
+      inset 0 0 22px rgba(0,255,0,0.35);
+    transition:transform 0.6s ease, box-shadow 0.6s ease, filter 0.6s ease;
+    object-fit:cover;
+    image-rendering:auto;
+    animation: avatarPulse 3.5s ease-in-out infinite;
+    backdrop-filter:blur(3px);
   }
-  #avatarContainer:hover #avatarImg { transform:scale(1.05); box-shadow:0 0 40px #00ffaa, 0 0 70px rgba(0,255,200,.5); }
+  #avatarContainer:hover #avatarImg {
+    transform:scale(1.06) translateY(-4px);
+    box-shadow:
+      0 0 45px #00ffaa,
+      0 0 90px rgba(0,255,200,0.8),
+      inset 0 0 32px rgba(0,255,180,0.45);
+    filter:saturate(1.2);
+  }
 
+  .avatar-ring {
+    position:absolute;
+    width:310px;
+    height:310px;
+    border-radius:50%;
+    border:1px dashed rgba(0,255,136,0.4);
+    pointer-events:none;
+    animation:ringSpin 18s linear infinite;
+  }
+  .avatar-ring::before,
+  .avatar-ring::after {
+    content:"●";
+    position:absolute;
+    top:50%;
+    transform:translateY(-50%);
+    font-size:10px;
+    color:var(--accent-alt);
+    text-shadow:0 0 10px var(--accent-alt);
+  }
+  .avatar-ring::before { left:-4px; }
+  .avatar-ring::after { right:-4px; }
+
+  .avatar-label {
+    font-size:0.8rem;
+    text-transform:uppercase;
+    letter-spacing:0.2em;
+    color:rgba(0,255,136,0.7);
+  }
+
+  @keyframes avatarPulse {
+    0%   { box-shadow:0 0 30px var(--accent-soft), 0 0 70px rgba(0,255,136,0.3); }
+    50%  { box-shadow:0 0 45px var(--accent), 0 0 100px rgba(0,255,136,0.75); }
+    100% { box-shadow:0 0 30px var(--accent-soft), 0 0 70px rgba(0,255,136,0.3); }
+  }
+
+  @keyframes ringSpin {
+    from { transform:rotate(0deg); }
+    to   { transform:rotate(360deg); }
+  }
+
+  /* DISPLAY TEXT */
   #displayText {
-    position:absolute; top:42%; left:50%; transform:translateX(-50%);
-    color:#00ff88; font-size:1.1em; white-space:pre-line; z-index:3; text-align:center;
+    position:absolute;
+    top:47%;
+    left:50%;
+    transform:translateX(-50%);
+    color:var(--accent);
+    font-size:1.05em;
+    white-space:pre-line;
+    z-index:3;
+    text-align:center;
+    text-shadow:0 0 12px rgba(0,255,136,0.6);
+    padding:6px 14px;
+    background:linear-gradient(to right, rgba(0,0,0,0.9), rgba(0,0,0,0.6), rgba(0,0,0,0.9));
+    border-radius:4px;
+    border:1px solid rgba(0,255,136,0.3);
+    max-width:80%;
   }
 
+  /* TERMINAL */
   #terminal {
-    position:absolute; bottom:25%; left:50%; transform:translateX(-50%);
-    background:rgba(0,0,0,0.85); border:1px solid #0f0; padding:10px;
-    width:90%; max-width:600px; color:#0f0; font-family:monospace; font-size:14px;
-    display:none; z-index:6;
+    position:absolute;
+    bottom:23%;
+    left:50%;
+    transform:translateX(-50%);
+    background:var(--terminal-bg);
+    border:1px solid var(--border-soft);
+    padding:10px;
+    width:90%;
+    max-width:650px;
+    color:#0f0;
+    font-family:monospace;
+    font-size:14px;
+    display:none;
+    z-index:6;
+    box-shadow:0 0 25px rgba(0,255,136,0.25);
+    border-radius:6px;
+    backdrop-filter:blur(3px);
   }
-  #terminalOutput { max-height:200px; overflow-y:auto; margin-bottom:5px; }
-  #terminalInput { width:95%; background:#000; color:#0f0; border:none; outline:none; }
 
+  #terminal::before {
+    content:"NEURAL CONSOLE v4.0";
+    display:block;
+    font-size:10px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:rgba(0,255,136,0.7);
+    margin-bottom:4px;
+    border-bottom:1px solid rgba(0,255,136,0.25);
+    padding-bottom:3px;
+  }
+
+  #terminalOutput {
+    max-height:220px;
+    overflow-y:auto;
+    margin-bottom:5px;
+    scrollbar-width:thin;
+    scrollbar-color:#00ff88 #000;
+  }
+  #terminalOutput::-webkit-scrollbar {
+    width:6px;
+  }
+  #terminalOutput::-webkit-scrollbar-track {
+    background:rgba(0,0,0,0.6);
+  }
+  #terminalOutput::-webkit-scrollbar-thumb {
+    background:rgba(0,255,136,0.7);
+  }
+
+  #terminalOutput div {
+    line-height:1.3;
+  }
+
+  #terminalInput {
+    width:95%;
+    background:#000;
+    color:#0f0;
+    border:none;
+    outline:none;
+  }
+
+  #terminalPrompt {
+    color:var(--accent);
+  }
+
+  /* CRYPTO DASHBOARD */
   .crypto-dashboard-wrapper {
-    position:absolute; bottom:4%; left:50%; transform:translateX(-50%);
+    position:absolute;
+    bottom:4%;
+    left:50%;
+    transform:translateX(-50%);
     z-index:5;
   }
-  .crypto-dashboard-container { display:flex; gap:25px; justify-content:center; flex-wrap:wrap; font-family:'Orbitron', sans-serif; }
-  .crypto-card {
-    background:rgba(0,0,0,0.6); border:2px solid #00ffea; border-radius:12px;
-    padding:16px; width:120px; text-align:center; color:#00ffea; box-shadow:0 0 20px #00ffea; transition:.3s;
+  .crypto-dashboard-container {
+    display:flex;
+    gap:25px;
+    justify-content:center;
+    flex-wrap:wrap;
+    font-family:'Orbitron', sans-serif;
   }
-  .crypto-card:hover { box-shadow:0 0 30px #ff00ff; transform:scale(1.05); }
-  .crypto-card .price { font-size:1.5em; font-weight:bold; margin:0; }
+  .crypto-card {
+    position:relative;
+    background:linear-gradient(145deg, rgba(0,0,0,0.8), rgba(0,30,25,0.95));
+    border:2px solid var(--accent-alt);
+    border-radius:12px;
+    padding:14px;
+    width:130px;
+    text-align:center;
+    color:var(--accent-alt);
+    box-shadow:0 0 20px rgba(0,255,234,0.4);
+    transition:transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+    overflow:hidden;
+  }
+  .crypto-card::before {
+    content:"";
+    position:absolute;
+    inset:-40%;
+    background:conic-gradient(from 0deg, rgba(0,255,234,0.0), rgba(0,255,234,0.4), rgba(0,255,234,0.0));
+    opacity:0;
+    transition:opacity 0.3s ease;
+    mix-blend-mode:screen;
+  }
+  .crypto-card:hover {
+    box-shadow:0 0 32px #ff00ff;
+    transform:translateY(-4px) scale(1.05);
+    border-color:#ff00ff;
+  }
+  .crypto-card:hover::before {
+    opacity:1;
+    animation:cardSweep 2.4s linear infinite;
+  }
+  @keyframes cardSweep {
+    from { transform:rotate(0deg); }
+    to   { transform:rotate(360deg); }
+  }
+
+  .crypto-card h2 {
+    margin:0 0 6px;
+    font-size:1rem;
+    letter-spacing:0.16em;
+  }
+  .crypto-card .price {
+    font-size:1.5em;
+    font-weight:bold;
+    margin:0;
+  }
+  .crypto-card .label {
+    font-size:0.65rem;
+    text-transform:uppercase;
+    letter-spacing:0.18em;
+    color:rgba(0,255,234,0.7);
+    margin-top:6px;
+  }
+
+  /* RESPONSIVE TWEAKS */
+  @media (max-width: 768px) {
+    #avatarImg {
+      width:220px;
+      height:220px;
+    }
+    .avatar-ring {
+      width:270px;
+      height:270px;
+    }
+    #displayText {
+      top:46%;
+      font-size:0.95em;
+      max-width:90%;
+    }
+    #terminal {
+      bottom:22%;
+      max-width:90%;
+      font-size:13px;
+    }
+  }
 </style>
 </head>
 <body>
@@ -87,21 +384,38 @@
   <canvas id="particleCanvas"></canvas>
 
   <div id="avatarContainer">
+    <div class="avatar-ring"></div>
     <img id="avatarImg" src="https://na-assets.pinit.io/8GwrpeSH4TpAGEJsmoF35J8DY6RNCdyjCBZsEnTySEKd/c746a7a7-88cc-4677-b919-877329e2dd0d/437" />
+    <div class="avatar-label">Cybernetic Identity: LINKED</div>
   </div>
 
   <div id="displayText">Initializing Neural Link...</div>
 
   <div id="terminal">
     <div id="terminalOutput"></div>
-    <div><span>&gt; </span><input id="terminalInput" type="text" autocomplete="off"/></div>
+    <div>
+      <span id="terminalPrompt">&gt;</span>
+      <input id="terminalInput" type="text" autocomplete="off"/>
+    </div>
   </div>
 
   <div class="crypto-dashboard-wrapper">
     <div id="crypto-dashboard" class="crypto-dashboard-container">
-      <div class="crypto-card" id="btc-card"><h2>BTC</h2><p class="price">$0</p></div>
-      <div class="crypto-card" id="eth-card"><h2>ETH</h2><p class="price">$0</p></div>
-      <div class="crypto-card" id="sol-card"><h2>SOL</h2><p class="price">$0</p></div>
+      <div class="crypto-card" id="btc-card">
+        <h2>BTC</h2>
+        <p class="price">$0</p>
+        <div class="label">Core Signal</div>
+      </div>
+      <div class="crypto-card" id="eth-card">
+        <h2>ETH</h2>
+        <p class="price">$0</p>
+        <div class="label">Relay Flux</div>
+      </div>
+      <div class="crypto-card" id="sol-card">
+        <h2>SOL</h2>
+        <p class="price">$0</p>
+        <div class="label">Solar Thread</div>
+      </div>
     </div>
   </div>
 </div>
@@ -126,14 +440,12 @@ document.addEventListener("DOMContentLoaded", () => {
   function resize() {
     matrixCanvas.width = particleCanvas.width = window.innerWidth;
     matrixCanvas.height = particleCanvas.height = window.innerHeight;
-    // recalc matrix columns/drops so matrix adapts to new size
     columns = Math.floor(matrixCanvas.width / fontSize);
     drops = Array(columns).fill(1);
   }
   window.addEventListener('resize', resize);
 
-  // initial canvas sizing
-  let fontSize = 14;
+  let fontSize = 16; // slightly larger for clearer matrix effect
   let columns = Math.floor(window.innerWidth / fontSize);
   let drops = Array(columns).fill(1);
   resize();
@@ -146,27 +458,40 @@ document.addEventListener("DOMContentLoaded", () => {
       overlay.style.display = 'none';
       main.style.display = 'block';
       bootSequence();
-    }, 1000);
+    }, 900);
   });
 
   function bootSequence() {
-    const messages = [`User ${username} recognized...`, "Decrypting neural matrix...", "Stabilizing data stream...", "Neural link established.", "Type help for more info"];
-    let i=0;
+    const messages = [
+      `User ${username} recognized...`,
+      "Decrypting neural matrix...",
+      "Stabilizing data stream...",
+      "Neural link established.",
+      "Type help for more info"
+    ];
+    let i = 0;
     function typeNext() {
-      if(i>=messages.length) {
-        avatar.style.opacity=1;
-        terminal.style.display='block';
+      if (i >= messages.length) {
+        avatar.style.opacity = 1;
+        avatar.classList.add('active');
+        terminal.style.display = 'block';
         terminalInput.focus();
         startMatrix();
         startParticles();
         fetchCrypto();
-        setInterval(fetchCrypto,5000);
+        setInterval(fetchCrypto, 5000);
         return;
       }
-      let j=0; displayText.textContent="";
+      let j = 0;
+      displayText.textContent = "";
       function typer() {
-        if(j<messages[i].length){ displayText.textContent+=messages[i][j++]; setTimeout(typer,30); }
-        else { i++; setTimeout(typeNext,500); }
+        if (j < messages[i].length) {
+          displayText.textContent += messages[i][j++];
+          setTimeout(typer, 30);
+        } else {
+          i++;
+          setTimeout(typeNext, 500);
+        }
       }
       typer();
     }
@@ -175,85 +500,165 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // MATRIX
   function startMatrix() {
+    // separate alpha layers to make trails smoother and more visible
     function drawMatrix() {
-      mctx.fillStyle='rgba(0,0,0,0.07)'; mctx.fillRect(0,0,matrixCanvas.width,matrixCanvas.height);
-      mctx.fillStyle='#00ff88'; mctx.shadowColor='#00ff88'; mctx.shadowBlur=8;
-      mctx.font=fontSize+"px monospace";
-      for(let i=0;i<drops.length;i++){
-        const text=chars[Math.floor(Math.random()*chars.length)];
-        mctx.fillText(text,i*fontSize,drops[i]*fontSize);
-        if(drops[i]*fontSize>matrixCanvas.height && Math.random()>0.975) drops[i]=0;
+      mctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+      mctx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+
+      mctx.font = fontSize + "px monospace";
+
+      for (let i = 0; i < drops.length; i++) {
+        const text = chars[Math.floor(Math.random() * chars.length)];
+
+        // bright head
+        mctx.fillStyle = '#aaffcc';
+        mctx.shadowColor = '#aaffcc';
+        mctx.shadowBlur = 12;
+        mctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+        // tail (slightly dimmed below)
+        mctx.fillStyle = 'rgba(0, 255, 136, 0.5)';
+        mctx.shadowBlur = 0;
+        mctx.fillText(
+          chars[Math.floor(Math.random() * chars.length)],
+          i * fontSize,
+          (drops[i] - 1) * fontSize
+        );
+
+        if (drops[i] * fontSize > matrixCanvas.height && Math.random() > 0.975) {
+          drops[i] = 0;
+        }
         drops[i]++;
       }
     }
-    setInterval(drawMatrix,50);
+    setInterval(drawMatrix, 45);
   }
 
   // PARTICLES
-  let particles=[], mouse={x:window.innerWidth/2,y:window.innerHeight/2};
-  window.addEventListener('mousemove',e=>{ mouse.x=e.clientX; mouse.y=e.clientY; });
+  let particles = [], mouse = {x: window.innerWidth / 2, y: window.innerHeight / 2};
+
+  window.addEventListener('mousemove', e => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+  });
+
   class Particle {
-    constructor(){ this.x=Math.random()*particleCanvas.width; this.y=Math.random()*particleCanvas.height; this.size=Math.random()*2+1; this.speedX=Math.random()-0.5; this.speedY=Math.random()-0.5; }
-    update(){
-      this.x += this.speedX + (mouse.x - this.x) * 0.001;
-      this.y += this.speedY + (mouse.y - this.y) * 0.001;
-      if(this.x < 0 || this.x > particleCanvas.width) this.speedX *= -1;
-      if(this.y < 0 || this.y > particleCanvas.height) this.speedY *= -1;
+    constructor() {
+      this.reset();
     }
-    draw(){ pctx.fillStyle="rgba(0,255,200,0.2)"; pctx.beginPath(); pctx.arc(this.x,this.y,this.size,0,Math.PI*2); pctx.fill(); }
+    reset() {
+      this.x = Math.random() * particleCanvas.width;
+      this.y = Math.random() * particleCanvas.height;
+      this.size = Math.random() * 2 + 1;
+      this.speedX = (Math.random() - 0.5) * 0.8;
+      this.speedY = (Math.random() - 0.5) * 0.8;
+      this.alpha = Math.random() * 0.5 + 0.2;
+    }
+    update() {
+      this.x += this.speedX + (mouse.x - this.x) * 0.0012;
+      this.y += this.speedY + (mouse.y - this.y) * 0.0012;
+
+      if (this.x < 0 || this.x > particleCanvas.width || this.y < 0 || this.y > particleCanvas.height) {
+        this.reset();
+      }
+    }
+    draw() {
+      pctx.fillStyle = `rgba(0,255,200,${this.alpha})`;
+      pctx.beginPath();
+      pctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      pctx.fill();
+    }
   }
-  function startParticles(num=180){ particles=[]; for(let i=0;i<num;i++) particles.push(new Particle()); animate(); }
-  function animate(){ pctx.fillStyle="rgba(0,0,0,0.06)"; pctx.fillRect(0,0,particleCanvas.width,particleCanvas.height); particles.forEach(p=>{p.update();p.draw();}); requestAnimationFrame(animate); }
+
+  function startParticles(num = 180) {
+    particles = [];
+    for (let i = 0; i < num; i++) particles.push(new Particle());
+    animate();
+  }
+
+  function animate() {
+    pctx.fillStyle = "rgba(0,0,0,0.08)";
+    pctx.fillRect(0, 0, particleCanvas.width, particleCanvas.height);
+
+    particles.forEach(p => {
+      p.update();
+      p.draw();
+    });
+
+    // optional connecting lines for extra cyber look
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 90) {
+          const alpha = 1 - dist / 90;
+          pctx.strokeStyle = `rgba(0,255,200,${alpha * 0.3})`;
+          pctx.lineWidth = 0.6;
+          pctx.beginPath();
+          pctx.moveTo(particles[i].x, particles[i].y);
+          pctx.lineTo(particles[j].x, particles[j].y);
+          pctx.stroke();
+        }
+      }
+    }
+
+    requestAnimationFrame(animate);
+  }
 
   // CRYPTO
-async function fetchCrypto(){
-  try{
-    const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd');
-    const data = await res.json();
+  async function fetchCrypto() {
+    try {
+      const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd');
+      const data = await res.json();
 
-    // ← PUT IT HERE
-    const formatPrice = (price) => `$${Math.floor(price).toLocaleString()}`;
+      const formatPrice = (price) => `$${Math.floor(price).toLocaleString()}`;
 
-    document.querySelector('#btc-card .price').textContent = formatPrice(data.bitcoin.usd);
-    document.querySelector('#eth-card .price').textContent = formatPrice(data.ethereum.usd);
-    document.querySelector('#sol-card .price').textContent = formatPrice(data.solana.usd);
-  } catch {
-    document.querySelectorAll('.crypto-card .price').forEach(p => p.textContent = "$Err");
+      document.querySelector('#btc-card .price').textContent = formatPrice(data.bitcoin.usd);
+      document.querySelector('#eth-card .price').textContent = formatPrice(data.ethereum.usd);
+      document.querySelector('#sol-card .price').textContent = formatPrice(data.solana.usd);
+    } catch {
+      document.querySelectorAll('.crypto-card .price').forEach(p => p.textContent = "$Err");
+    }
   }
-}
 
-  // TERMINAL
-const commands = {
-  help:()=>`Available commands: help | clear | status | scan | echo [msg] | hack | whoami | x | youtube | project89 | play | space`,
-  clear:()=>{ terminalOutput.innerHTML=''; return ''; },
-  status:()=>`Node: ACTIVE | User: ${username} | Link: SECURE | Uptime: ${Math.floor(performance.now()/1000)}s`,
-  scan:()=>`Scanning neural net... [OK] Avatar Core | [OK] Quantum Relay | [OK] 127.0.0.1`,
-  echo:(args)=> args.join(' '),
-  hack:()=>`ACCESS GRANTED. Reality firewall bypassed.`,
-  whoami:()=>`You are ${username}, Neural Operative. Rank: Elite. Avatar: Cyber Witch.`,
-  x:()=>{ window.open('https://x.com/brandon_manus','_blank'); return 'Opening X...'; },
-  youtube:()=>{ window.open('https://www.youtube.com/@brandonmanus','_blank'); return 'Opening YouTube...'; },
-  project89:()=>{ window.open('https://www.project89.org/','_blank'); return 'Opening Project89...'; },
-  play:()=>{ window.open('https://brandonmanus.com/play/','_blank'); return 'Opening play...'; },
-  space:()=>{ window.open('https://brandonmanus.com/3D/','_blank'); return 'Opening 3D Space...'; }
-};
+  // TERMINAL (logic unchanged, aesthetics only)
+  const commands = {
+    help: () => `Available commands: help | clear | status | scan | echo [msg] | hack | whoami | x | youtube | project89 | play | space`,
+    clear: () => { terminalOutput.innerHTML=''; return ''; },
+    status: () => `Node: ACTIVE | User: ${username} | Link: SECURE | Uptime: ${Math.floor(performance.now()/1000)}s`,
+    scan: () => `Scanning neural net... [OK] Avatar Core | [OK] Quantum Relay | [OK] 127.0.0.1`,
+    echo: (args) => args.join(' '),
+    hack: () => `ACCESS GRANTED. Reality firewall bypassed.`,
+    whoami: () => `You are ${username}, Neural Operative. Rank: Elite. Avatar: Cyber Witch.`,
+    x: () => { window.open('https://x.com/brandon_manus','_blank'); return 'Opening X...'; },
+    youtube: () => { window.open('https://www.youtube.com/@brandonmanus','_blank'); return 'Opening YouTube...'; },
+    project89: () => { window.open('https://www.project89.org/','_blank'); return 'Opening Project89...'; },
+    play: () => { window.open('https://brandonmanus.com/play/','_blank'); return 'Opening play...'; },
+    space: () => { window.open('https://brandonmanus.com/3D/','_blank'); return 'Opening 3D Space...'; }
+  };
 
-  function print(line){ const div=document.createElement('div'); div.textContent=line; terminalOutput.appendChild(div); terminalOutput.scrollTop=terminalOutput.scrollHeight; }
+  function print(line) {
+    const div = document.createElement('div');
+    div.textContent = line;
+    terminalOutput.appendChild(div);
+    terminalOutput.scrollTop = terminalOutput.scrollHeight;
+  }
 
-  terminalInput.addEventListener('keydown',e=>{
-    if(e.key==='Enter'){
+  terminalInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
       const cmdLine = terminalInput.value.trim();
-      if(!cmdLine) return;
+      if (!cmdLine) return;
       print(`> ${cmdLine}`);
-      terminalInput.value='';
+      terminalInput.value = '';
       const parts = cmdLine.split(' ').filter(Boolean);
       const cmd = parts[0];
       const args = parts.slice(1);
       const handler = commands[cmd];
-      if(typeof handler === 'function'){
+      if (typeof handler === 'function') {
         try {
           const result = handler(args);
-          if(result) print(result);
+          if (result) print(result);
         } catch (err) {
           print(`Error: ${err.message}`);
         }
