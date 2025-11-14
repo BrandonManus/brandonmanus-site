@@ -1,9 +1,10 @@
-/* Simple full-screen canvas */
-html, body {
+body {
   margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
   overflow: hidden;
-  background: #000;           /* fallback while loading */
+  background: #0b001b; /* fallback dark purple */
+  cursor: none; /* optional, hides cursor */
+}
+
+canvas {
+  display: block;
 }
