@@ -1,84 +1,44 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164/build/three.module.js";
-import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.164/examples/jsm/controls/OrbitControls.js";
-import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.164/examples/jsm/loaders/GLTFLoader.js";
 
-let scene, camera, renderer, controls, mixer;
-const clock = new THREE.Clock();
+let scene, camera, renderer, earth;
 
 init();
 animate();
 
 function init() {
-  // Scene
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x111111);
 
   // Camera
   camera = new THREE.PerspectiveCamera(
-    50,
+    60,
     window.innerWidth / window.innerHeight,
     0.1,
-    200
+    100
   );
-  camera.position.set(3, 2, 5);
+  camera.position.set(0, 0, 3);
 
   // Renderer
-  const canvas = document.getElementById("three-canvas");
   renderer = new THREE.WebGLRenderer({
-    canvas,
+    canvas: document.getElementById("three-canvas"),
     antialias: true
   });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = true;
 
-  // Controls
-  controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0, 1, 0);
-  controls.update();
+  // Light
+  const light = new THREE.PointLight(0xffffff, 1.2);
+  light.position.set(3, 3, 3);
+  scene.add(light);
 
-  // Lighting
-  const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1.3);
-  scene.add(hemi);
+  // Earth Geometry + Texture
+  const texture = new THREE.TextureLoader().load("./assets/earth.jpg");
 
-  const dir = new THREE.DirectionalLight(0xffffff, 1.1);
-  dir.position.set(5, 10, 7);
-  dir.castShadow = true;
-  scene.add(dir);
+  const geo = new THREE.SphereGeometry(1, 64, 64);
+  const mat = new THREE.MeshStandardMaterial({
+    map: texture
+  });
 
-  // Ground
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(50, 50),
-    new THREE.MeshStandardMaterial({ color: 0x222222 })
-  );
-  ground.rotation.x = -Math.PI * 0.5;
-  ground.receiveShadow = true;
-  scene.add(ground);
-
-  // Load Character
-  const loader = new GLTFLoader();
-  loader.load(
-    "./assets/model.glb", // <— REPLACE with your character
-    (gltf) => {
-      const model = gltf.scene;
-
-      model.traverse((obj) => {
-        if (obj.isMesh) obj.castShadow = true;
-      });
-
-      model.scale.set(1, 1, 1);
-      scene.add(model);
-
-      // Animation
-      mixer = new THREE.AnimationMixer(model);
-
-      // pick first animation or replace
-      const clip = gltf.animations[0];
-      const action = mixer.clipAction(clip);
-      action.play();
-    },
-    undefined,
-    (err) => console.error("Model load error:", err)
-  );
+  earth = new THREE.Mesh(geo, mat);
+  scene.add(earth);
 
   // Resize
   window.addEventListener("resize", onResize);
@@ -93,8 +53,7 @@ function onResize() {
 function animate() {
   requestAnimationFrame(animate);
 
-  const delta = clock.getDelta();
-  if (mixer) mixer.update(delta);
+  earth.rotation.y += 0.002;
 
   renderer.render(scene, camera);
 }
