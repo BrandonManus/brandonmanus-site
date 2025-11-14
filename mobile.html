@@ -53,7 +53,7 @@
     object-fit:cover; animation:avatarPulse 3.5s ease-in-out infinite; backdrop-filter:blur(3px);
   }
   .avatar-ring { position:absolute; width:310px; height:310px; border-radius:50%; border:1px dashed rgba(0,255,136,.4); animation:ringSpin 18s linear infinite; }
-  .avatar-ring::before,.avatar-ring::after{ content:"●"; position:absolute; top:50%; transform:translateY(-50%); font-size:10px; color:var(--accent-alt); text-shadow:0 0 10px var(--accent-alt); }
+  .avatar-ring::before,.avatar-ring::after{ content:"●"; position:absolute; top:45%; transform:translateY(-50%); font-size:10px; color:var(--accent-alt); text-shadow:0 0 10px var(--accent-alt); }
   .avatar-ring::before{left:-4px;}.avatar-ring::after{right:-4px;}
   .avatar-label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.18em; color:rgba(0,255,136,.55); margin-top:4px; }
 
@@ -250,7 +250,7 @@ document.addEventListener("DOMContentLoaded", () => {
       "Decrypting neural matrix...",
       "Stabilizing data stream...",
       "Neural link established.",
-      "Type help for more info"
+      "Type help for more info (Uppercase Sensitive)"
     ];
     let i = 0;
     const typeNext = () => {
