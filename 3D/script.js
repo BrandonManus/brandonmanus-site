@@ -1,61 +1,60 @@
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164/build/three.module.js";
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.164/build/three.module.js';
 
-let scene, camera, renderer, earth;
+const scene = new THREE.Scene();
 
-scene.background = new THREE.Color(0x030303);
+const camera = new THREE.PerspectiveCamera(
+  60,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
+camera.position.set(0, 0, 3);
 
-init();
-animate();
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setClearColor(0x000000, 1);
+document.body.appendChild(renderer.domElement);
 
-function init() {
-  scene = new THREE.Scene();
+// LIGHTS
+const directional = new THREE.DirectionalLight(0xffffff, 2);
+directional.position.set(3, 3, 5);
+scene.add(directional);
 
-  // Camera
-  camera = new THREE.PerspectiveCamera(
-    60,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    100
-  );
-  camera.position.set(0, 0, 3);
+const ambient = new THREE.AmbientLight(0xffffff, 1.3);
+scene.add(ambient);
 
-  // Renderer
-  renderer = new THREE.WebGLRenderer({
-    canvas: document.getElementById("three-canvas"),
-    antialias: true
-  });
-  renderer.setSize(window.innerWidth, window.innerHeight);
+// LOAD TEXTURE FROM YOUR ASSETS FOLDER
+const loader = new THREE.TextureLoader();
 
-  // Light
-  const light = new THREE.PointLight(0xffffff, 1.2);
-  light.position.set(3, 3, 3);
-  scene.add(light);
+loader.load(
+  "assets/ScreenShot of Earth.png",  // <-- THIS IS THE FIX
+  (texture) => {
+    const geometry = new THREE.SphereGeometry(1, 64, 64);
+    const material = new THREE.MeshStandardMaterial({
+      map: texture,
+      roughness: 0.5,
+      metalness: 0.1,
+    });
 
-  // Earth Geometry + Texture
-  const texture = new THREE.TextureLoader().load("./assets/earth.jpg");
+    const earth = new THREE.Mesh(geometry, material);
+    scene.add(earth);
 
-  const geo = new THREE.SphereGeometry(1, 64, 64);
-  const mat = new THREE.MeshStandardMaterial({
-    map: texture
-  });
+    // Animate
+    function animate() {
+      requestAnimationFrame(animate);
+      earth.rotation.y += 0.003;
+      renderer.render(scene, camera);
+    }
+    animate();
+  },
+  undefined,
+  (err) => console.error("TEXTURE FAILED:", err)
+);
 
-  earth = new THREE.Mesh(geo, mat);
-  scene.add(earth);
-
-  // Resize
-  window.addEventListener("resize", onResize);
-}
-
-function onResize() {
+// Handle resize
+window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-function animate() {
-  requestAnimationFrame(animate);
-
-  earth.rotation.y += 0.002;
-
-  renderer.render(scene, camera);
-}
+});
