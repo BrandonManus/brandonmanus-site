@@ -16,73 +16,47 @@
   }
 
   * { box-sizing: border-box; margin:0; padding:0; }
+  html, body { height:100%; overflow:hidden; background: radial-gradient(circle at top, #021b0a 0%, #000 55%, #000 100%); color:#0f0; font-family:'Orbitron',monospace; }
 
-  html, body {
-    height:100%; overflow:hidden;
-    background: radial-gradient(circle at top, #021b0a 0%, #000 55%, #000 100%);
-    color:#0f0; font-family:'Orbitron',monospace;
-  }
-
-  /* ------------------------------------------------------------------ */
   /* LOGIN */
-  /* ------------------------------------------------------------------ */
   #loginOverlay {
-    position:fixed; inset:0;
-    background:radial-gradient(circle at center,rgba(0,255,0,0.15),rgba(0,0,0,0.97));
-    display:flex; flex-direction:column; justify-content:center; align-items:center;
-    z-index:1000; transition:opacity .9s ease-in-out,transform .9s ease-in-out;
+    position:fixed; inset:0; background:radial-gradient(circle at center,rgba(0,255,0,0.15),rgba(0,0,0,0.97));
+    display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:1000;
+    transition:opacity .9s ease-in-out,transform .9s ease-in-out;
   }
   #loginOverlay.hidden { opacity:0; pointer-events:none; transform:scale(1.05); }
-  #loginOverlay h1 { color:var(--accent); text-shadow:0 0 20px var(--accent),0 0 40px rgba(0,255,136,.6);
-    margin-bottom:15px; letter-spacing:.2em; text-transform:uppercase; font-size:1.6rem; }
+  #loginOverlay h1 { color:var(--accent); text-shadow:0 0 20px var(--accent),0 0 40px rgba(0,255,136,.6); margin-bottom:15px; letter-spacing:.2em; text-transform:uppercase; font-size:1.6rem; }
   #loginOverlay input, #loginOverlay button {
-    font-size:18px; padding:10px 14px; margin:5px; border:2px solid var(--accent);
-    background:#000; color:var(--accent); transition:all .3s; outline:none;
-    border-radius:4px; text-transform:uppercase; letter-spacing:.1em;
+    font-size:18px; padding:10px 14px; margin:5px; border:2px solid var(--accent); background:#000; color:var(--accent);
+    transition:all .3s; outline:none; border-radius:4px; text-transform:uppercase; letter-spacing:.1em;
   }
   #loginOverlay input::placeholder { color:rgba(0,255,136,.4); }
-  #loginOverlay input:focus, #loginOverlay button:hover {
-    background:var(--accent); color:#000;
-    box-shadow:0 0 25px var(--accent),0 0 60px rgba(0,255,136,.6);
-  }
+  #loginOverlay input:focus, #loginOverlay button:hover { background:var(--accent); color:#000; box-shadow:0 0 25px var(--accent),0 0 60px rgba(0,255,136,.6); }
   #loginOverlay button { cursor:pointer; }
 
-  /* ------------------------------------------------------------------ */
-  /* MAIN LAYOUT */
-  /* ------------------------------------------------------------------ */
+  /* MAIN */
   #mainContent { display:none; position:relative; height:100%; width:100%; overflow:hidden; }
   #matrixCanvas, #particleCanvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
   #matrixCanvas { z-index:0; opacity:.26; }
   #particleCanvas { z-index:1; }
 
-  /* ------------------------------------------------------------------ */
-  /* AVATAR – responsive */
-  /* ------------------------------------------------------------------ */
+  /* AVATAR */
   #avatarContainer {
-    position:absolute; top:8%; left:50%; transform:translateX(-50%);
-    z-index:3; opacity:0; transition:opacity 1.2s ease-in-out,transform .8s ease-out;
-    display:flex; flex-direction:column; align-items:center; gap:2px;
+    position:absolute; top:8%; left:50%; transform:translateX(-50%); z-index:3; opacity:0;
+    transition:opacity 1.2s ease-in-out; display:flex; flex-direction:column; align-items:center; gap:2px;
   }
-  #avatarContainer.active { opacity:1; }
+  #avatarContainer.visible { opacity:1; } /* FIXED: use .visible instead of .active */
+
   #avatarImg {
     width:260px; height:260px; border-radius:50%; border:3px solid var(--accent);
     box-shadow:0 0 35px var(--accent),0 0 80px rgba(0,255,136,.55),inset 0 0 22px rgba(0,255,0,.35);
-    object-fit:cover; animation:avatarPulse 3.5s ease-in-out infinite;
-    backdrop-filter:blur(3px);
+    object-fit:cover; animation:avatarPulse 3.5s ease-in-out infinite; backdrop-filter:blur(3px);
   }
-  .avatar-ring {
-    position:absolute; width:310px; height:310px; border-radius:50%;
-    border:1px dashed rgba(0,255,136,.4); animation:ringSpin 18s linear infinite;
-  }
-  .avatar-ring::before,.avatar-ring::after{
-    content:"●"; position:absolute; top:50%; transform:translateY(-50%);
-    font-size:10px; color:var(--accent-alt); text-shadow:0 0 10px var(--accent-alt);
-  }
+  .avatar-ring { position:absolute; width:310px; height:310px; border-radius:50%; border:1px dashed rgba(0,255,136,.4); animation:ringSpin 18s linear infinite; }
+  .avatar-ring::before,.avatar-ring::after{ content:"●"; position:absolute; top:50%; transform:translateY(-50%); font-size:10px; color:var(--accent-alt); text-shadow:0 0 10px var(--accent-alt); }
   .avatar-ring::before{left:-4px;}.avatar-ring::after{right:-4px;}
-  .avatar-label{
-    font-size:.68rem; text-transform:uppercase; letter-spacing:.18em;
-    color:rgba(0,255,136,.55); margin-top:4px;
-  }
+  .avatar-label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.18em; color:rgba(0,255,136,.55); margin-top:4px; }
+
   @keyframes avatarPulse{
     0%{box-shadow:0 0 30px var(--accent-soft),0 0 70px rgba(0,255,136,.3);}
     50%{box-shadow:0 0 45px var(--accent),0 0 100px rgba(0,255,136,.75);}
@@ -90,26 +64,20 @@
   }
   @keyframes ringSpin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
 
-  /* ------------------------------------------------------------------ */
-  /* DISPLAY TEXT */
-  /* ------------------------------------------------------------------ */
+  /* TEXT */
   #displayText{
-    position:absolute; top:46%; left:50%; transform:translateX(-50%);
-    color:var(--accent); font-size:1.05em; white-space:pre-line; z-index:3;
-    text-align:center; text-shadow:0 0 12px rgba(0,255,136,.6);
+    position:absolute; top:46%; left:50%; transform:translateX(-50%); color:var(--accent); font-size:1.05em;
+    white-space:pre-line; z-index:3; text-align:center; text-shadow:0 0 12px rgba(0,255,136,.6);
     padding:4px 12px; background:linear-gradient(to right,rgba(0,0,0,.9),rgba(0,0,0,.6),rgba(0,0,0,.9));
     border-radius:4px; border:1px solid rgba(0,255,136,.3); max-width:86%;
   }
 
-  /* ------------------------------------------------------------------ */
   /* TERMINAL */
-  /* ------------------------------------------------------------------ */
   #terminal{
-    position:absolute; bottom:22%; left:50%; transform:translateX(-50%);
-    background:var(--terminal-bg); border:1px solid var(--border-soft);
-    padding:10px; width:90%; max-width:650px; color:#0f0; font-family:monospace;
-    font-size:14px; display:none; z-index:6;
-    box-shadow:0 0 25px rgba(0,255,136,.25); border-radius:6px; backdrop-filter:blur(3px);
+    position:absolute; bottom:22%; left:50%; transform:translateX(-50%); background:var(--terminal-bg);
+    border:1px solid var(--border-soft); padding:10px; width:90%; max-width:650px; color:#0f0;
+    font-family:monospace; font-size:14px; display:none; z-index:6; box-shadow:0 0 25px rgba(0,255,136,.25);
+    border-radius:6px; backdrop-filter:blur(3px);
   }
   #terminal::before{
     content:"NEURAL CONSOLE v4.0"; display:block; font-size:10px; letter-spacing:.18em;
@@ -120,41 +88,23 @@
   #terminalOutput::-webkit-scrollbar{width:6px;}
   #terminalOutput::-webkit-scrollbar-track{background:rgba(0,0,0,.6);}
   #terminalOutput::-webkit-scrollbar-thumb{background:rgba(0,255,136,.7);}
-  #terminalInput{width:92%;background:#000;color:#0f0;border:none;outline:none;}
+  #terminalInput{width:92%;background:#000;color:#0f0;border:none;outline:none;font-family:monospace;font-size:14px;}
   #terminalPrompt{color:var(--accent);animation:blink 1s step-end infinite;}
   @keyframes blink{0%,50%{opacity:1}51%,100%{opacity:0}}
 
-  /* ------------------------------------------------------------------ */
-  /* CRYPTO DASHBOARD */
-  /* ------------------------------------------------------------------ */
+  /* CRYPTO */
   .crypto-dashboard-wrapper{position:absolute;bottom:4%;left:50%;transform:translateX(-50%);z-index:5;}
-  .crypto-dashboard-container{
-    display:flex; gap:22px; justify-content:center; flex-wrap:wrap;
-    font-family:'Orbitron',sans-serif;
-  }
+  .crypto-dashboard-container{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;font-family:'Orbitron',sans-serif;}
   .crypto-card{
-    position:relative; background:linear-gradient(145deg,rgba(0,0,0,.8),rgba(0,30,25,.95));
-    border:2px solid var(--accent-alt); border-radius:12px; padding:14px; width:130px;
-    text-align:center; color:var(--accent-alt);
-    box-shadow:0 0 20px rgba(0,255,234,.4); transition:transform .25s ease,box-shadow .25s ease;
-    overflow:hidden;
-  }
-  .crypto-card::before{
-    content:""; position:absolute; inset:-40%;
-    background:conic-gradient(from 0deg,rgba(0,255,234,0),rgba(0,255,234,.4),rgba(0,255,234,0));
-    opacity:0; transition:opacity .3s; mix-blend-mode:screen;
+    background:linear-gradient(145deg,rgba(0,0,0,.8),rgba(0,30,25,.95)); border:2px solid var(--accent-alt);
+    border-radius:12px; padding:14px; width:130px; text-align:center; color:var(--accent-alt);
+    box-shadow:0 0 20px rgba(0,255,234,.4); transition:transform .25s,box-shadow .25s;
   }
   .crypto-card:hover{box-shadow:0 0 32px #ff00ff;transform:translateY(-4px) scale(1.05);border-color:#ff00ff;}
-  .crypto-card:hover::before{opacity:1;animation:cardSweep 2.4s linear infinite;}
-  @keyframes cardSweep{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-  .crypto-card h2{margin:0 0 6px;font-size:1rem;letter-spacing:.16em;}
   .crypto-card .price{font-size:1.5em;font-weight:bold;margin:0;}
-  .crypto-card .label{font-size:.65rem;text-transform:uppercase;letter-spacing:.18em;
-    color:rgba(0,255,234,.7);margin-top:6px;}
+  .crypto-card .label{font-size:.65rem;text-transform:uppercase;letter-spacing:.18em;color:rgba(0,255,234,.7);margin-top:6px;}
 
-  /* ------------------------------------------------------------------ */
-  /* RESPONSIVE – iPhone 13 & smaller screens */
-  /* ------------------------------------------------------------------ */
+  /* MOBILE */
   @media (max-width: 480px) {
     #avatarImg{width:190px;height:190px;}
     .avatar-ring{width:230px;height:230px;}
@@ -227,7 +177,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
 
-  // ---- Canvas resize -------------------------------------------------
+  // Canvas resize
   function resize() {
     matrixCanvas.width = particleCanvas.width = window.innerWidth;
     matrixCanvas.height = particleCanvas.height = window.innerHeight;
@@ -238,7 +188,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let fontSize = 16, columns = Math.floor(window.innerWidth / fontSize), drops = Array(columns).fill(1);
   resize();
 
-  // ---- Login ---------------------------------------------------------
+  // Login
   document.getElementById('loginButton').addEventListener('click', () => {
     username = document.getElementById('usernameInput').value.trim() || "Echo";
     overlay.classList.add('hidden');
@@ -249,7 +199,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 900);
   });
 
-  // ---- Boot sequence -------------------------------------------------
+  // Boot
   function bootSequence() {
     const msgs = [
       `User ${username} recognized...`,
@@ -261,11 +211,12 @@ document.addEventListener("DOMContentLoaded", () => {
     let i = 0;
     const typeNext = () => {
       if (i >= msgs.length) {
-        avatar.style.opacity = 1;
-        avatar.classList.add('active');
+        avatar.classList.add('visible'); // FIXED: now triggers opacity
         terminal.style.display = 'block';
-        terminalInput.focus();
-        startMatrix(); startParticles(); fetchCrypto();
+        setTimeout(() => terminalInput.focus(), 100); // FIXED: focus after render
+        startMatrix();
+        startParticles();
+        fetchCrypto();
         setInterval(fetchCrypto, 8000);
         return;
       }
@@ -279,7 +230,7 @@ document.addEventListener("DOMContentLoaded", () => {
     typeNext();
   }
 
-  // ---- Matrix --------------------------------------------------------
+  // Matrix
   function startMatrix() {
     const draw = () => {
       mctx.fillStyle = 'rgba(0,0,0,.12)'; mctx.fillRect(0,0,matrixCanvas.width,matrixCanvas.height);
@@ -297,9 +248,10 @@ document.addEventListener("DOMContentLoaded", () => {
     setInterval(draw, 45);
   }
 
-  // ---- Particles -----------------------------------------------------
+  // Particles
   let particles = [], mouse = {x: innerWidth/2, y: innerHeight/2};
   window.addEventListener('mousemove', e=>{mouse.x=e.clientX;mouse.y=e.clientY;});
+  window.addEventListener('touchmove', e=>{ const t = e.touches[0]; mouse.x=t.clientX; mouse.y=t.clientY; });
   class Particle{
     constructor(){this.reset();}
     reset(){
@@ -326,23 +278,14 @@ document.addEventListener("DOMContentLoaded", () => {
   function animate(){
     pctx.fillStyle="rgba(0,0,0,.08)"; pctx.fillRect(0,0,particleCanvas.width,particleCanvas.height);
     particles.forEach(p=>{p.update();p.draw();});
-    for(let i=0;i<particles.length;i++)for(let j=i+1;j<particles.length;j++){
-      const dx=particles[i].x-particles[j].x, dy=particles[i].y-particles[j].y, dist=Math.hypot(dx,dy);
-      if(dist<90){
-        const a=1-dist/90;
-        pctx.strokeStyle=`rgba(0,255,200,${a*.3})`; pctx.lineWidth=.6;
-        pctx.beginPath(); pctx.moveTo(particles[i].x,particles[i].y);
-        pctx.lineTo(particles[j].x,particles[j].y); pctx.stroke();
-      }
-    }
     requestAnimationFrame(animate);
   }
 
-  // ---- Crypto --------------------------------------------------------
+  // Crypto
   async function fetchCrypto(){
     try{
       const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd');
-      if(!r.ok) throw new Error('API');
+      if(!r.ok) throw new Error();
       const d=await r.json();
       const fmt=p=>`$${Number(p).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
       document.querySelector('#btc-card .price').textContent = fmt(d.bitcoin.usd);
@@ -353,7 +296,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ---- Terminal ------------------------------------------------------
+  // Terminal
   const cmds={
     help:()=>`Available commands: help | clear | status | scan | echo [msg] | hack | whoami | x | youtube | project89 | play | space`,
     clear:()=>{terminalOutput.innerHTML='';return'';},
@@ -365,21 +308,21 @@ document.addEventListener("DOMContentLoaded", () => {
     x:()=>{window.open('https://x.com/brandon_manus','_blank');return'Opening X...';},
     youtube:()=>{window.open('https://www.youtube.com/@brandonmanus','_blank');return'Opening YouTube...';},
     project89:()=>{window.open('https://www.project89.org/','_blank');return'Opening Project89...';},
-    play:()=>{window.open('https://brandonmanus.com/play/','_blank');returnutiérrez'Opening play...';},
+    play:()=>{window.open('https://brandonmanus.com/play/','_blank');return'Opening play...';},
     space:()=>{window.open('https://brandonmanus.com/3D/','_blank');return'Opening 3D Space...';}
   };
-  const print=l=>{const d=document.createElement('div');d.textContent=l;terminalOutput.appendChild(d);
-    terminalOutput.scrollTop=terminalOutput.scrollHeight;};
+  const print=l=>{const d=document.createElement('div');d.textContent=l;terminalOutput.appendChild(d);terminalOutput.scrollTop=terminalOutput.scrollHeight;};
   terminalInput.addEventListener('keydown',e=>{
-    if(e.key!=='Enter')return;
-    const line=terminalInput.value.trim(); if(!line)return;
-    print(`> ${line}`); terminalInput.value='';
-    const [cmd,...args]=line.split(' ').filter(Boolean);
-    const fn=cmds[cmd];
-    if(typeof fn==='function'){
-      try{ const res=fn(args); if(res) print(res); }
-      catch(err){print(`Error: ${err.message}`);}
-    }else print(`Command not found: ${cmd}`);
+    if(e.key==='Enter'){
+      const line=terminalInput.value.trim(); if(!line)return;
+      print(`> ${line}`); terminalInput.value='';
+      const [cmd,...args]=line.split(' ').filter(Boolean);
+      const fn=cmds[cmd];
+      if(typeof fn==='function'){
+        try{ const res=fn(args); if(res) print(res); }
+        catch(err){print(`Error: ${err.message}`);}
+      }else print(`Command not found: ${cmd}`);
+    }
   });
 });
 </script>
