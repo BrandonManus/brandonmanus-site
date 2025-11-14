@@ -2,106 +2,220 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet" />
-<title>Cybernetic Node v4.0 - Mobile</title>
+<title>Cybernetic Node v4.0</title>
 <style>
-  body, html { margin:0; padding:0; height:100%; overflow:hidden; background:#000; color:#0f0; font-family:'Orbitron', monospace; }
+  :root {
+    --accent: #00ff88;
+    --accent-soft: rgba(0, 255, 136, 0.4);
+    --accent-alt: #00ffea;
+    --bg: #000000;
+    --terminal-bg: rgba(0, 0, 0, 0.85);
+    --border-soft: rgba(0, 255, 136, 0.4);
+  }
 
-  /* MAIN */
-  #mainContent { display:block; position:relative; height:100%; width:100%; }
+  * { box-sizing: border-box; margin:0; padding:0; }
 
-  #matrixCanvas, #particleCanvas { position:absolute; top:0; left:0; width:100%; height:100%; }
-  #matrixCanvas { z-index:0; opacity:0.12; pointer-events:none; }
-  #particleCanvas { z-index:1; pointer-events:none; }
+  html, body {
+    height:100%; overflow:hidden;
+    background: radial-gradient(circle at top, #021b0a 0%, #000 55%, #000 100%);
+    color:#0f0; font-family:'Orbitron',monospace;
+  }
 
-  /* ensure avatar sits above the animated text */
+  /* ------------------------------------------------------------------ */
+  /* LOGIN */
+  /* ------------------------------------------------------------------ */
+  #loginOverlay {
+    position:fixed; inset:0;
+    background:radial-gradient(circle at center,rgba(0,255,0,0.15),rgba(0,0,0,0.97));
+    display:flex; flex-direction:column; justify-content:center; align-items:center;
+    z-index:1000; transition:opacity .9s ease-in-out,transform .9s ease-in-out;
+  }
+  #loginOverlay.hidden { opacity:0; pointer-events:none; transform:scale(1.05); }
+  #loginOverlay h1 { color:var(--accent); text-shadow:0 0 20px var(--accent),0 0 40px rgba(0,255,136,.6);
+    margin-bottom:15px; letter-spacing:.2em; text-transform:uppercase; font-size:1.6rem; }
+  #loginOverlay input, #loginOverlay button {
+    font-size:18px; padding:10px 14px; margin:5px; border:2px solid var(--accent);
+    background:#000; color:var(--accent); transition:all .3s; outline:none;
+    border-radius:4px; text-transform:uppercase; letter-spacing:.1em;
+  }
+  #loginOverlay input::placeholder { color:rgba(0,255,136,.4); }
+  #loginOverlay input:focus, #loginOverlay button:hover {
+    background:var(--accent); color:#000;
+    box-shadow:0 0 25px var(--accent),0 0 60px rgba(0,255,136,.6);
+  }
+  #loginOverlay button { cursor:pointer; }
+
+  /* ------------------------------------------------------------------ */
+  /* MAIN LAYOUT */
+  /* ------------------------------------------------------------------ */
+  #mainContent { display:none; position:relative; height:100%; width:100%; overflow:hidden; }
+  #matrixCanvas, #particleCanvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  #matrixCanvas { z-index:0; opacity:.26; }
+  #particleCanvas { z-index:1; }
+
+  /* ------------------------------------------------------------------ */
+  /* AVATAR – responsive */
+  /* ------------------------------------------------------------------ */
   #avatarContainer {
-    position:absolute; top:6%; left:50%; transform:translateX(-50%);
-    z-index:4; opacity:0; transition:opacity 1.2s ease-in-out;
+    position:absolute; top:8%; left:50%; transform:translateX(-50%);
+    z-index:3; opacity:0; transition:opacity 1.2s ease-in-out,transform .8s ease-out;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
   }
+  #avatarContainer.active { opacity:1; }
   #avatarImg {
-    width:180px; height:180px; border-radius:50%;
-    border:3px solid #00ff88; box-shadow:0 0 20px #00ff88, inset 0 0 10px rgba(0,255,0,0.3);
-    transition:all .4s;
+    width:260px; height:260px; border-radius:50%; border:3px solid var(--accent);
+    box-shadow:0 0 35px var(--accent),0 0 80px rgba(0,255,136,.55),inset 0 0 22px rgba(0,255,0,.35);
+    object-fit:cover; animation:avatarPulse 3.5s ease-in-out infinite;
+    backdrop-filter:blur(3px);
   }
-  #avatarContainer:hover #avatarImg { transform:scale(1.05); box-shadow:0 0 30px #00ffaa, 0 0 50px rgba(0,255,200,.5); }
+  .avatar-ring {
+    position:absolute; width:310px; height:310px; border-radius:50%;
+    border:1px dashed rgba(0,255,136,.4); animation:ringSpin 18s linear infinite;
+  }
+  .avatar-ring::before,.avatar-ring::after{
+    content:"●"; position:absolute; top:50%; transform:translateY(-50%);
+    font-size:10px; color:var(--accent-alt); text-shadow:0 0 10px var(--accent-alt);
+  }
+  .avatar-ring::before{left:-4px;}.avatar-ring::after{right:-4px;}
+  .avatar-label{
+    font-size:.68rem; text-transform:uppercase; letter-spacing:.18em;
+    color:rgba(0,255,136,.55); margin-top:4px;
+  }
+  @keyframes avatarPulse{
+    0%{box-shadow:0 0 30px var(--accent-soft),0 0 70px rgba(0,255,136,.3);}
+    50%{box-shadow:0 0 45px var(--accent),0 0 100px rgba(0,255,136,.75);}
+    100%{box-shadow:0 0 30px var(--accent-soft),0 0 70px rgba(0,255,136,.3);}
+  }
+  @keyframes ringSpin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
 
-  /* displayText positioned below the avatar; z-index lower so avatar is always on top */
-  #displayText {
-    position:absolute; left:50%; transform:translateX(-50%);
-    color:#00ff88; font-size:1em; white-space:pre-line; z-index:3; text-align:center; padding:0 10px;
+  /* ------------------------------------------------------------------ */
+  /* DISPLAY TEXT */
+  /* ------------------------------------------------------------------ */
+  #displayText{
+    position:absolute; top:46%; left:50%; transform:translateX(-50%);
+    color:var(--accent); font-size:1.05em; white-space:pre-line; z-index:3;
+    text-align:center; text-shadow:0 0 12px rgba(0,255,136,.6);
+    padding:4px 12px; background:linear-gradient(to right,rgba(0,0,0,.9),rgba(0,0,0,.6),rgba(0,0,0,.9));
+    border-radius:4px; border:1px solid rgba(0,255,136,.3); max-width:86%;
   }
 
-  #terminal {
-    position:absolute; left:50%; transform:translateX(-50%);
-    background:rgba(0,0,0,0.85); border:1px solid #0f0; padding:8px 10px;
-    width:92%; max-width:420px; color:#0f0; font-family:monospace; font-size:13px;
-    display:none; z-index:7; border-radius:8px;
+  /* ------------------------------------------------------------------ */
+  /* TERMINAL */
+  /* ------------------------------------------------------------------ */
+  #terminal{
+    position:absolute; bottom:22%; left:50%; transform:translateX(-50%);
+    background:var(--terminal-bg); border:1px solid var(--border-soft);
+    padding:10px; width:90%; max-width:650px; color:#0f0; font-family:monospace;
+    font-size:14px; display:none; z-index:6;
+    box-shadow:0 0 25px rgba(0,255,136,.25); border-radius:6px; backdrop-filter:blur(3px);
   }
-  #terminalOutput { max-height:120px; overflow-y:auto; margin-bottom:5px; }
-  #terminalInput { width:95%; background:#000; color:#0f0; border:none; outline:none; }
+  #terminal::before{
+    content:"NEURAL CONSOLE v4.0"; display:block; font-size:10px; letter-spacing:.18em;
+    text-transform:uppercase; color:rgba(0,255,136,.7); margin-bottom:4px;
+    border-bottom:1px solid rgba(0,255,136,.25); padding-bottom:3px;
+  }
+  #terminalOutput{max-height:220px;overflow-y:auto;margin-bottom:5px;scrollbar-width:thin;}
+  #terminalOutput::-webkit-scrollbar{width:6px;}
+  #terminalOutput::-webkit-scrollbar-track{background:rgba(0,0,0,.6);}
+  #terminalOutput::-webkit-scrollbar-thumb{background:rgba(0,255,136,.7);}
+  #terminalInput{width:92%;background:#000;color:#0f0;border:none;outline:none;}
+  #terminalPrompt{color:var(--accent);animation:blink 1s step-end infinite;}
+  @keyframes blink{0%,50%{opacity:1}51%,100%{opacity:0}}
 
-  /* CRYPTO - make compact and scrollable on narrow screens so it doesn't take too much height */
-  .crypto-dashboard-wrapper {
-    position:absolute; bottom:3%; left:50%; transform:translateX(-50%);
-    z-index:5; width:95%; max-width:900px;
+  /* ------------------------------------------------------------------ */
+  /* CRYPTO DASHBOARD */
+  /* ------------------------------------------------------------------ */
+  .crypto-dashboard-wrapper{position:absolute;bottom:4%;left:50%;transform:translateX(-50%);z-index:5;}
+  .crypto-dashboard-container{
+    display:flex; gap:22px; justify-content:center; flex-wrap:wrap;
+    font-family:'Orbitron',sans-serif;
   }
-  .crypto-dashboard-container {
-    display:flex; gap:12px; justify-content:flex-start; align-items:center;
-    overflow-x:auto; padding:6px 4px; box-sizing:border-box;
-    font-family:'Orbitron', sans-serif;
+  .crypto-card{
+    position:relative; background:linear-gradient(145deg,rgba(0,0,0,.8),rgba(0,30,25,.95));
+    border:2px solid var(--accent-alt); border-radius:12px; padding:14px; width:130px;
+    text-align:center; color:var(--accent-alt);
+    box-shadow:0 0 20px rgba(0,255,234,.4); transition:transform .25s ease,box-shadow .25s ease;
+    overflow:hidden;
   }
-  .crypto-card {
-    background:rgba(0,0,0,0.6); border:2px solid #00ffea; border-radius:12px;
-    padding:8px 10px; flex:0 0 120px; min-width:110px; height:64px; text-align:center; color:#00ffea;
-    box-shadow:0 0 12px #00ffea; transition:.2s; display:flex; flex-direction:column; justify-content:center;
+  .crypto-card::before{
+    content:""; position:absolute; inset:-40%;
+    background:conic-gradient(from 0deg,rgba(0,255,234,0),rgba(0,255,234,.4),rgba(0,255,234,0));
+    opacity:0; transition:opacity .3s; mix-blend-mode:screen;
   }
-  .crypto-card:hover { box-shadow:0 0 25px #ff00ff; transform:translateY(-3px); }
-  .crypto-card h2 { margin:0; font-size:0.95em; letter-spacing:1px; }
-  .crypto-card .price { font-size:1.1em; font-weight:bold; margin:2px 0 0 0; }
+  .crypto-card:hover{box-shadow:0 0 32px #ff00ff;transform:translateY(-4px) scale(1.05);border-color:#ff00ff;}
+  .crypto-card:hover::before{opacity:1;animation:cardSweep 2.4s linear infinite;}
+  @keyframes cardSweep{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+  .crypto-card h2{margin:0 0 6px;font-size:1rem;letter-spacing:.16em;}
+  .crypto-card .price{font-size:1.5em;font-weight:bold;margin:0;}
+  .crypto-card .label{font-size:.65rem;text-transform:uppercase;letter-spacing:.18em;
+    color:rgba(0,255,234,.7);margin-top:6px;}
 
-  /* MOBILE SPECIFIC */
-  @media(max-width:600px){
-    #avatarImg { width:150px; height:150px; }
-    #displayText { font-size:0.9em; }
-    #terminal { max-width:94%; font-size:12px; padding:6px 8px; }
-    .crypto-card { flex:0 0 110px; min-width:100px; padding:8px; height:60px; }
-    .crypto-card .price { font-size:1em; }
+  /* ------------------------------------------------------------------ */
+  /* RESPONSIVE – iPhone 13 & smaller screens */
+  /* ------------------------------------------------------------------ */
+  @media (max-width: 480px) {
+    #avatarImg{width:190px;height:190px;}
+    .avatar-ring{width:230px;height:230px;}
+    #avatarContainer{top:6%;}
+    #displayText{top:44%;font-size:.95em;max-width:92%;padding:3px 10px;}
+    #terminal{bottom:18%;font-size:13px;max-width:94%;}
+    .crypto-dashboard-container{gap:16px;}
+    .crypto-card{width:110px;padding:12px;}
+    .crypto-card .price{font-size:1.3em;}
+  }
+  @media (max-width: 380px) {
+    #avatarImg{width:170px;height:170px;}
+    .avatar-ring{width:210px;height:210px;}
+    .crypto-card{width:100px;padding:10px;}
+    .crypto-card .price{font-size:1.2em;}
   }
 </style>
 </head>
 <body>
+
+<div id="loginOverlay">
+  <h1>Enter Node ID</h1>
+  <input type="text" id="usernameInput" placeholder="Neural Signature" autocomplete="off"/>
+  <button id="loginButton">Initiate Link</button>
+</div>
 
 <div id="mainContent">
   <canvas id="matrixCanvas"></canvas>
   <canvas id="particleCanvas"></canvas>
 
   <div id="avatarContainer">
+    <div class="avatar-ring"></div>
     <img id="avatarImg" src="https://na-assets.pinit.io/8GwrpeSH4TpAGEJsmoF35J8DY6RNCdyjCBZsEnTySEKd/c746a7a7-88cc-4677-b919-877329e2dd0d/437" />
+    <div class="avatar-label">Cybernetic Identity: LINKED</div>
   </div>
 
   <div id="displayText">Initializing Neural Link...</div>
 
   <div id="terminal">
     <div id="terminalOutput"></div>
-    <div><span>&gt; </span><input id="terminalInput" type="text" autocomplete="off"/></div>
+    <div>
+      <span id="terminalPrompt">></span>
+      <input id="terminalInput" type="text" autocomplete="off"/>
+    </div>
   </div>
 
   <div class="crypto-dashboard-wrapper">
-    <div id="crypto-dashboard" class="crypto-dashboard-container">
-      <div class="crypto-card" id="btc-card"><h2>BTC</h2><p class="price">$0</p></div>
-      <div class="crypto-card" id="eth-card"><h2>ETH</h2><p class="price">$0</p></div>
-      <div class="crypto-card" id="sol-card"><h2>SOL</h2><p class="price">$0</p></div>
+    <div class="crypto-dashboard-container">
+      <div class="crypto-card" id="btc-card"><h2>BTC</h2><p class="price">$0</p><div class="label">Core Signal</div></div>
+      <div class="crypto-card" id="eth-card"><h2>ETH</h2><p class="price">$0</p><div class="label">Relay Flux</div></div>
+      <div class="crypto-card" id="sol-card"><h2>SOL</h2><p class="price">$0</p><div class="label">Solar Thread</div></div>
     </div>
   </div>
 </div>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
+  const overlay = document.getElementById('loginOverlay');
+  const main = document.getElementById('mainContent');
   const displayText = document.getElementById('displayText');
-  const avatarContainer = document.getElementById('avatarContainer');
-  const avatarImg = document.getElementById('avatarImg');
+  const avatar = document.getElementById('avatarContainer');
   const terminal = document.getElementById('terminal');
   const terminalInput = document.getElementById('terminalInput');
   const terminalOutput = document.getElementById('terminalOutput');
@@ -109,447 +223,165 @@ document.addEventListener("DOMContentLoaded", () => {
   const mctx = matrixCanvas.getContext('2d');
   const particleCanvas = document.getElementById('particleCanvas');
   const pctx = particleCanvas.getContext('2d');
-  const cryptoWrapper = document.querySelector('.crypto-dashboard-wrapper');
-
-  let username = "Echo"; // default username
+  let username = "";
 
   const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
 
-  let fontSize = window.innerWidth < 600 ? 10 : 14;
-  let columns = Math.floor(window.innerWidth / fontSize);
-  let drops = Array(columns).fill(1);
-
+  // ---- Canvas resize -------------------------------------------------
   function resize() {
     matrixCanvas.width = particleCanvas.width = window.innerWidth;
     matrixCanvas.height = particleCanvas.height = window.innerHeight;
-    fontSize = window.innerWidth < 600 ? 10 : 14;
     columns = Math.floor(matrixCanvas.width / fontSize);
     drops = Array(columns).fill(1);
-
-    // reposition displayText below avatar and keep terminal above crypto area
-    positionDisplayText();
-    positionTerminal();
   }
   window.addEventListener('resize', resize);
+  let fontSize = 16, columns = Math.floor(window.innerWidth / fontSize), drops = Array(columns).fill(1);
   resize();
 
-  function positionDisplayText(){
-    // place displayText just below avatar container to avoid overlap
-    try {
-      const avatarRectTop = avatarContainer.offsetTop;
-      const avatarH = avatarImg.offsetHeight || 180;
-      const gap = 10;
-      const topPx = avatarRectTop + avatarH + gap;
-      displayText.style.top = topPx + 'px';
-    } catch (e) {
-      // fallback
-      displayText.style.top = 'calc(6% + 190px)';
-    }
-  }
+  // ---- Login ---------------------------------------------------------
+  document.getElementById('loginButton').addEventListener('click', () => {
+    username = document.getElementById('usernameInput').value.trim() || "Echo";
+    overlay.classList.add('hidden');
+    setTimeout(() => {
+      overlay.style.display = 'none';
+      main.style.display = 'block';
+      bootSequence();
+    }, 900);
+  });
 
-  function positionTerminal(){
-    // ensure terminal sits above the crypto dashboard so it won't cover it
-    try {
-      const cryptoH = cryptoWrapper.offsetHeight || 80;
-      const gap = 18;
-      terminal.style.bottom = (cryptoH + gap) + 'px';
-    } catch (e) {
-      terminal.style.bottom = '18%';
-    }
-  }
-
+  // ---- Boot sequence -------------------------------------------------
   function bootSequence() {
-    const messages = [`User ${username} recognized...`, "Decrypting neural matrix...", "Stabilizing data stream...", "Neural link established.", "Type help for more info"];
-    let i=0;
-    function typeNext() {
-      if(i>=messages.length) {
-        avatarContainer.style.opacity=1;
-        terminal.style.display='block';
+    const msgs = [
+      `User ${username} recognized...`,
+      "Decrypting neural matrix...",
+      "Stabilizing data stream...",
+      "Neural link established.",
+      "Type help for more info"
+    ];
+    let i = 0;
+    const typeNext = () => {
+      if (i >= msgs.length) {
+        avatar.style.opacity = 1;
+        avatar.classList.add('active');
+        terminal.style.display = 'block';
         terminalInput.focus();
-        startMatrix();
-        startParticles();
-        fetchCrypto();
-        setInterval(fetchCrypto,5000);
-
-        // after avatar becomes visible, recalc positions
-        setTimeout(()=>{ positionDisplayText(); positionTerminal(); }, 120);
+        startMatrix(); startParticles(); fetchCrypto();
+        setInterval(fetchCrypto, 8000);
         return;
       }
-      let j=0; displayText.textContent="";
-      function typer() {
-        if(j<messages[i].length){ displayText.textContent+=messages[i][j++]; setTimeout(typer,30); }
-        else { i++; setTimeout(typeNext,500); }
-      }
+      let j = 0; displayText.textContent = "";
+      const typer = () => {
+        if (j < msgs[i].length) { displayText.textContent += msgs[i][j++]; setTimeout(typer, 30); }
+        else { i++; setTimeout(typeNext, 500); }
+      };
       typer();
-    }
+    };
     typeNext();
   }
-  bootSequence();
 
+  // ---- Matrix --------------------------------------------------------
   function startMatrix() {
-    function drawMatrix() {
-      mctx.fillStyle='rgba(0,0,0,0.07)'; mctx.fillRect(0,0,matrixCanvas.width,matrixCanvas.height);
-      mctx.fillStyle='#00ff88'; mctx.shadowColor='#00ff88'; mctx.shadowBlur=8;
-      mctx.font=fontSize+"px monospace";
-      for(let i=0;i<drops.length;i++){
-        const text=chars[Math.floor(Math.random()*chars.length)];
-        mctx.fillText(text,i*fontSize,drops[i]*fontSize);
-        if(drops[i]*fontSize>matrixCanvas.height && Math.random()>0.975) drops[i]=0;
+    const draw = () => {
+      mctx.fillStyle = 'rgba(0,0,0,.12)'; mctx.fillRect(0,0,matrixCanvas.width,matrixCanvas.height);
+      mctx.font = `${fontSize}px monospace`;
+      for (let i = 0; i < drops.length; i++) {
+        const txt = chars[Math.floor(Math.random()*chars.length)];
+        mctx.fillStyle = '#aaffcc'; mctx.shadowColor = '#aaffcc'; mctx.shadowBlur = 12;
+        mctx.fillText(txt, i*fontSize, drops[i]*fontSize);
+        mctx.fillStyle = 'rgba(0,255,136,.5)'; mctx.shadowBlur = 0;
+        mctx.fillText(chars[Math.floor(Math.random()*chars.length)], i*fontSize, (drops[i]-1)*fontSize);
+        if (drops[i]*fontSize > matrixCanvas.height && Math.random() > .975) drops[i] = 0;
         drops[i]++;
       }
-    }
-    setInterval(drawMatrix,50);
+    };
+    setInterval(draw, 45);
   }
 
-  let particles=[], mouse={x:window.innerWidth/2,y:window.innerHeight/2};
-  window.addEventListener('mousemove',e=>{ mouse.x=e.clientX; mouse.y=e.clientY; });
-  class Particle {
-    constructor(){ 
-      this.x=Math.random()*particleCanvas.width; 
-      this.y=Math.random()*particleCanvas.height; 
-      this.size=Math.random()*2+1; 
-      this.speedX=Math.random()-0.5; 
-      this.speedY=Math.random()-0.5; 
+  // ---- Particles -----------------------------------------------------
+  let particles = [], mouse = {x: innerWidth/2, y: innerHeight/2};
+  window.addEventListener('mousemove', e=>{mouse.x=e.clientX;mouse.y=e.clientY;});
+  class Particle{
+    constructor(){this.reset();}
+    reset(){
+      this.x=Math.random()*particleCanvas.width;
+      this.y=Math.random()*particleCanvas.height;
+      this.size=Math.random()*2+1;
+      this.speedX=(Math.random()-.5)*.8;
+      this.speedY=(Math.random()-.5)*.8;
+      this.alpha=Math.random()*.5+.2;
     }
     update(){
-      this.x += this.speedX + (mouse.x - this.x) * 0.001;
-      this.y += this.speedY + (mouse.y - this.y) * 0.001;
-      if(this.x < 0 || this.x > particleCanvas.width) this.speedX *= -1;
-      if(this.y < 0 || this.y > particleCanvas.height) this.speedY *= -1;
+      this.x+=this.speedX+(mouse.x-this.x)*.0012;
+      this.y+=this.speedY+(mouse.y-this.y)*.0012;
+      if(this.x<0||this.x>particleCanvas.width||this.y<0||this.y>particleCanvas.height) this.reset();
     }
-    draw(){ pctx.fillStyle="rgba(0,255,200,0.2)"; pctx.beginPath(); pctx.arc(this.x,this.y,this.size,0,Math.PI*2); pctx.fill(); }
-  }
-  function startParticles(num=window.innerWidth<600?80:180){ particles=[]; for(let i=0;i<num;i++) particles.push(new Particle()); animate(); }
-  function animate(){ pctx.fillStyle="rgba(0,0,0,0.06)"; pctx.fillRect(0,0,particleCanvas.width,particleCanvas.height); particles.forEach(p=>{p.update();p.draw();}); requestAnimationFrame(animate); }
-
-  async function fetchCrypto(){
-    try{
-      const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd');
-      const data = await res.json();
-      const formatPrice = (price) => `$${Math.floor(price).toLocaleString()}`;
-      document.querySelector('#btc-card .price').textContent = formatPrice(data.bitcoin.usd);
-      document.querySelector('#eth-card .price').textContent = formatPrice(data.ethereum.usd);
-      document.querySelector('#sol-card .price').textContent = formatPrice(data.solana.usd);
-      // if sizes change because of numbers, reposition terminal
-      setTimeout(positionTerminal, 40);
-    } catch {
-      document.querySelectorAll('.crypto-card .price').forEach(p => p.textContent = "$Err");
+    draw(){
+      pctx.fillStyle=`rgba(0,255,200,${this.alpha})`;
+      pctx.beginPath(); pctx.arc(this.x,this.y,this.size,0,Math.PI*2); pctx.fill();
     }
   }
-
-  const commands = {
-    help:()=>`Available commands: help | clear | status | scan | echo [msg] | hack | whoami | x | youtube | project89 | play`,
-    clear:()=>{ terminalOutput.innerHTML=''; return ''; },
-    status:()=>`Node: ACTIVE | User: ${username} | Link: SECURE | Uptime: ${Math.floor(performance.now()/1000)}s`,
-    scan:()=>`Scanning neural net... [OK] Avatar Core | [OK] Quantum Relay | [OK] 127.0.0.1`,
-    echo:(args)=> args.join(' '),
-    hack:()=>`ACCESS GRANTED. Reality firewall bypassed.`,
-    whoami:()=>`You are ${username}, Neural Operative. Rank: Elite. Avatar: Cyber Witch.`,
-    x:()=>{ window.open('https://x.com/brandon_manus','_blank'); return 'Opening X...'; },
-    youtube:()=>{ window.open('https://www.youtube.com/@brandonmanus','_blank'); return 'Opening YouTube...'; },
-    project89:()=>{ window.open('https://www.project89.org/','_blank'); return 'Opening Project89...'; },
-    play:()=>{ window.open('https://brandonmanus.com/play/','_blank'); return 'Opening play...'; }
-  };
-
-  function print(line){ const div=document.createElement('div'); div.textContent=line; terminalOutput.appendChild(div); terminalOutput.scrollTop=terminalOutput.scrollHeight; }
-
-  terminalInput.addEventListener('keydown',e=>{
-    if(e.key==='Enter'){
-      const cmdLine = terminalInput.value.trim();
-      if(!cmdLine) return;
-      print(`> ${cmdLine}`);
-      terminalInput.value='';
-      const parts = cmdLine.split(' ').filter(Boolean);
-      const cmd = parts[0];
-      const args = parts.slice(1);
-      const handler = commands[cmd];
-      if(typeof handler === 'function'){
-        try { const result = handler(args); if(result) print(result); } 
-        catch (err) { print(`Error: ${err.message}`); }
-      } else {
-        print(`Command not found: ${cmd}`);
+  function startParticles(n=180){
+    particles=[]; for(let i=0;i<n;i++) particles.push(new Particle()); animate();
+  }
+  function animate(){
+    pctx.fillStyle="rgba(0,0,0,.08)"; pctx.fillRect(0,0,particleCanvas.width,particleCanvas.height);
+    particles.forEach(p=>{p.update();p.draw();});
+    for(let i=0;i<particles.length;i++)for(let j=i+1;j<particles.length;j++){
+      const dx=particles[i].x-particles[j].x, dy=particles[i].y-particles[j].y, dist=Math.hypot(dx,dy);
+      if(dist<90){
+        const a=1-dist/90;
+        pctx.strokeStyle=`rgba(0,255,200,${a*.3})`; pctx.lineWidth=.6;
+        pctx.beginPath(); pctx.moveTo(particles[i].x,particles[i].y);
+        pctx.lineTo(particles[j].x,particles[j].y); pctx.stroke();
       }
     }
+    requestAnimationFrame(animate);
+  }
+
+  // ---- Crypto --------------------------------------------------------
+  async function fetchCrypto(){
+    try{
+      const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd');
+      if(!r.ok) throw new Error('API');
+      const d=await r.json();
+      const fmt=p=>`$${Number(p).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
+      document.querySelector('#btc-card .price').textContent = fmt(d.bitcoin.usd);
+      document.querySelector('#eth-card .price').textContent = fmt(d.ethereum.usd);
+      document.querySelector('#sol-card .price').textContent = fmt(d.solana.usd);
+    }catch{
+      document.querySelectorAll('.crypto-card .price').forEach(p=>p.textContent='—');
+    }
+  }
+
+  // ---- Terminal ------------------------------------------------------
+  const cmds={
+    help:()=>`Available commands: help | clear | status | scan | echo [msg] | hack | whoami | x | youtube | project89 | play | space`,
+    clear:()=>{terminalOutput.innerHTML='';return'';},
+    status:()=>`Node: ACTIVE | User: ${username} | Link: SECURE | Uptime: ${Math.floor(performance.now()/1000)}s`,
+    scan:()=>`Scanning neural net... [OK] Avatar Core | [OK] Quantum Relay | [OK] 127.0.0.1`,
+    echo:a=>a.join(' '),
+    hack:()=>`ACCESS GRANTED. Reality firewall bypassed.`,
+    whoami:()=>`You are ${username}, Neural Operative. Rank: Elite. Avatar: Cyber Witch.`,
+    x:()=>{window.open('https://x.com/brandon_manus','_blank');return'Opening X...';},
+    youtube:()=>{window.open('https://www.youtube.com/@brandonmanus','_blank');return'Opening YouTube...';},
+    project89:()=>{window.open('https://www.project89.org/','_blank');return'Opening Project89...';},
+    play:()=>{window.open('https://brandonmanus.com/play/','_blank');returnutiérrez'Opening play...';},
+    space:()=>{window.open('https://brandonmanus.com/3D/','_blank');return'Opening 3D Space...';}
+  };
+  const print=l=>{const d=document.createElement('div');d.textContent=l;terminalOutput.appendChild(d);
+    terminalOutput.scrollTop=terminalOutput.scrollHeight;};
+  terminalInput.addEventListener('keydown',e=>{
+    if(e.key!=='Enter')return;
+    const line=terminalInput.value.trim(); if(!line)return;
+    print(`> ${line}`); terminalInput.value='';
+    const [cmd,...args]=line.split(' ').filter(Boolean);
+    const fn=cmds[cmd];
+    if(typeof fn==='function'){
+      try{ const res=fn(args); if(res) print(res); }
+      catch(err){print(`Error: ${err.message}`);}
+    }else print(`Command not found: ${cmd}`);
   });
 });
 </script>
-
-</body>
-</html><!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet" />
-<title>Cybernetic Node v4.0 - Mobile</title>
-<style>
-  body, html { margin:0; padding:0; height:100%; overflow:hidden; background:#000; color:#0f0; font-family:'Orbitron', monospace; }
-
-  /* MAIN */
-  #mainContent { display:block; position:relative; height:100%; width:100%; }
-
-  #matrixCanvas, #particleCanvas { position:absolute; top:0; left:0; width:100%; height:100%; }
-  #matrixCanvas { z-index:0; opacity:0.12; pointer-events:none; }
-  #particleCanvas { z-index:1; pointer-events:none; }
-
-  /* ensure avatar sits above the animated text */
-  #avatarContainer {
-    position:absolute; top:6%; left:50%; transform:translateX(-50%);
-    z-index:4; opacity:0; transition:opacity 1.2s ease-in-out;
-  }
-  #avatarImg {
-    width:180px; height:180px; border-radius:50%;
-    border:3px solid #00ff88; box-shadow:0 0 20px #00ff88, inset 0 0 10px rgba(0,255,0,0.3);
-    transition:all .4s;
-  }
-  #avatarContainer:hover #avatarImg { transform:scale(1.05); box-shadow:0 0 30px #00ffaa, 0 0 50px rgba(0,255,200,.5); }
-
-  /* displayText positioned below the avatar; z-index lower so avatar is always on top */
-  #displayText {
-    position:absolute; left:50%; transform:translateX(-50%);
-    color:#00ff88; font-size:1em; white-space:pre-line; z-index:3; text-align:center; padding:0 10px;
-  }
-
-  #terminal {
-    position:absolute; left:50%; transform:translateX(-50%);
-    background:rgba(0,0,0,0.85); border:1px solid #0f0; padding:8px 10px;
-    width:92%; max-width:420px; color:#0f0; font-family:monospace; font-size:13px;
-    display:none; z-index:7; border-radius:8px;
-  }
-  #terminalOutput { max-height:120px; overflow-y:auto; margin-bottom:5px; }
-  #terminalInput { width:95%; background:#000; color:#0f0; border:none; outline:none; }
-
-  /* CRYPTO - make compact and scrollable on narrow screens so it doesn't take too much height */
-  .crypto-dashboard-wrapper {
-    position:absolute; bottom:3%; left:50%; transform:translateX(-50%);
-    z-index:5; width:95%; max-width:900px;
-  }
-  .crypto-dashboard-container {
-    display:flex; gap:12px; justify-content:flex-start; align-items:center;
-    overflow-x:auto; padding:6px 4px; box-sizing:border-box;
-    font-family:'Orbitron', sans-serif;
-  }
-  .crypto-card {
-    background:rgba(0,0,0,0.6); border:2px solid #00ffea; border-radius:12px;
-    padding:8px 10px; flex:0 0 120px; min-width:110px; height:64px; text-align:center; color:#00ffea;
-    box-shadow:0 0 12px #00ffea; transition:.2s; display:flex; flex-direction:column; justify-content:center;
-  }
-  .crypto-card:hover { box-shadow:0 0 25px #ff00ff; transform:translateY(-3px); }
-  .crypto-card h2 { margin:0; font-size:0.95em; letter-spacing:1px; }
-  .crypto-card .price { font-size:1.1em; font-weight:bold; margin:2px 0 0 0; }
-
-  /* MOBILE SPECIFIC */
-  @media(max-width:600px){
-    #avatarImg { width:150px; height:150px; }
-    #displayText { font-size:0.9em; }
-    #terminal { max-width:94%; font-size:12px; padding:6px 8px; }
-    .crypto-card { flex:0 0 110px; min-width:100px; padding:8px; height:60px; }
-    .crypto-card .price { font-size:1em; }
-  }
-</style>
-</head>
-<body>
-
-<div id="mainContent">
-  <canvas id="matrixCanvas"></canvas>
-  <canvas id="particleCanvas"></canvas>
-
-  <div id="avatarContainer">
-    <img id="avatarImg" src="https://na-assets.pinit.io/8GwrpeSH4TpAGEJsmoF35J8DY6RNCdyjCBZsEnTySEKd/c746a7a7-88cc-4677-b919-877329e2dd0d/437" />
-  </div>
-
-  <div id="displayText">Initializing Neural Link...</div>
-
-  <div id="terminal">
-    <div id="terminalOutput"></div>
-    <div><span>&gt; </span><input id="terminalInput" type="text" autocomplete="off"/></div>
-  </div>
-
-  <div class="crypto-dashboard-wrapper">
-    <div id="crypto-dashboard" class="crypto-dashboard-container">
-      <div class="crypto-card" id="btc-card"><h2>BTC</h2><p class="price">$0</p></div>
-      <div class="crypto-card" id="eth-card"><h2>ETH</h2><p class="price">$0</p></div>
-      <div class="crypto-card" id="sol-card"><h2>SOL</h2><p class="price">$0</p></div>
-    </div>
-  </div>
-</div>
-
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const displayText = document.getElementById('displayText');
-  const avatarContainer = document.getElementById('avatarContainer');
-  const avatarImg = document.getElementById('avatarImg');
-  const terminal = document.getElementById('terminal');
-  const terminalInput = document.getElementById('terminalInput');
-  const terminalOutput = document.getElementById('terminalOutput');
-  const matrixCanvas = document.getElementById('matrixCanvas');
-  const mctx = matrixCanvas.getContext('2d');
-  const particleCanvas = document.getElementById('particleCanvas');
-  const pctx = particleCanvas.getContext('2d');
-  const cryptoWrapper = document.querySelector('.crypto-dashboard-wrapper');
-
-  let username = "Echo"; // default username
-
-  const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
-
-  let fontSize = window.innerWidth < 600 ? 10 : 14;
-  let columns = Math.floor(window.innerWidth / fontSize);
-  let drops = Array(columns).fill(1);
-
-  function resize() {
-    matrixCanvas.width = particleCanvas.width = window.innerWidth;
-    matrixCanvas.height = particleCanvas.height = window.innerHeight;
-    fontSize = window.innerWidth < 600 ? 10 : 14;
-    columns = Math.floor(matrixCanvas.width / fontSize);
-    drops = Array(columns).fill(1);
-
-    // reposition displayText below avatar and keep terminal above crypto area
-    positionDisplayText();
-    positionTerminal();
-  }
-  window.addEventListener('resize', resize);
-  resize();
-
-  function positionDisplayText(){
-    // place displayText just below avatar container to avoid overlap
-    try {
-      const avatarRectTop = avatarContainer.offsetTop;
-      const avatarH = avatarImg.offsetHeight || 180;
-      const gap = 10;
-      const topPx = avatarRectTop + avatarH + gap;
-      displayText.style.top = topPx + 'px';
-    } catch (e) {
-      // fallback
-      displayText.style.top = 'calc(6% + 190px)';
-    }
-  }
-
-  function positionTerminal(){
-    // ensure terminal sits above the crypto dashboard so it won't cover it
-    try {
-      const cryptoH = cryptoWrapper.offsetHeight || 80;
-      const gap = 18;
-      terminal.style.bottom = (cryptoH + gap) + 'px';
-    } catch (e) {
-      terminal.style.bottom = '18%';
-    }
-  }
-
-  function bootSequence() {
-    const messages = [`User ${username} recognized...`, "Decrypting neural matrix...", "Stabilizing data stream...", "Neural link established.", "Type help for more info"];
-    let i=0;
-    function typeNext() {
-      if(i>=messages.length) {
-        avatarContainer.style.opacity=1;
-        terminal.style.display='block';
-        terminalInput.focus();
-        startMatrix();
-        startParticles();
-        fetchCrypto();
-        setInterval(fetchCrypto,5000);
-
-        // after avatar becomes visible, recalc positions
-        setTimeout(()=>{ positionDisplayText(); positionTerminal(); }, 120);
-        return;
-      }
-      let j=0; displayText.textContent="";
-      function typer() {
-        if(j<messages[i].length){ displayText.textContent+=messages[i][j++]; setTimeout(typer,30); }
-        else { i++; setTimeout(typeNext,500); }
-      }
-      typer();
-    }
-    typeNext();
-  }
-  bootSequence();
-
-  function startMatrix() {
-    function drawMatrix() {
-      mctx.fillStyle='rgba(0,0,0,0.07)'; mctx.fillRect(0,0,matrixCanvas.width,matrixCanvas.height);
-      mctx.fillStyle='#00ff88'; mctx.shadowColor='#00ff88'; mctx.shadowBlur=8;
-      mctx.font=fontSize+"px monospace";
-      for(let i=0;i<drops.length;i++){
-        const text=chars[Math.floor(Math.random()*chars.length)];
-        mctx.fillText(text,i*fontSize,drops[i]*fontSize);
-        if(drops[i]*fontSize>matrixCanvas.height && Math.random()>0.975) drops[i]=0;
-        drops[i]++;
-      }
-    }
-    setInterval(drawMatrix,50);
-  }
-
-  let particles=[], mouse={x:window.innerWidth/2,y:window.innerHeight/2};
-  window.addEventListener('mousemove',e=>{ mouse.x=e.clientX; mouse.y=e.clientY; });
-  class Particle {
-    constructor(){ 
-      this.x=Math.random()*particleCanvas.width; 
-      this.y=Math.random()*particleCanvas.height; 
-      this.size=Math.random()*2+1; 
-      this.speedX=Math.random()-0.5; 
-      this.speedY=Math.random()-0.5; 
-    }
-    update(){
-      this.x += this.speedX + (mouse.x - this.x) * 0.001;
-      this.y += this.speedY + (mouse.y - this.y) * 0.001;
-      if(this.x < 0 || this.x > particleCanvas.width) this.speedX *= -1;
-      if(this.y < 0 || this.y > particleCanvas.height) this.speedY *= -1;
-    }
-    draw(){ pctx.fillStyle="rgba(0,255,200,0.2)"; pctx.beginPath(); pctx.arc(this.x,this.y,this.size,0,Math.PI*2); pctx.fill(); }
-  }
-  function startParticles(num=window.innerWidth<600?80:180){ particles=[]; for(let i=0;i<num;i++) particles.push(new Particle()); animate(); }
-  function animate(){ pctx.fillStyle="rgba(0,0,0,0.06)"; pctx.fillRect(0,0,particleCanvas.width,particleCanvas.height); particles.forEach(p=>{p.update();p.draw();}); requestAnimationFrame(animate); }
-
-  async function fetchCrypto(){
-    try{
-      const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd');
-      const data = await res.json();
-      const formatPrice = (price) => `$${Math.floor(price).toLocaleString()}`;
-      document.querySelector('#btc-card .price').textContent = formatPrice(data.bitcoin.usd);
-      document.querySelector('#eth-card .price').textContent = formatPrice(data.ethereum.usd);
-      document.querySelector('#sol-card .price').textContent = formatPrice(data.solana.usd);
-      // if sizes change because of numbers, reposition terminal
-      setTimeout(positionTerminal, 40);
-    } catch {
-      document.querySelectorAll('.crypto-card .price').forEach(p => p.textContent = "$Err");
-    }
-  }
-
-  const commands = {
-    help:()=>`Available commands: help | clear | status | scan | echo [msg] | hack | whoami | x | youtube | project89 | play`,
-    clear:()=>{ terminalOutput.innerHTML=''; return ''; },
-    status:()=>`Node: ACTIVE | User: ${username} | Link: SECURE | Uptime: ${Math.floor(performance.now()/1000)}s`,
-    scan:()=>`Scanning neural net... [OK] Avatar Core | [OK] Quantum Relay | [OK] 127.0.0.1`,
-    echo:(args)=> args.join(' '),
-    hack:()=>`ACCESS GRANTED. Reality firewall bypassed.`,
-    whoami:()=>`You are ${username}, Neural Operative. Rank: Elite. Avatar: Cyber Witch.`,
-    x:()=>{ window.open('https://x.com/brandon_manus','_blank'); return 'Opening X...'; },
-    youtube:()=>{ window.open('https://www.youtube.com/@brandonmanus','_blank'); return 'Opening YouTube...'; },
-    project89:()=>{ window.open('https://www.project89.org/','_blank'); return 'Opening Project89...'; },
-    play:()=>{ window.open('https://brandonmanus.com/play/','_blank'); return 'Opening play...'; }
-  };
-
-  function print(line){ const div=document.createElement('div'); div.textContent=line; terminalOutput.appendChild(div); terminalOutput.scrollTop=terminalOutput.scrollHeight; }
-
-  terminalInput.addEventListener('keydown',e=>{
-    if(e.key==='Enter'){
-      const cmdLine = terminalInput.value.trim();
-      if(!cmdLine) return;
-      print(`> ${cmdLine}`);
-      terminalInput.value='';
-      const parts = cmdLine.split(' ').filter(Boolean);
-      const cmd = parts[0];
-      const args = parts.slice(1);
-      const handler = commands[cmd];
-      if(typeof handler === 'function'){
-        try { const result = handler(args); if(result) print(result); } 
-        catch (err) { print(`Error: ${err.message}`); }
-      } else {
-        print(`Command not found: ${cmd}`);
-      }
-    }
-  });
-});
-</script>
-
 </body>
 </html>
