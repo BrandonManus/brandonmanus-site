@@ -37,49 +37,6 @@
       z-index: 5;
     }
 
-    .hud-top {
-      position: absolute;
-      top: 16px;
-      left: 16px;
-      right: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      pointer-events: none;
-    }
-
-    .hud-card {
-      pointer-events: auto;
-      padding: 10px 14px;
-      border-radius: 999px;
-      background: radial-gradient(circle at top, rgba(183, 132, 255, 0.35), rgba(18, 4, 46, 0.95));
-      box-shadow: 0 0 24px rgba(200, 128, 255, 0.25);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      color: #f8f3ff;
-      font-size: 12px;
-    }
-
-    .hud-card span.label {
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-      font-size: 10px;
-      opacity: 0.7;
-    }
-
-    .hud-card span.value {
-      font-weight: 500;
-    }
-
-    .hud-card span.dots {
-      opacity: 0.5;
-    }
-
     .hud-bottom {
       position: absolute;
       bottom: 16px;
@@ -97,13 +54,13 @@
     }
 
     .hud-bottom-bar {
-      width: 120px;
+      width: 140px;
       height: 1px;
       background: linear-gradient(90deg, transparent, #ffb2ff, transparent);
       box-shadow: 0 0 12px rgba(255, 178, 255, 0.6);
     }
 
-    /* dat.GUI tweaks – keep it but make it fit the theme a bit more */
+    /* dat.GUI tweaks – keep it but fit the theme */
     .dg.ac {
       z-index: 20 !important;
     }
@@ -119,26 +76,9 @@
   <div class="cursor-glow" id="cursorGlow"></div>
 
   <div class="hud">
-    <div class="hud-top">
-      <div class="hud-card">
-        <span class="label">Mode</span>
-        <span class="value">Earth · Galaxy</span>
-      </div>
-      <div class="hud-card">
-        <span class="label">Pointer light</span>
-        <span class="dots">••</span>
-        <span class="value" id="hudPointerIntensity">0.80</span>
-      </div>
-      <div class="hud-card">
-        <span class="label">Orbit tilt</span>
-        <span class="dots">••</span>
-        <span class="value" id="hudTilt">23.4°</span>
-      </div>
-    </div>
-
     <div class="hud-bottom">
       <div class="hud-bottom-bar"></div>
-      <div>Move mouse to paint light · Scroll to zoom</div>
+      <div>Move mouse to paint light · Scroll to zoom · Click to launch satellite</div>
     </div>
   </div>
 
@@ -319,12 +259,64 @@
     const dustField = new THREE.Points(dustGeometry, dustMaterial);
     scene.add(dustField);
 
+    // Satellite setup
+    const satellites = [];
+    let satelliteOrbitAngle = 0; // shared angle so they move with Earth's rotation
+    const satelliteOrbitSpeed = 0.02; // relative to time
+
+    function createSatellite() {
+      const bodyGeo = new THREE.BoxGeometry(0.12, 0.08, 0.08);
+      const bodyMat = new THREE.MeshStandardMaterial({
+        color: 0xd0d0ff,
+        metalness: 0.6,
+        roughness: 0.3
+      });
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+
+      const panelGeo = new THREE.BoxGeometry(0.22, 0.02, 0.08);
+      const panelMat = new THREE.MeshStandardMaterial({
+        color: 0x6699ff,
+        emissive: 0x2244ff,
+        emissiveIntensity: 0.6,
+        metalness: 0.2,
+        roughness: 0.4
+      });
+
+      const leftPanel = new THREE.Mesh(panelGeo, panelMat);
+      const rightPanel = new THREE.Mesh(panelGeo, panelMat);
+
+      leftPanel.position.x = -0.18;
+      rightPanel.position.x = 0.18;
+
+      const satGroup = new THREE.Group();
+      satGroup.add(body);
+      satGroup.add(leftPanel);
+      satGroup.add(rightPanel);
+
+      // Orbit radius slightly above atmosphere
+      const orbitRadius = 1.5 + Math.random() * 0.2;
+      // Random starting phase
+      const phase = Math.random() * Math.PI * 2;
+
+      satellites.push({ group: satGroup, radius: orbitRadius, phase });
+
+      scene.add(satGroup);
+    }
+
+    // Spawn a satellite on click
+    window.addEventListener("click", () => {
+      if (satellites.length < 6) {
+        createSatellite();
+      }
+    });
+
     // GUI controls
     const gui = new dat.GUI();
     const controls = {
       rotationSpeedY: 0.01,
       rotationSpeedX: 0.003,
       lightColor: "#ffffff",
+      keyLightIntensity: 1.2,
       mouseLightIntensity: 0.8,
       galaxyRotationSpeed: 0.0005,
       glowIntensity: 0.2
@@ -336,6 +328,10 @@
       .add(controls, "galaxyRotationSpeed", 0, 0.003)
       .name("Galaxy rotation");
     gui
+      .add(controls, "keyLightIntensity", 0, 3)
+      .step(0.05)
+      .name("Key light");
+    gui
       .add(controls, "mouseLightIntensity", 0, 2)
       .step(0.05)
       .name("Pointer light");
@@ -345,16 +341,10 @@
       .name("Atmosphere glow");
     gui
       .addColor(controls, "lightColor")
-      .name("Key Light Color")
+      .name("Key light color")
       .onChange((val) => {
         pointLight.color.set(val);
       });
-
-    // HUD elements that mirror certain controls
-    const hudPointerIntensity = document.getElementById("hudPointerIntensity");
-    const hudTilt = document.getElementById("hudTilt");
-
-    hudTilt.textContent = "23.4°";
 
     // Animation loop
     let time = 0;
@@ -387,6 +377,9 @@
       mouseLight.position.z = 2.3;
       mouseLight.intensity = controls.mouseLightIntensity;
 
+      // Key light intensity
+      pointLight.intensity = controls.keyLightIntensity;
+
       // Slight halo wobble
       halo.rotation.z = Math.sin(time * 0.4) * 0.1;
 
@@ -395,10 +388,20 @@
       camera.position.y = 0.2 + mouse.y * 0.1;
       camera.lookAt(0, 0, 0);
 
-      // HUD updates
-      hudPointerIntensity.textContent = controls.mouseLightIntensity
-        .toFixed(2)
-        .padEnd(4, "0");
+      // Satellite orbiting (tied loosely to Earth's rotation)
+      satelliteOrbitAngle += satelliteOrbitSpeed * controls.rotationSpeedY * 60;
+      satellites.forEach((sat, index) => {
+        const angle = satelliteOrbitAngle + sat.phase + index * 0.2;
+        const x = Math.cos(angle) * sat.radius;
+        const z = Math.sin(angle) * sat.radius;
+        const y = Math.sin(angle * 1.7) * 0.15; // small vertical wobble
+
+        // Position relative to Earth's center
+        sat.group.position.set(x, y, z);
+        // Make the satellite face forward along its orbit
+        sat.group.lookAt(0, 0, 0);
+        sat.group.rotateY(Math.PI / 2);
+      });
 
       renderer.render(scene, camera);
     }
