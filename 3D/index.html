@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3D Test</title>
+  <title>3D Earth</title>
   <style>
     body { margin: 0; overflow: hidden; background: #000; }
     canvas { display: block; }
@@ -21,9 +21,17 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // Simple colored sphere (no texture)
-    let geo = new THREE.SphereGeometry(1, 32, 32);
-    let mat = new THREE.MeshStandardMaterial({ color: 0x3399ff, roughness: 0.4 });
+    // Load the texture
+    const textureLoader = new THREE.TextureLoader();
+    const earthTexture = textureLoader.load("../assets/earth.png"); // adjust path if needed
+
+    // Sphere with texture
+    let geo = new THREE.SphereGeometry(1, 64, 64);
+    let mat = new THREE.MeshStandardMaterial({ 
+      map: earthTexture, 
+      roughness: 0.4, 
+      metalness: 0 
+    });
     let sphere = new THREE.Mesh(geo, mat);
     scene.add(sphere);
 
@@ -31,6 +39,10 @@
     let light = new THREE.PointLight(0xffffff, 1.2);
     light.position.set(2, 2, 3);
     scene.add(light);
+
+    // Optional: Ambient light for softer shading
+    let ambientLight = new THREE.AmbientLight(0x333333);
+    scene.add(ambientLight);
 
     // Animation loop
     function animate() {
