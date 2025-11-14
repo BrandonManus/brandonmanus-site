@@ -2,6 +2,8 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164/build/three.mod
 
 let scene, camera, renderer, earth;
 
+scene.background = new THREE.Color(0x030303);
+
 init();
 animate();
 
