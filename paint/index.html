@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Paint World</title>
+  <title>BrandonManus Paint</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,24 +12,15 @@
   <canvas id="minimap"></canvas>
 
   <div id="ui">
-    <button id="togglePaint">Toggle Paint</button>
+    <label>Color: <input type="color" id="colorPicker" value="#ff0000"></label>
 
-    <label>
-      Brush Size  
-      <input id="brushSize" type="range" min="5" max="80" value="20">
+    <label>Brush Size:
+      <input type="range" id="brushSize" min="2" max="40" value="10">
     </label>
 
-    <label>
-      Color  
-      <input id="colorPicker" type="color" value="#00ffcc">
-    </label>
+    <button id="toggleTrail">Trail: ON</button>
   </div>
 
-  <div id="joystick-container">
-    <div id="joystick"></div>
-  </div>
-
-  <script src="joystick.js"></script>
-  <script src="game.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
