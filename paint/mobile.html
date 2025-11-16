@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>8bit.exe mobile</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Mobile-specific overrides */
+    body { padding: 10px; }
+    .hud { margin: 0.5rem 0; gap: 0.8rem; font-size: 0.9rem; }
+    #color { width: 50px; height: 50px; }
+    button { padding: 0.6rem 1rem; font-size: 0.8rem; }
+    canvas { 
+      width: 100% !important; 
+      height: auto !important; 
+      max-width: 512px; 
+      max-height: 512px; 
+      image-rendering: pixelated;
+    }
+    .hint { font-size: 0.7rem; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="hud">
+    <div class="color-picker">
+      <input type="color" id="color" value="#ff0044" />
+      <span>color</span>
+    </div>
+    <button id="clear">reset</button>
+    <button id="save">save</button>
+  </div>
+
+  <canvas id="c" width="512" height="512"></canvas>
+
+  <div class="hint">TOUCH + DRAG = DRAW • TAP = DOT • HOLD TWO FINGERS = MOVE</div>
+
+  <script src="game.js"></script>
+  <script>
+    // FULLSCREEN ON TAP
+    document.getElementById('c').addEventListener('click', () => {
+      if (document.fullscreenElement) return;
+      document.documentElement.requestFullscreen().catch(() => {});
+    });
+  </script>
+</body>
+</html>
