@@ -1,81 +1,69 @@
-// -------------------------------------------------
-//  Trail-Paint Mini-Game (FIXED)
-// -------------------------------------------------
+// TRAIL PAINTER - CLEAN, WORKING, NO BULLSHIT
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+canvas.width = 800;
+canvas.height = 600;
 
-document.addEventListener('DOMContentLoaded', () => {
-  const canvas = document.getElementById('game');
-  const ctx = canvas.getContext('2d');
+const colorInput = document.getElementById('color');
+const trailToggle = document.getElementById('trail');
+const clearBtn = document.getElementById('clear');
 
-  // Now these will NOT be null
-  const colorPicker = document.getElementById('colorPicker');
-  const trailToggle = document.getElementById('trailToggle');
+const SIZE = 30;
+let x = canvas.width / 2 - SIZE / 2;
+let y = canvas.height / 2 - SIZE / 2;
+let color = colorInput.value;
+let drawing = trailToggle.checked;
+let trail = [];
 
-  // ---- Player (square) ----
-  const PLAYER_SIZE = 30;
-  let player = {
-    x: canvas.width / 2 - PLAYER_SIZE / 2,
-    y: canvas.height / 2 - PLAYER_SIZE / 2,
-    speed: 5,
-    color: colorPicker.value  // Safe now
-  };
+const keys = {};
+window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
-  // ---- Trail storage ----
-  let trail = [];
-  let drawing = trailToggle.checked; // Start with checkbox state
+colorInput.addEventListener('input', () => color = colorInput.value);
+trailToggle.addEventListener('change', () => drawing = trailToggle.checked);
+clearBtn.addEventListener('click', () => trail = []);
 
-  // ---- Input handling ----
-  const keys = {};
-  window.addEventListener('keydown', e => keys[e.key] = true);
-  window.addEventListener('keyup',   e => keys[e.key] = false);
+function update() {
+  const speed = 6;
 
-  // ---- UI updates ----
-  colorPicker.addEventListener('input', () => player.color = colorPicker.value);
-  trailToggle.addEventListener('change', () => drawing = trailToggle.checked);
+  if (keys['a'] || keys['arrowleft']) x -= speed;
+  if (keys['d'] || keys['arrowright']) x += speed;
+  if (keys['w'] || keys['arrowup']) y -= speed;
+  if (keys['s'] || keys['arrowdown']) y += speed;
 
-  // -------------------------------------------------
-  //  Main game loop
-  // -------------------------------------------------
-  function loop() {
-    // ---- Update player position ----
-    if (keys['ArrowLeft'] || keys['a']) player.x -= player.speed;
-    if (keys['ArrowRight'] || keys['d']) player.x += player.speed;
-    if (keys['ArrowUp'] || keys['w']) player.y -= player.speed;
-    if (keys['ArrowDown'] || keys['s']) player.y += player.speed;
+  x = Math.max(0, Math.min(canvas.width - SIZE, x));
+  y = Math.max(0, Math.min(canvas.height - SIZE, y));
 
-    // Clamp to canvas
-    player.x = Math.max(0, Math.min(canvas.width - PLAYER_SIZE, player.x));
-    player.y = Math.max(0, Math.min(canvas.height - PLAYER_SIZE, player.y));
+  if (drawing) {
+    trail.push({ x: x + SIZE/2, y: y + SIZE/2 });
+  }
+}
 
-    // ---- Add to trail if enabled ----
-    if (drawing) {
-      const centerX = player.x + PLAYER_SIZE / 2;
-      const centerY = player.y + PLAYER_SIZE / 2;
-      trail.push({ x: centerX, y: centerY });
-    }
+function draw() {
+  ctx.fillStyle = '#222';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // ---- Render ----
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Draw trail
-    if (trail.length > 1) {
-      ctx.strokeStyle = player.color;
-      ctx.lineWidth = PLAYER_SIZE * 0.8;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.beginPath();
-      ctx.moveTo(trail[0].x, trail[0].y);
-      for (let i = 1; i < trail.length; i++) {
-        ctx.lineTo(trail[i].x, trail[i].y);
-      }
-      ctx.stroke();
-    }
-
-    // Draw player square
-    ctx.fillStyle = player.color;
-    ctx.fillRect(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE);
-
-    requestAnimationFrame(loop);
+  // Draw trail
+  if (trail.length > 1) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = SIZE * 0.7;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(trail[0].x, trail[0].y);
+    for (let p of trail) ctx.lineTo(p.x, p.y);
+    ctx.stroke();
   }
 
+  // Draw player
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, SIZE, SIZE);
+}
+
+function loop() {
+  update();
+  draw();
   requestAnimationFrame(loop);
-});
+}
+
+requestAnimationFrame(loop);
