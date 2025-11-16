@@ -1,71 +1,35 @@
 body {
   margin: 0;
-  overflow: hidden;
   background: #111;
+  overflow: hidden;
   font-family: Arial, sans-serif;
+  color: #fff;
 }
 
 #game {
-  display: block;
-  width: 100vw;
-  height: 100vh;
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 #minimap {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 200px;
-  height: 200px;
-  border: 2px solid #444;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: 2px solid #fff;
   background: #000;
-  z-index: 50;
+  width: 150px;
+  height: 150px;
 }
 
 #ui {
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  z-index: 10;
-  color: white;
-}
-
-#ui label {
-  display: block;
-  margin-top: 10px;
-}
-
-#togglePaint {
-  padding: 10px 18px;
-  background: #444;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-#togglePaint:hover {
-  background: #666;
-}
-
-/* Mobile joystick */
-#joystick-container {
-  position: fixed;
-  bottom: 40px;
-  left: 40px;
-  width: 140px;
-  height: 140px;
-  background: rgba(255,255,255,0.05);
-  border-radius: 50%;
-  display: none; /* hidden on desktop */
-}
-
-#joystick {
-  width: 50px;
-  height: 50px;
-  background: rgba(255,255,255,0.2);
-  border-radius: 50%;
   position: absolute;
-  left: 45px;
-  top: 45px;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(0,0,0,0.5);
+  padding: 10px 20px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
