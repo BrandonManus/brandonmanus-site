@@ -1,21 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Simple Paint App</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>Trail Painter</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- Controls -->
-  <div class="controls">
-    <input type="color" id="color" value="#ff0000" title="Brush Color">
-    <input type="range" id="brushSize" min="1" max="50" value="5" title="Brush Size">
-    <button id="clearCanvas">Clear Canvas</button>
+  <div class="ui">
+    <input type="color" id="color" value="#ff0044" />
+    <label><input type="checkbox" id="trail" checked /> Trail</label>
+    <button id="clear">Clear</button>
   </div>
-  
-  <!-- Canvas -->
-  <canvas id="game" width="800" height="600" style="border: 1px solid black;"></canvas>
-  
-  <script src="game.js"></script>  <!-- Load JS last, after HTML -->
+
+  <canvas id="c"></canvas>
+
+  <script src="game.js"></script>
 </body>
 </html>
