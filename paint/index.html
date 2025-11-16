@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BrandonManus Paint</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <canvas id="game"></canvas>
+  <canvas id="minimap"></canvas>
+
+  <div id="ui">
+    <label>Color: <input type="color" id="colorPicker" value="#00ffcc"></label>
+    <label>Brush Size: <input type="range" id="brushSize" min="2" max="40" value="10"></label>
+    <button id="toggleTrail">Trail: ON</button>
+  </div>
+
+  <!-- JS MUST BE AT BOTTOM SO DOM ELEMENTS EXIST -->
+  <script src="game.js"></script>
+</body>
+</html>
