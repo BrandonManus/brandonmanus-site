@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>trail.exe</title>
+  <title>8bit.exe</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -18,11 +18,12 @@
       trail
     </label>
     <button id="clear">reset</button>
+    <button id="save">save png</button>
   </div>
 
-  <canvas id="c"></canvas>
+  <canvas id="c" width="512" height="512"></canvas>
 
-  <div class="hint">WASD or ←↑→↓ to move • leave your mark</div>
+  <div class="hint">WASD or ←↑→↓ • Hold SPACE to pause • Save PNG</div>
 
   <script src="game.js"></script>
 </body>
