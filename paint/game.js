@@ -1,4 +1,4 @@
-// 8bit.exe — MOUSE + KEYBOARD (pixel-perfect)
+// 8bit.exe — MOUSE + KEYBOARD (SPACEBAR = PAINT)
 const c = document.getElementById('c');
 const ctx = c.getContext('2d');
 
@@ -16,7 +16,12 @@ let spaceDown = false;
 let mouseDown = false;
 let useMouse = false;
 
-// MOUSE TRACKING
+const paths = [];
+let currentPath = null;
+
+const keys = new Set();
+
+// — MOUSE CONTROL (precision drawing)
 c.addEventListener('mousemove', e => {
   const rect = c.getBoundingClientRect();
   const mx = e.clientX - rect.left;
@@ -29,8 +34,7 @@ c.addEventListener('mousedown', () => mouseDown = true);
 c.addEventListener('mouseup', () => mouseDown = false);
 c.addEventListener('mouseleave', () => mouseDown = false);
 
-// KEYBOARD (fallback)
-const keys = new Set();
+// — KEYBOARD CONTROL (WASD + SPACEBAR = PAINT)
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   keys.add(k);
@@ -53,11 +57,8 @@ saveBtn.onclick = () => {
   link.click();
 };
 
-const paths = [];
-let currentPath = null;
-
 requestAnimationFrame(function frame() {
-  // — KEYBOARD MOVEMENT (only if not using mouse)
+  // — KEYBOARD MOVEMENT (only when not using mouse)
   if (!useMouse) {
     const speed = 8;
     if (keys.has('a') || keys.has('arrowleft')) x -= speed;
@@ -71,19 +72,24 @@ requestAnimationFrame(function frame() {
   y = Math.max(0, Math.min(512 - S, y));
 
   // — DRAW LOGIC
-  const shouldDraw = enabled && !spaceDown && mouseDown;
+  const shouldDraw = enabled && (
+    (useMouse && mouseDown) ||      // Mouse: click + drag
+    (!useMouse && spaceDown)        // Keyboard: hold space
+  );
 
   if (shouldDraw) {
     const px = x + S/2, py = y + S/2;
+
     if (!currentPath || currentPath.color !== col) {
       currentPath = { points: [], color: col };
       paths.push(currentPath);
     }
+
     const last = currentPath.points[currentPath.points.length - 1];
     if (!last || Math.hypot(px - last.x, py - last.y) > 1) {
       currentPath.points.push({ x: px, y: py });
     }
-  } else if (!mouseDown) {
+  } else {
     currentPath = null;
   }
 
@@ -108,6 +114,7 @@ requestAnimationFrame(function frame() {
     ctx.stroke();
   }
 
+  // Player square
   ctx.fillStyle = col;
   ctx.fillRect(x, y, S, S);
 
