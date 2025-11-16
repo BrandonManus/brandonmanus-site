@@ -1,22 +1,21 @@
-// trail.exe — ART MODE (no lines, space to pause, dots work)
+// 8bit.exe — pixel art trail painter
 const c = document.getElementById('c');
 const ctx = c.getContext('2d');
-c.width = 900;
-c.height = 600;
 
 const colorInput = document.getElementById('color');
 const trailToggle = document.getElementById('trail');
 const clearBtn = document.getElementById('clear');
+const saveBtn = document.getElementById('save');
 
-const S = 32;
-let x = c.width / 2 - S/2;
-let y = c.height / 2 - S/2;
+const S = 16; // 8-bit size (32px = 2x, 16px = 1x)
+let x = 256 - S/2;
+let y = 256 - S/2;
 let col = colorInput.value;
 let enabled = trailToggle.checked;
 let spaceDown = false;
 
-// MULTI-PATH + PER-COLOR + NO AUTO-CONNECT
-const paths = [];  // [{points: [{x,y}], color: '#...'}]
+const paths = [];
+let currentPath = null;
 
 const keys = new Set();
 addEventListener('keydown', e => {
@@ -32,69 +31,61 @@ addEventListener('keyup', e => {
 
 colorInput.oninput = () => col = colorInput.value;
 trailToggle.onchange = () => enabled = trailToggle.checked;
-clearBtn.onclick = () => paths.length = 0;
-
-// START NEW PATH ONLY ON FIRST POINT AFTER PAUSE
-let currentPath = null;
+clearBtn.onclick = () => { paths.length = 0; currentPath = null; };
+saveBtn.onclick = () => {
+  const link = document.createElement('a');
+  link.download = `8bit-art-${Date.now()}.png`;
+  link.href = c.toDataURL('image/png');
+  link.click();
+};
 
 requestAnimationFrame(function frame() {
-  const speed = 7;
+  const speed = 8; // snappy movement
   if (keys.has('a') || keys.has('arrowleft')) x -= speed;
   if (keys.has('d') || keys.has('arrowright')) x += speed;
   if (keys.has('w') || keys.has('arrowup')) y -= speed;
   if (keys.has('s') || keys.has('arrowdown')) y += speed;
 
-  x = Math.max(0, Math.min(c.width - S, x));
-  y = Math.max(0, Math.min(c.height - S, y));
+  x = Math.max(0, Math.min(512 - S, x));
+  y = Math.max(0, Math.min(512 - S, y));
 
-  // TRAIL LOGIC
   const shouldDraw = enabled && !spaceDown;
+  const px = x + S/2, py = y + S/2;
 
   if (shouldDraw) {
-    const px = x + S/2;
-    const py = y + S/2;
-
-    // Start new path if none or color changed
     if (!currentPath || currentPath.color !== col) {
       currentPath = { points: [], color: col };
       paths.push(currentPath);
     }
-
     const last = currentPath.points[currentPath.points.length - 1];
-    // Only add if moved > 1px (prevents dot spam)
     if (!last || Math.hypot(px - last.x, py - last.y) > 1) {
       currentPath.points.push({ x: px, y: py });
     }
   } else {
-    // Pause: break current path
     currentPath = null;
   }
 
   // RENDER
   ctx.fillStyle = '#111';
-  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.fillRect(0, 0, 512, 512);
 
-  // Draw all paths
   for (const path of paths) {
-    if (path.points.length < 1) continue;
+    if (path.points.length === 0) continue;
     if (path.points.length === 1) {
-      // SINGLE DOT
       ctx.fillStyle = path.color;
       ctx.beginPath();
-      ctx.arc(path.points[0].x, path.points[0].y, S * 0.35, 0, Math.PI * 2);
+      ctx.arc(path.points[0].x, path.points[0].y, S * 0.4, 0, Math.PI * 2);
       ctx.fill();
       continue;
     }
-
     ctx.strokeStyle = path.color;
-    ctx.lineWidth = S * 0.75;
+    ctx.lineWidth = S * 0.8;
     ctx.lineCap = ctx.lineJoin = 'round';
     ctx.beginPath();
     path.points.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
     ctx.stroke();
   }
 
-  // Player square
   ctx.fillStyle = col;
   ctx.fillRect(x, y, S, S);
 
