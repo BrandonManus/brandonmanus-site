@@ -7,12 +7,29 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
   <canvas id="game"></canvas>
+  <canvas id="minimap"></canvas>
 
   <div id="ui">
     <button id="togglePaint">Toggle Paint</button>
+
+    <label>
+      Brush Size  
+      <input id="brushSize" type="range" min="5" max="80" value="20">
+    </label>
+
+    <label>
+      Color  
+      <input id="colorPicker" type="color" value="#00ffcc">
+    </label>
   </div>
 
+  <div id="joystick-container">
+    <div id="joystick"></div>
+  </div>
+
+  <script src="joystick.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
