@@ -1,4 +1,4 @@
-// 8bit.exe — pixel art trail painter
+// 8bit.exe — MOUSE + KEYBOARD (pixel-perfect)
 const c = document.getElementById('c');
 const ctx = c.getContext('2d');
 
@@ -7,21 +7,35 @@ const trailToggle = document.getElementById('trail');
 const clearBtn = document.getElementById('clear');
 const saveBtn = document.getElementById('save');
 
-const S = 16; // 8-bit size (32px = 2x, 16px = 1x)
+const S = 16;
 let x = 256 - S/2;
 let y = 256 - S/2;
 let col = colorInput.value;
 let enabled = trailToggle.checked;
 let spaceDown = false;
+let mouseDown = false;
+let useMouse = false;
 
-const paths = [];
-let currentPath = null;
+// MOUSE TRACKING
+c.addEventListener('mousemove', e => {
+  const rect = c.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  x = mx - S/2;
+  y = my - S/2;
+  useMouse = true;
+});
+c.addEventListener('mousedown', () => mouseDown = true);
+c.addEventListener('mouseup', () => mouseDown = false);
+c.addEventListener('mouseleave', () => mouseDown = false);
 
+// KEYBOARD (fallback)
 const keys = new Set();
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   keys.add(k);
   if (k === ' ') spaceDown = true;
+  useMouse = false; // switch to keyboard
 });
 addEventListener('keyup', e => {
   const k = e.key.toLowerCase();
@@ -39,20 +53,28 @@ saveBtn.onclick = () => {
   link.click();
 };
 
-requestAnimationFrame(function frame() {
-  const speed = 8; // snappy movement
-  if (keys.has('a') || keys.has('arrowleft')) x -= speed;
-  if (keys.has('d') || keys.has('arrowright')) x += speed;
-  if (keys.has('w') || keys.has('arrowup')) y -= speed;
-  if (keys.has('s') || keys.has('arrowdown')) y += speed;
+const paths = [];
+let currentPath = null;
 
+requestAnimationFrame(function frame() {
+  // — KEYBOARD MOVEMENT (only if not using mouse)
+  if (!useMouse) {
+    const speed = 8;
+    if (keys.has('a') || keys.has('arrowleft')) x -= speed;
+    if (keys.has('d') || keys.has('arrowright')) x += speed;
+    if (keys.has('w') || keys.has('arrowup')) y -= speed;
+    if (keys.has('s') || keys.has('arrowdown')) y += speed;
+  }
+
+  // CLAMP
   x = Math.max(0, Math.min(512 - S, x));
   y = Math.max(0, Math.min(512 - S, y));
 
-  const shouldDraw = enabled && !spaceDown;
-  const px = x + S/2, py = y + S/2;
+  // — DRAW LOGIC
+  const shouldDraw = enabled && !spaceDown && mouseDown;
 
   if (shouldDraw) {
+    const px = x + S/2, py = y + S/2;
     if (!currentPath || currentPath.color !== col) {
       currentPath = { points: [], color: col };
       paths.push(currentPath);
@@ -61,11 +83,11 @@ requestAnimationFrame(function frame() {
     if (!last || Math.hypot(px - last.x, py - last.y) > 1) {
       currentPath.points.push({ x: px, y: py });
     }
-  } else {
+  } else if (!mouseDown) {
     currentPath = null;
   }
 
-  // RENDER
+  // — RENDER
   ctx.fillStyle = '#111';
   ctx.fillRect(0, 0, 512, 512);
 
