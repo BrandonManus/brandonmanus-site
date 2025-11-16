@@ -639,17 +639,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // TERMINAL (logic unchanged, aesthetics only)
   const commands = {
-    help: () => `Available commands: help | clear | status | scan | echo [msg] | hack | whoami | x | youtube | project89 | play | space`,
+    help: () => `Available commands: help | clear | status | scan | echo [msg] | hack | whoami | x | youtube | project89 | play | space | Paint`,
     clear: () => { terminalOutput.innerHTML=''; return ''; },
     status: () => `Node: ACTIVE | User: ${username} | Link: SECURE | Uptime: ${Math.floor(performance.now()/1000)}s`,
     scan: () => `Scanning neural net... [OK] Avatar Core | [OK] Quantum Relay | [OK] 127.0.0.1`,
     echo: (args) => args.join(' '),
-    hack: () => `ACCESS GRANTED. Reality firewall bypassed.`,
-    whoami: () => `You are ${username}, Neural Operative. Rank: Elite. Avatar: Cyber Witch.`,
+    hack: () => `ACCESS GRANTED. Reality firewall bypassed. Commencing Im in protocol`,
+    whoami: () => `You are ${username}, Neural Operative. Rank: Elite. Avatar: Kaijo Struct.`,
     x: () => { window.open('https://x.com/brandon_manus','_blank'); return 'Opening X...'; },
     youtube: () => { window.open('https://www.youtube.com/@brandonmanus','_blank'); return 'Opening YouTube...'; },
     project89: () => { window.open('https://www.project89.org/','_blank'); return 'Opening Project89...'; },
     play: () => { window.open('https://brandonmanus.com/play/','_blank'); return 'Opening play...'; },
+    paint: () => { window.open('https://brandonmanus.com/paint/','_blank'); return 'Opening paint...'; },
     space: () => { window.open('https://brandonmanus.com/3D/','_blank'); return 'Opening 3D Space...'; }
   };
 
