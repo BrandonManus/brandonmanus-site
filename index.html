@@ -639,9 +639,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // TERMINAL (logic unchanged, aesthetics only)
   const commands = {
-    help: () => `Available commands: help | clear | status | scan | echo [msg] | hack | whoami | x | youtube | project89 | play | space | Paint`,
+    help: () => `Available commands: help | clear | status | scan | echo [msg] | hack | whoami | x | youtube | project89 | play | space | paint`,
     clear: () => { terminalOutput.innerHTML=''; return ''; },
-    status: () => `Node: ACTIVE | User: ${username} | Link: SECURE | Uptime: ${Math.floor(performance.now()/1000)}s`,
+    status: () => `Hi ${username}!!! Brandon here, thank you so much for stopping by! Youve been here for ${Math.floor(performance.now()/1000)}s! Please get curious, I am constantly building!`,
     scan: () => `Scanning neural net... [OK] Avatar Core | [OK] Quantum Relay | [OK] 127.0.0.1`,
     echo: (args) => args.join(' '),
     hack: () => `ACCESS GRANTED. Reality firewall bypassed. Commencing Im in protocol`,
