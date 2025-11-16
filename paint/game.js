@@ -2,182 +2,134 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 const minimap = document.getElementById("minimap");
-const mapCtx = minimap.getContext("2d");
+const miniCtx = minimap.getContext("2d");
 
-// Resize canvas
-function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-resize();
-window.addEventListener("resize", resize);
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-// Camera center
-let camX = 0;
-let camY = 0;
-
-const player = {
-  x: 0,
-  y: 0,
+// Player
+let player = {
+  x: canvas.width / 2,
+  y: canvas.height / 2,
   size: 20,
-  color: "#00ffcc",
-  speed: 4,
-  paint: true,
-  brush: 20
+  speed: 3,
+  color: "#ff0000",
+  brushSize: 10,
+  trailOn: true
 };
 
-let paintTrail = [];
+// Input
+let keys = {};
+
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
+
+// Touch (mobile)
+let touch = null;
+canvas.addEventListener("touchstart", e => {
+  touch = e.touches[0];
+});
+canvas.addEventListener("touchmove", e => {
+  touch = e.touches[0];
+});
+canvas.addEventListener("touchend", () => {
+  touch = null;
+});
+
+// Particle system
 let particles = [];
 
-// Input keys
-const keys = { w: false, a: false, s: false, d: false };
-
-document.addEventListener("keydown", e => {
-  const k = e.key.toLowerCase();
-  if (keys[k] !== undefined) keys[k] = true;
-});
-
-document.addEventListener("keyup", e => {
-  const k = e.key.toLowerCase();
-  if (keys[k] !== undefined) keys[k] = false;
-});
-
-// UI Controls
-document.getElementById("togglePaint").onclick = () =>
-  (player.paint = !player.paint);
-
-document.getElementById("colorPicker").oninput = e =>
-  (player.color = e.target.value);
-
-document.getElementById("brushSize").oninput = e =>
-  (player.brush = parseInt(e.target.value));
-
-// Main loop
-function loop() {
-  movePlayer();
-  updateParticles();
-  draw();
-  drawMinimap();
-  requestAnimationFrame(loop);
-}
-
-function movePlayer() {
-  let dx = 0, dy = 0;
-
-  // Desktop
-  if (keys.w) dy -= 1;
-  if (keys.s) dy += 1;
-  if (keys.a) dx -= 1;
-  if (keys.d) dx += 1;
-
-  // Mobile joystick
-  if (joy.active) {
-    dx = joy.dx;
-    dy = joy.dy;
-  }
-
-  if (dx !== 0 || dy !== 0) {
-    const len = Math.sqrt(dx*dx + dy*dy) || 1;
-    dx /= len;
-    dy /= len;
-
-    player.x += dx * player.speed;
-    player.y += dy * player.speed;
-
-    emitParticles(player.x, player.y);
-
-    if (player.paint) {
-      paintTrail.push({
-        x: player.x,
-        y: player.y,
-        size: player.brush,
-        color: player.color
-      });
-    }
-  }
-
-  // Camera centers on player
-  camX = player.x - canvas.width / 2;
-  camY = player.y - canvas.height / 2;
-}
-
-function updateParticles() {
-  particles = particles.filter(p => {
-    p.life--;
-    p.x += p.vx;
-    p.y += p.vy;
-    return p.life > 0;
-  });
-}
-
-function emitParticles(x, y) {
-  for (let i = 0; i < 4; i++) {
+function spawnParticles(x, y, color) {
+  for (let i = 0; i < 5; i++) {
     particles.push({
-      x,
-      y,
-      vx: (Math.random() - 0.5) * 2,
-      vy: (Math.random() - 0.5) * 2,
+      x: x,
+      y: y,
+      dx: (Math.random() - 0.5) * 2,
+      dy: (Math.random() - 0.5) * 2,
       life: 20,
-      size: 4,
-      color: player.color
+      color
     });
   }
 }
 
-function draw() {
-  ctx.fillStyle = "#111";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+// UI controls
+document.getElementById("colorPicker").addEventListener("input", e => {
+  player.color = e.target.value;
+});
 
-  // Paint
-  for (const dot of paintTrail) {
-    ctx.fillStyle = dot.color;
-    ctx.fillRect(
-      dot.x - camX,
-      dot.y - camY,
-      dot.size,
-      dot.size
-    );
+document.getElementById("brushSize").addEventListener("input", e => {
+  player.brushSize = parseInt(e.target.value);
+});
+
+document.getElementById("toggleTrail").addEventListener("click", e => {
+  player.trailOn = !player.trailOn;
+  e.target.textContent = "Trail: " + (player.trailOn ? "ON" : "OFF");
+});
+
+// Movement logic
+function movePlayer() {
+  if (keys["w"] || keys["ArrowUp"]) player.y -= player.speed;
+  if (keys["s"] || keys["ArrowDown"]) player.y += player.speed;
+  if (keys["a"] || keys["ArrowLeft"]) player.x -= player.speed;
+  if (keys["d"] || keys["ArrowRight"]) player.x += player.speed;
+
+  if (touch) {
+    let tx = touch.clientX;
+    let ty = touch.clientY;
+
+    let angle = Math.atan2(ty - player.y, tx - player.x);
+    player.x += Math.cos(angle) * player.speed;
+    player.y += Math.sin(angle) * player.speed;
   }
+}
 
-  // Particles
-  for (const p of particles) {
+// Draw particles
+function updateParticles() {
+  particles = particles.filter(p => p.life > 0);
+
+  particles.forEach(p => {
+    p.x += p.dx;
+    p.y += p.dy;
+    p.life--;
+
     ctx.fillStyle = p.color;
-    ctx.fillRect(
-      p.x - camX,
-      p.y - camY,
-      p.size,
-      p.size
-    );
-  }
+    ctx.fillRect(p.x, p.y, 2, 2);
+  });
+}
 
-  // Player (centered)
-  ctx.fillStyle = player.color;
-  ctx.fillRect(
-    canvas.width / 2 - player.size / 2,
-    canvas.height / 2 - player.size / 2,
-    player.size,
-    player.size
+// Minimap rendering
+function drawMinimap() {
+  miniCtx.clearRect(0, 0, minimap.width, minimap.height);
+
+  let scale = 0.05;
+
+  miniCtx.fillStyle = "#00ff00";
+  miniCtx.fillRect(
+    player.x * scale - 2,
+    player.y * scale - 2,
+    4,
+    4
   );
 }
 
-function drawMinimap() {
-  mapCtx.fillStyle = "#000";
-  mapCtx.fillRect(0, 0, 200, 200);
+// Main loop
+function loop() {
+  requestAnimationFrame(loop);
 
-  // Draw paint points scaled down
-  for (const dot of paintTrail) {
-    const mx = 100 + dot.x / 50;
-    const my = 100 + dot.y / 50;
+  movePlayer();
 
-    mapCtx.fillStyle = dot.color;
-    mapCtx.fillRect(mx, my, 2, 2);
+  // Leave paint trail
+  if (player.trailOn) {
+    ctx.fillStyle = player.color;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.brushSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    spawnParticles(player.x, player.y, player.color);
   }
 
-  // Player position
-  const px = 100 + player.x / 50;
-  const py = 100 + player.y / 50;
-  mapCtx.fillStyle = "#fff";
-  mapCtx.fillRect(px - 2, py - 2, 4, 4);
+  updateParticles();
+  drawMinimap();
 }
 
 loop();
