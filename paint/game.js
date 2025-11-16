@@ -1,69 +1,60 @@
-// TRAIL PAINTER - CLEAN, WORKING, NO BULLSHIT
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
-canvas.width = 800;
-canvas.height = 600;
+// trail.exe — leave your mark
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+c.width = 900;
+c.height = 600;
 
 const colorInput = document.getElementById('color');
 const trailToggle = document.getElementById('trail');
 const clearBtn = document.getElementById('clear');
 
-const SIZE = 30;
-let x = canvas.width / 2 - SIZE / 2;
-let y = canvas.height / 2 - SIZE / 2;
-let color = colorInput.value;
-let drawing = trailToggle.checked;
-let trail = [];
+const S = 32; // square size
+let x = c.width / 2 - S/2;
+let y = c.height / 2 - S/2;
+let col = colorInput.value;
+let on = trailToggle.checked;
+let path = [];
 
-const keys = {};
-window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+const keys = new Set();
+addEventListener('keydown', e => keys.add(e.key.toLowerCase()));
+addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 
-colorInput.addEventListener('input', () => color = colorInput.value);
-trailToggle.addEventListener('change', () => drawing = trailToggle.checked);
-clearBtn.addEventListener('click', () => trail = []);
+colorInput.oninput = () => col = colorInput.value;
+trailToggle.onchange = () => on = trailToggle.checked;
+clearBtn.onclick = () => path = [];
 
-function update() {
-  const speed = 6;
+// Main loop
+requestAnimationFrame(function frame() {
+  // — movement
+  const speed = 7;
+  if (keys.has('a') || keys.has('arrowleft')) x -= speed;
+  if (keys.has('d') || keys.has('arrowright')) x += speed;
+  if (keys.has('w') || keys.has('arrowup')) y -= speed;
+  if (keys.has('s') || keys.has('arrowdown')) y += speed;
 
-  if (keys['a'] || keys['arrowleft']) x -= speed;
-  if (keys['d'] || keys['arrowright']) x += speed;
-  if (keys['w'] || keys['arrowup']) y -= speed;
-  if (keys['s'] || keys['arrowdown']) y += speed;
+  x = Math.max(0, Math.min(c.width - S, x));
+  y = Math.max(0, Math.min(c.height - S, y));
 
-  x = Math.max(0, Math.min(canvas.width - SIZE, x));
-  y = Math.max(0, Math.min(canvas.height - SIZE, y));
-
-  if (drawing) {
-    trail.push({ x: x + SIZE/2, y: y + SIZE/2 });
+  // — trail
+  if (on) {
+    path.push({ x: x + S/2, y: y + S/2 });
   }
-}
 
-function draw() {
-  ctx.fillStyle = '#222';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // — render
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, c.width, c.height);
 
-  // Draw trail
-  if (trail.length > 1) {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = SIZE * 0.7;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+  if (path.length > 1) {
+    ctx.strokeStyle = col;
+    ctx.lineWidth = S * 0.75;
+    ctx.lineCap = ctx.lineJoin = 'round';
     ctx.beginPath();
-    ctx.moveTo(trail[0].x, trail[0].y);
-    for (let p of trail) ctx.lineTo(p.x, p.y);
+    path.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
     ctx.stroke();
   }
 
-  // Draw player
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y, SIZE, SIZE);
-}
+  ctx.fillStyle = col;
+  ctx.fillRect(x, y, S, S);
 
-function loop() {
-  update();
-  draw();
-  requestAnimationFrame(loop);
-}
-
-requestAnimationFrame(loop);
+  requestAnimationFrame(frame);
+});
