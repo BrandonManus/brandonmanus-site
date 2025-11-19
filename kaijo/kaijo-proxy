@@ -1,24 +1,39 @@
-async function run(model, input) {
-  const response = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/8c45d5e9465fc2a8577f55ae265676b1/ai/run/${model}`,
-    {
-      headers: {
-        Authorization: "Bearer PxPhuWuHv447yj_wNdXDsnsVwMv0oGlrwxxXEEXE",  // ← your token from earlier
-        "Content-Type": "application/json"
-      },
-      method: "POST",
-      body: JSON.stringify(input)
+export default {
+  async fetch(request) {
+    // 1. Handle preflight OPTIONS request
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          "Access-Control-Max-Age": "86400",
+        },
+      });
     }
-  );
-  return await response.json();
-}
 
-// Run it!
-run("@cf/meta/llama-3.1-8b-instruct", {   // upgraded to 3.1 – better & faster
-  messages: [
-    { role: "system", content: "You are a friendly assistant that helps write stories" },
-    { role: "user",   content: "Write a short story about a llama that goes on a journey to find an orange cloud" }
-  ]
-})
-.then(r => console.log(r.result.response))
-.catch(e => console.error("Error:", e));
+    // 2. Proxy the real request to Workers AI
+    const url = new URL(request.url);
+    url.hostname = "api.cloudflare.com";
+    url.pathname = "/client/v4/accounts/8c45d5e9465fc2a8577f55ae265676b1/ai/run/@cf/meta/llama-3.1-8b-instruct";
+
+    const proxyRequest = new Request(url, {
+      method: request.method,
+      headers: {
+        Authorization: "Bearer PxPhuWuHv447yj_wNdXDsnsVwMv0oGlrwxxXEEXE",
+        "Content-Type": "application/json",
+      },
+      body: request.body,
+    });
+
+    const aiResponse = await fetch(proxyRequest);
+
+    // 3. Add CORS headers to the real response
+    const newResponse = new Response(aiResponse.body, aiResponse);
+    newResponse.headers.set("Access-Control-Allow-Origin", "*");
+    newResponse.headers.set("Access-Control-Expose-Headers", "*");
+
+    return newResponse;
+  },
+};
