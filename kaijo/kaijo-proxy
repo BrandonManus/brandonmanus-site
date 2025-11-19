@@ -1,0 +1,21 @@
+export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+    url.hostname = "api.cloudflare.com";
+    url.pathname = "/client/v4/accounts/8c45d5e9465fc2a8577f55ae265676b1/ai/run/@cf/meta/llama-3.1-8b-instruct";
+
+    const newRequest = new Request(url, {
+      method: request.method,
+      headers: {
+        "Authorization": "Bearer PxPhuWuHv447yj_wNdXDsnsVwMv0oGlrwxxXEEXE",
+        "Content-Type": "application/json"
+      },
+      body: request.body
+    });
+
+    const response = await fetch(newRequest);
+    const newResponse = new Response(response.body, response);
+    newResponse.headers.set("Access-Control-Allow-Origin", "*");
+    return newResponse;
+  }
+};
