@@ -1,39 +1,37 @@
 export default {
   async fetch(request) {
-    // 1. Handle preflight OPTIONS request
+    const corsHeaders = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Max-Age": "86400",
+    };
+
+    // Handle preflight
     if (request.method === "OPTIONS") {
-      return new Response(null, {
-        status: 204,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
-          "Access-Control-Max-Age": "86400",
-        },
-      });
+      return new Response(null, { status: 204, headers: corsHeaders });
     }
 
-    // 2. Proxy the real request to Workers AI
+    // Forward the real request
     const url = new URL(request.url);
     url.hostname = "api.cloudflare.com";
     url.pathname = "/client/v4/accounts/8c45d5e9465fc2a8577f55ae265676b1/ai/run/@cf/meta/llama-3.1-8b-instruct";
 
-    const proxyRequest = new Request(url, {
-      method: request.method,
+    const aiRequest = new Request(url, {
+      method: "POST",
       headers: {
-        Authorization: "Bearer PxPhuWuHv447yj_wNdXDsnsVwMv0oGlrwxxXEEXE",
+        "Authorization": "Bearer PxPhuWuHv447yj_wNdXDsnsVwMv0oGlrwxxXEEXE",
         "Content-Type": "application/json",
       },
       body: request.body,
     });
 
-    const aiResponse = await fetch(proxyRequest);
+    const aiResponse = await fetch(aiRequest);
 
-    // 3. Add CORS headers to the real response
-    const newResponse = new Response(aiResponse.body, aiResponse);
-    newResponse.headers.set("Access-Control-Allow-Origin", "*");
-    newResponse.headers.set("Access-Control-Expose-Headers", "*");
+    // Add CORS headers to the AI response
+    const response = new Response(aiResponse.body, aiResponse);
+    Object.entries(corsHeaders).forEach(([k, v]) => response.headers.set(k, v));
 
-    return newResponse;
-  },
+    return response;
+  }
 };
