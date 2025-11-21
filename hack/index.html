@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TERMINAL_V3.1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap');
+
+        body {
+            font-family: 'Fira Code', monospace;
+            background-color: #020402;
+            color: #4ade80; /* Terminal Green */
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #matrixCanvas {
+            position: absolute; top: 0; left: 0; z-index: 0; opacity: 0.08;
+        }
+        #gameCanvas {
+            position: relative; z-index: 10;
+        }
+
+        /* CRT Scanline & Vignette */
+        .crt-overlay {
+            background: 
+                linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2)),
+                radial-gradient(circle, transparent 60%, #000 150%);
+            background-size: 100% 4px, 100% 100%;
+            position: absolute; inset: 0; pointer-events: none; z-index: 50;
+        }
+
+        .glow-text { text-shadow: 0 0 5px rgba(74, 222, 128, 0.6), 0 0 10px rgba(74, 222, 128, 0.4); }
+        .glow-danger { text-shadow: 0 0 5px rgba(239, 68, 68, 0.6), 0 0 10px rgba(239, 68, 68, 0.4); }
+
+        /* Terminal Input Cursor */
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 1.2em;
+            background-color: #4ade80;
+            animation: blink 1s step-end infinite;
+            vertical-align: text-bottom;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .shake { animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+            40%, 60% { transform: translate3d(6px, 0, 0); }
+        }
+        
+        /* Sidebar Log Fade */
+        .log-entry { animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+    </style>
+</head>
+<body class="h-screen w-screen relative bg-black flex flex-col">
+
+    <canvas id="matrixCanvas"></canvas>
+    <canvas id="gameCanvas" class="absolute inset-0"></canvas>
+    <div class="crt-overlay"></div>
+
+    <!-- UI Layer -->
+    <div class="absolute inset-0 z-30 flex flex-col pointer-events-none p-6">
+        
+        <!-- Header -->
+        <div class="flex justify-between items-start w-full border-b border-green-900/50 pb-2 mb-4">
+            <div>
+                <h1 class="text-2xl font-bold glow-text">ROOT_ACCESS_TERMINAL</h1>
+                <div class="text-xs text-green-700">v3.1.0 // SECURE CONNECTION</div>
+            </div>
+            <div class="text-right">
+                <div class="text-xs text-green-700 uppercase tracking-widest mb-1">Proxy Integrity</div>
+                <div class="flex space-x-1 justify-end" id="healthContainer">
+                    <!-- JS Populated -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area (Split) -->
+        <div class="flex-1 flex relative">
+            <!-- System Log (Left) -->
+            <div class="w-64 hidden md:block border-r border-green-900/30 pr-4 overflow-hidden relative">
+                <div class="text-xs text-green-600 mb-2 border-b border-green-900/30 pb-1">SYSTEM_LOG</div>
+                <div id="systemLog" class="flex flex-col-reverse h-full text-xs font-mono space-y-1 space-y-reverse opacity-80">
+                    <!-- Log entries appear here -->
+                </div>
+            </div>
+            
+            <!-- Center Game Area is handled by Canvas, but we can put overlay stats here -->
+            <div class="flex-1 relative">
+                <div class="absolute top-0 right-0 p-4 text-right">
+                    <div class="text-sm text-green-600">DATA_MINED</div>
+                    <div id="scoreDisplay" class="text-4xl font-bold glow-text">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer / Command Prompt -->
+        <div class="mt-4 w-full bg-black/80 border border-green-800 p-4 rounded shadow-[0_0_20px_rgba(74,222,128,0.1)] backdrop-blur-sm">
+            <div class="flex items-center font-bold text-lg text-green-400">
+                <span class="mr-3 text-green-600">root@cyberdeck:~$</span>
+                <span id="commandInput" class="text-white glow-text"></span><span class="cursor"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="startScreen" class="absolute inset-0 flex items-center justify-center z-50 bg-black/95">
+        <div class="max-w-xl w-full p-8 border border-green-500/30 bg-green-900/10 rounded shadow-[0_0_50px_rgba(74,222,128,0.1)] text-center">
+            <div class="mb-6">
+                <div class="text-6xl font-bold text-green-500 glow-text mb-2">TERMINAL</div>
+                <div class="text-green-700 tracking-[0.5em] uppercase text-sm">Typing Proficiency Test</div>
+            </div>
+            
+            <div class="text-left space-y-4 mb-8 font-mono text-sm text-green-400/80 border-l-2 border-green-800 pl-4 mx-8">
+                <p>> INCOMING DATA STREAMS DETECTED.</p>
+                <p>> INTERCEPT PACKETS BY TYPING COMMANDS.</p>
+                <p>> DO NOT ALLOW BUFFER OVERFLOW.</p>
+            </div>
+
+            <button id="startBtn" class="group px-10 py-3 bg-green-900/20 border border-green-500 hover:bg-green-500 hover:text-black text-green-500 font-bold transition-all uppercase tracking-widest">
+                <span class="group-hover:hidden">Initialize_System</span>
+                <span class="hidden group-hover:inline">Execute_Launch</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Over -->
+    <div id="gameOverScreen" class="hidden absolute inset-0 flex items-center justify-center z-50 bg-black/95">
+        <div class="text-center">
+            <h2 class="text-5xl font-bold text-red-500 glow-danger mb-4">CONNECTION TERMINATED</h2>
+            <div class="text-red-800 tracking-[0.5em] mb-8">PROXY SERVER TRACED</div>
+            
+            <div class="grid grid-cols-2 gap-8 mb-8 max-w-md mx-auto">
+                <div class="border border-green-900 p-4">
+                    <div class="text-xs text-green-700">TOTAL LINES</div>
+                    <div id="finalScore" class="text-3xl text-green-500">0</div>
+                </div>
+                <div class="border border-green-900 p-4">
+                    <div class="text-xs text-green-700">WPM PEAK</div>
+                    <div id="finalWPM" class="text-3xl text-green-500">0</div>
+                </div>
+            </div>
+
+            <button id="restartBtn" class="px-8 py-3 border border-green-800 text-green-600 hover:border-green-500 hover:text-green-400 transition-all">
+                ./reboot_system.sh
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- WORD DATABASE (Hacker Theme) ---
+        const WORD_CATEGORIES = [
+            // Short / Common / Unix
+            ["grep", "sudo", "ping", "ls -la", "chmod", "chown", "mkdir", "touch", "cat", "tail", "head", "vim", "nano", "git", "ssh", "cd", "pwd", "cp", "mv", "rm", "top", "ps", "kill", "man", "sed", "awk", "tar", "zip", "unzip", "diff", "wc", "du", "df", "free", "date", "who"],
+            
+            // Networking & Security
+            ["buffer", "socket", "packet", "daemon", "kernel", "proxy", "router", "switch", "uplink", "subnet", "cookie", "token", "cipher", "hash", "firewall", "latency", "bandwidth", "protocol", "port", "dns", "dhcp", "tcp/ip", "udp", "handshake", "encryption", "decryption", "vpn", "tunnel", "gateway", "localhost", "mac address", "ip address"],
+            
+            // Coding & Logic
+            ["function", "return", "import", "export", "const", "async", "await", "public", "class", "void", "null", "false", "true", "typeof", "undefined", "variable", "array", "object", "string", "integer", "boolean", "float", "double", "char", "if", "else", "switch", "case", "break", "continue", "try", "catch", "finally", "throw", "promise", "callback"],
+            
+            // Hacking & Cybersec
+            ["payload", "exploit", "backdoor", "trojan", "malware", "phishing", "spoofing", "rootkit", "injection", "override", "bypass", "firewall", "brute force", "ddos", "botnet", "ransomware", "spyware", "keylogger", "vulnerability", "zero day", "honeypot", "sandbox", "air gap", "social engineering", "penetration", "black hat", "white hat"],
+            
+            // Complex Commands & Git
+            ["git commit", "npm install", "docker run", "systemctl", "ip address", "netstat", "traceroute", "whoami", "apt-get", "pip install", "git push", "git pull", "git clone", "git merge", "git checkout", "docker build", "docker compose", "kubectl apply", "sudo apt update", "make install", "./configure", "python3 script.py", "gcc main.c", "ssh-keygen"]
+        ];
+
+        const CONFIG = {
+            maxHealth: 10, // More health for "stress free" feel
+            baseSpeed: 0.6,
+            speedInc: 0.02,
+            spawnRate: 1600, // ms
+            colors: {
+                text: '#4ade80',        // Green-400
+                textDim: '#14532d',     // Green-900
+                textHighlight: '#ffffff', // White
+                bgMatch: 'rgba(20, 83, 45, 0.4)',
+                danger: '#ef4444'       // Red-500
+            }
+        };
+
+        // --- AUDIO ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'click') { // Mechanical Key Sound
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+                gain.gain.setValueAtTime(0.03, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            } else if (type === 'success') { // Subtle chirp
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.linearRampToValueAtTime(1200, now + 0.1);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'error') { // Low buzz
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(100, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+        }
+
+        // --- GAME STATE ---
+        const state = {
+            active: false,
+            score: 0,
+            health: CONFIG.maxHealth,
+            words: [],
+            particles: [],
+            lastTime: 0,
+            spawnTimer: 0,
+            activeWord: null,
+            startTime: 0,
+            charsTyped: 0
+        };
+
+        // --- LOG SYSTEM ---
+        function addLog(msg, type = 'info') {
+            const log = document.getElementById('systemLog');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type === 'error' ? 'text-red-400' : type === 'success' ? 'text-green-300' : 'text-green-600'}`;
+            const time = new Date().toLocaleTimeString('en-US', {hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit"});
+            entry.innerText = `[${time}] ${msg}`;
+            log.prepend(entry);
+            if (log.children.length > 20) log.lastChild.remove();
+        }
+
+        // --- CLASSES ---
+        class Word {
+            constructor() {
+                // Pick random category based on score (difficulty)
+                const difficulty = Math.min(4, Math.floor(state.score / 15));
+                const pool = WORD_CATEGORIES[Math.floor(Math.random() * (difficulty + 1))]; // Can pick simpler categories too
+                
+                this.text = pool[Math.floor(Math.random() * pool.length)];
+                this.x = Math.random() * (window.innerWidth - 350) + 280; // Keep away from sidebar
+                this.y = -30;
+                this.typedIndex = 0;
+                this.speed = CONFIG.baseSpeed + (state.score * 0.005);
+                this.failed = false;
+            }
+
+            draw(ctx) {
+                ctx.font = "bold 20px 'Fira Code', monospace";
+                
+                const isActive = state.activeWord === this;
+                const done = this.text.substring(0, this.typedIndex);
+                const rest = this.text.substring(this.typedIndex);
+                
+                const width = ctx.measureText(this.text).width;
+                const height = 24;
+
+                // If active, draw a "cursor box" or highlight background
+                if (isActive) {
+                    ctx.fillStyle = CONFIG.colors.bgMatch;
+                    ctx.fillRect(this.x - 5, this.y - 20, width + 10, height + 8);
+                    
+                    // Connect line to bottom console to simulate "downloading"
+                    ctx.strokeStyle = 'rgba(74, 222, 128, 0.1)';
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + width/2, this.y + 5);
+                    ctx.lineTo(window.innerWidth/2, window.innerHeight - 60);
+                    ctx.stroke();
+                }
+
+                // Draw Typed Portion (White/Bright)
+                ctx.fillStyle = CONFIG.colors.textHighlight;
+                ctx.fillText(done, this.x, this.y);
+                
+                // Draw Remaining (Green)
+                const offset = ctx.measureText(done).width;
+                ctx.fillStyle = isActive ? CONFIG.colors.text : CONFIG.colors.textDim;
+                ctx.fillText(rest, this.x + offset, this.y);
+            }
+
+            update() {
+                this.y += this.speed;
+                return this.y > window.innerHeight - 80; // Hit bottom area
+            }
+        }
+
+        // --- CORE LOGIC ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            initMatrix();
+        }
+        window.addEventListener('resize', resize);
+
+        function spawnWord() {
+            state.words.push(new Word());
+        }
+
+        function takeDamage(wordText) {
+            state.health--;
+            playSound('error');
+            addLog(`PACKET LOST: ${wordText}`, 'error');
+            updateHUD();
+            
+            // Screen glitch effect
+            document.body.classList.add('shake');
+            setTimeout(() => document.body.classList.remove('shake'), 200);
+
+            if (state.health <= 0) gameOver();
+        }
+
+        function updateHUD() {
+            document.getElementById('scoreDisplay').innerText = state.score;
+            
+            // Health Bars
+            const hCont = document.getElementById('healthContainer');
+            hCont.innerHTML = '';
+            for(let i=0; i<CONFIG.maxHealth; i++) {
+                const block = document.createElement('div');
+                block.className = `w-2 h-4 ${i < state.health ? 'bg-green-500 shadow-[0_0_5px_#4ade80]' : 'bg-green-900/30'}`;
+                hCont.appendChild(block);
+            }
+
+            // Command Line Display
+            const input = document.getElementById('commandInput');
+            if (state.activeWord) {
+                input.innerText = state.activeWord.text.substring(0, state.activeWord.typedIndex);
+            } else {
+                input.innerText = "";
+            }
+        }
+
+        function gameOver() {
+            state.active = false;
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+            document.getElementById('finalScore').innerText = state.score;
+            
+            const duration = (performance.now() - state.startTime) / 60000;
+            const wpm = Math.round((state.charsTyped / 5) / duration) || 0;
+            document.getElementById('finalWPM').innerText = wpm;
+        }
+
+        // --- INPUT ---
+        window.addEventListener('keydown', (e) => {
+            if (!state.active) return;
+            if (e.ctrlKey || e.altKey || e.metaKey) return;
+            if (e.key.length !== 1) return; // Ignore special keys
+
+            const char = e.key; // No lowercase forcing, let's allow Case Sensitivity if we want? 
+            // Actually, let's match against the word's char exactly, but let's handle case logic in match.
+            // Most Linux commands are lowercase, but let's just compare key to char.
+
+            if (state.activeWord) {
+                const w = state.activeWord;
+                if (w.text[w.typedIndex] === char) {
+                    w.typedIndex++;
+                    state.charsTyped++;
+                    playSound('click');
+                    updateHUD();
+
+                    if (w.typedIndex >= w.text.length) {
+                        // Word Complete
+                        state.score++;
+                        state.words = state.words.filter(word => word !== w);
+                        addLog(`EXECUTED: ${w.text}`, 'success');
+                        playSound('success');
+                        state.activeWord = null;
+                        updateHUD();
+                    }
+                } else {
+                    // Typo
+                    // Optional: Play typo sound or flash red?
+                }
+            } else {
+                // Find new word
+                // Prioritize words closest to bottom
+                const candidates = state.words.filter(w => w.text.startsWith(char));
+                if (candidates.length > 0) {
+                    candidates.sort((a, b) => b.y - a.y);
+                    state.activeWord = candidates[0];
+                    state.activeWord.typedIndex = 1;
+                    state.charsTyped++;
+                    playSound('click');
+                    
+                    // Immediate clear 1-char word
+                    if (state.activeWord.text.length === 1) {
+                        state.score++;
+                        state.words = state.words.filter(word => word !== state.activeWord);
+                        addLog(`EXECUTED: ${state.activeWord.text}`, 'success');
+                        playSound('success');
+                        state.activeWord = null;
+                    }
+                    updateHUD();
+                }
+            }
+        });
+
+        // --- LOOP ---
+        function loop(timestamp) {
+            if (!state.active) return;
+            const dt = timestamp - state.lastTime;
+            state.lastTime = timestamp;
+
+            // Matrix BG
+            if (Math.floor(timestamp/60) !== Math.floor((timestamp-dt)/60)) drawMatrix();
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Spawning
+            state.spawnTimer += dt;
+            if (state.spawnTimer > CONFIG.spawnRate) {
+                spawnWord();
+                state.spawnTimer = 0;
+                // Gentle difficulty curve
+                CONFIG.spawnRate = Math.max(600, 1600 - (state.score * 5)); 
+            }
+
+            // Update Words
+            for (let i = state.words.length - 1; i >= 0; i--) {
+                const w = state.words[i];
+                const hitBottom = w.update();
+                w.draw(ctx);
+
+                if (hitBottom) {
+                    takeDamage(w.text);
+                    state.words.splice(i, 1);
+                    if (state.activeWord === w) {
+                        state.activeWord = null;
+                        updateHUD();
+                    }
+                }
+            }
+
+            requestAnimationFrame(loop);
+        }
+
+        // --- MATRIX EFFECT ---
+        const mCanvas = document.getElementById('matrixCanvas');
+        const mCtx = mCanvas.getContext('2d');
+        let drops = [];
+        
+        function initMatrix() {
+            mCanvas.width = window.innerWidth;
+            mCanvas.height = window.innerHeight;
+            drops = Array(Math.floor(mCanvas.width / 20)).fill(1);
+        }
+
+        function drawMatrix() {
+            mCtx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
+            mCtx.fillStyle = '#15803d'; // Darker green for BG matrix
+            mCtx.font = '14px monospace';
+            for (let i = 0; i < drops.length; i++) {
+                const text = String.fromCharCode(0x30A0 + Math.random() * 96);
+                mCtx.fillText(text, i * 20, drops[i] * 20);
+                if (drops[i] * 20 > mCanvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            
+            state.active = true;
+            state.score = 0;
+            state.health = CONFIG.maxHealth;
+            state.words = [];
+            state.activeWord = null;
+            state.charsTyped = 0;
+            state.startTime = performance.now();
+            state.lastTime = performance.now();
+            
+            addLog("SYSTEM INITIALIZED...", "info");
+            addLog("PROXY CONNECTION ESTABLISHED.", "info");
+
+            initMatrix();
+            resize();
+            updateHUD();
+            requestAnimationFrame(loop);
+        }
+
+        document.getElementById('startBtn').addEventListener('click', () => {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            startGame();
+        });
+        document.getElementById('restartBtn').addEventListener('click', startGame);
+
+    </script>
+</body>
+</html>
