@@ -3,87 +3,120 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Kaijo AI Chat</title>
+  <title>AI Chat • Cloudflare Workers</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; background: #0d1117; color: #c9d1d9; }
-    h1 { color: #58a6ff; }
-    #chat { background: #161b22; padding: 15px; border-radius: 8px; min-height: 300px; margin: 20px 0; white-space: pre-wrap; }
-    textarea { width: 100%; padding: 12px; background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; font-size: 16px; }
-    button { margin-top: 10px; padding: 12px 24px; background: #238636; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
-    button:disabled { background: #30363d; cursor: not-allowed; }
-    .loading { color: #8b949e; font-style: italic; }
+    :root { --bg: #f8f9fa; --user: #d4edff; --ai: #f0f0f0; }
+    body { font-family: system-ui, sans-serif; background: var(--bg); margin: 0; padding: 0; }
+    .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+    h1 { text-align: center; color: #333; }
+    #chat { 
+      height: 70vh; overflow-y: auto; border: 1px solid #ddd; border-radius: 12px; 
+      padding: 16px; background: white; margin-bottom: 16px; display: flex; flex-direction: column; gap: 12px;
+    }
+    .message { padding: 12px 16px; border-radius: 12px; max-width: 80%; line-height: 1.5; }
+    .user { align-self: flex-end; background: var(--user); border-bottom-right-radius: 4px; }
+    .ai   { align-self: flex-start; background: var(--ai); border-bottom-left-radius: 4px; }
+    .input-area { display: flex; gap: 10px; }
+    textarea { flex: 1; padding: 14px; border: 1px solid #ccc; border-radius: 12px; font-size: 16px; resize: none; }
+    button { padding: 0 24px; background: #0066ff; color: white; border: none; border-radius: 12px; font-size: 16px; cursor: pointer; }
+    button:disabled { background: #999; cursor: not-allowed; }
+    .typing { opacity: 0.7; font-style: italic; }
   </style>
 </head>
 <body>
-
-  <h1>Kaijo AI</h1>
-  <div id="chat">Ask me anything…</div>
-
-  <textarea id="prompt" rows="3" placeholder="Type your message here..."></textarea><br/>
-  <button id="send">Send →</button>
+  <div class="container">
+    <h1>My AI Chat</h1>
+    <div id="chat"></div>
+    <div class="input-area">
+      <textarea id="input" placeholder="Ask me anything..." rows="2"></textarea>
+      <button id="send">Send</button>
+    </div>
+  </div>
 
   <script>
-    const API_URL = "https://brandonmanus.com/kaijo";   // ← make sure this is EXACTLY this
-    const chatDiv = document.getElementById("chat");
-    const promptInput = document.getElementById("prompt");
+    // CHANGE THIS TO YOUR WORKER URL
+    const WORKER_URL = "https://kaijo.brandonmanus15.workers.dev/";
+
+    const chat = document.getElementById("chat");
+    const input = document.getElementById("input");
     const sendBtn = document.getElementById("send");
 
-    sendBtn.addEventListener("click", sendMessage);
-    promptInput.addEventListener("keypress", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+    let messages = [
+      { role: "system", content: "You are a helpful, friendly AI assistant." }
+    ];
+
+    function addMessage(role, content = "", typing = false) {
+      const div = document.createElement("div");
+      div.className = `message ${role}`;
+      if (typing) div.classList.add("typing");
+      div.textContent = content;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+      return div;
+    }
 
     async function sendMessage() {
-      const userPrompt = promptInput.value.trim();
-      if (!userPrompt) return;
+      const userText = input.value.trim();
+      if (!userText) return;
 
-      // Show user message
-      chatDiv.innerHTML += `\n\n<b>You:</b>\n${userPrompt}\n\n<b>Kaijo:</b>\n`;
-      promptInput.value = "";
+      addMessage("user", userText);
+      messages.push({ role: "user", content: userText });
+      input.value = "";
       sendBtn.disabled = true;
-      chatDiv.scrollTop = chatDiv.scrollHeight;
 
-      try {
-        const response = await fetch(API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: userPrompt })
-        });
+      const aiMessageDiv = addMessage("ai", "▌", true); // typing indicator
 
-        if (!response.ok) throw new Error("Network error");
+      const response = await fetch(WORKER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages })
+      });
 
-        // Streaming response (most Workers AI examples support this)
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let aiText = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value);
-          // Cloudflare Workers AI usually streams JSON lines like {"response":"hello"}
-          // This handles both raw text and simple JSON streaming
-          const lines = chunk.split("\n");
-          for (const line of lines) {
-            if (line.trim() === "" || line === "data: [DONE]") continue;
-            try {
-              const json = JSON.parse(line.replace(/^data: /, ""));
-              aiText += json.response || json.result || "";
-            } catch {
-              aiText += line;  // fallback for raw text streaming
-            }
-          }
-          chatDiv.innerHTML = chatDiv.innerHTML.replace(/<b>Kaijo:<\/b>\n.*$/, `<b>Kaijo:</b>\n${aiText}`);
-          chatDiv.scrollTop = chatDiv.scrollHeight;
-        }
-
-        // Final clean-up
-        chatDiv.innerHTML = chatDiv.innerHTML.replace(/<b>Kaijo:<\/b>\n$/, `<b>Kaijo:</b>\n${aiText}`);
-      } catch (err) {
-        chatDiv.innerHTML += `\n\nError: ${err.message}`;
-      } finally {
+      if (!response.ok) {
+        aiMessageDiv.textContent = "Error: Could not reach the AI worker.";
         sendBtn.disabled = false;
-        promptInput.focus();
+        return;
       }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let aiText = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            if (data === "[DONE]") continue;
+            try {
+              const json = JSON.parse(data);
+              aiText += json.response || "";
+              aiMessageDiv.textContent = aiText + "▌";
+            } catch (e) {}
+          }
+        }
+      }
+
+      aiMessageDiv.textContent = aiText;
+      aiMessageDiv.classList.remove("typing");
+      messages.push({ role: "assistant", content: aiText });
+      sendBtn.disabled = false;
+      input.focus();
     }
+
+    sendBtn.addEventListener("click", sendMessage);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // Start with a welcome message
+    addMessage("ai", "Hello! I'm your Kaijo powered by Cloudflare Workers with a little twist in my code. How can I help you today?");
   </script>
 </body>
 </html>
