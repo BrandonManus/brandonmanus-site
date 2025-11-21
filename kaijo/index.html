@@ -3,717 +3,574 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CyberReflex: Aim & Type</title>
+    <title>CyberReflex: Firewall</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap');
 
         body {
             font-family: 'JetBrains Mono', monospace;
-            background-color: #0f172a;
+            background-color: #050a14;
             color: #e2e8f0;
             overflow: hidden;
             user-select: none;
+            cursor: text; /* Default cursor for typing */
         }
 
-        canvas {
-            display: block;
-            cursor: crosshair;
+        #matrixCanvas {
+            position: absolute; top: 0; left: 0; z-index: 0; opacity: 0.15;
+        }
+        #gameCanvas {
+            position: relative; z-index: 10;
         }
 
-        .ui-panel {
-            background: rgba(15, 23, 42, 0.8);
-            backdrop-filter: blur(4px);
-            border: 1px solid rgba(56, 189, 248, 0.3);
-            box-shadow: 0 0 20px rgba(56, 189, 248, 0.1);
+        .scanlines {
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+            background-size: 100% 4px;
+            position: absolute; inset: 0; pointer-events: none; z-index: 20;
         }
 
-        .neon-text {
-            text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        /* Defense Mode Overlay */
+        #defenseOverlay {
+            pointer-events: none;
+            transition: opacity 0.2s;
+            background: radial-gradient(circle, transparent 0%, rgba(225, 29, 72, 0.3) 100%);
+            box-shadow: inset 0 0 100px rgba(225, 29, 72, 0.5);
+        }
+        .breach-active body {
+            cursor: crosshair !important; /* Switch to crosshair only during breach */
         }
 
-        .neon-danger {
-            text-shadow: 0 0 10px rgba(244, 63, 94, 0.5);
-        }
-        
-        /* Shake animation for wrong typing */
-        .shake {
-            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-        }
+        .neon-text { text-shadow: 0 0 10px rgba(6, 182, 212, 0.8); }
+        .neon-danger { text-shadow: 0 0 15px rgba(244, 63, 94, 1); }
 
+        .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
         @keyframes shake {
-            10%, 90% { transform: translate3d(-1px, 0, 0); }
-            20%, 80% { transform: translate3d(2px, 0, 0); }
-            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-            40%, 60% { transform: translate3d(4px, 0, 0); }
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+            40%, 60% { transform: translate3d(6px, 0, 0); }
         }
+
+        .glitch-text { position: relative; }
+        .glitch-text::before, .glitch-text::after {
+            content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #050a14;
+        }
+        .glitch-text::before { left: 2px; text-shadow: -1px 0 #ff00c1; animation: glitch-anim-1 2s infinite linear alternate-reverse; }
+        .glitch-text::after { left: -2px; text-shadow: -1px 0 #00fff9; animation: glitch-anim-2 3s infinite linear alternate-reverse; }
     </style>
 </head>
-<body class="h-screen w-screen relative">
+<body class="h-screen w-screen relative bg-black">
 
-    <!-- Game Canvas -->
+    <canvas id="matrixCanvas"></canvas>
     <canvas id="gameCanvas"></canvas>
+    <div class="scanlines"></div>
 
-    <!-- HUD Overlay -->
-    <div id="hud" class="absolute top-0 left-0 w-full p-6 flex justify-between items-start pointer-events-none">
-        <div class="ui-panel p-4 rounded-lg">
-            <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">Score</div>
-            <div id="scoreDisplay" class="text-4xl font-bold text-cyan-400 neon-text">0</div>
-        </div>
-        
-        <div class="flex flex-col items-center space-y-2">
-            <div class="ui-panel px-6 py-2 rounded-full border-t-2 border-cyan-500">
-                <span id="gameModeDisplay" class="text-sm font-bold tracking-widest text-white">MIXED MODE</span>
-            </div>
-            <div id="comboContainer" class="opacity-0 transition-opacity duration-300">
-                <div class="text-yellow-400 font-black text-2xl italic transform -skew-x-12">x<span id="comboDisplay">1</span></div>
-            </div>
-        </div>
-
-        <div class="ui-panel p-4 rounded-lg text-right">
-            <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">Health</div>
-            <div class="flex space-x-1 justify-end" id="healthContainer">
-                <!-- Health bars generated by JS -->
-            </div>
-            <div class="mt-2 text-xs text-slate-500">WPM: <span id="wpmDisplay" class="text-white">0</span></div>
+    <!-- Defense/Breach Overlay -->
+    <div id="defenseOverlay" class="absolute inset-0 opacity-0 z-15 flex items-center justify-center">
+        <div class="text-center pointer-events-none">
+            <h1 class="text-6xl font-black text-rose-500 neon-danger mb-2 tracking-tighter">SECURITY BREACH</h1>
+            <p class="text-rose-300 tracking-[0.5em] font-bold animate-pulse">MANUAL OVERRIDE REQUIRED</p>
         </div>
     </div>
 
-    <!-- Locked Target Indicator (Bottom Center) -->
-    <div id="typingFocus" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 text-center opacity-0 transition-opacity duration-100 pointer-events-none">
-        <div class="text-xs text-cyan-300 mb-1 tracking-widest">LOCKED TARGET</div>
-        <div id="lockedWordDisplay" class="text-3xl font-bold text-white bg-black/50 px-4 py-2 rounded border border-cyan-500/50">
-            <span class="text-slate-500">GHO</span><span class="text-white animate-pulse">ST</span>
+    <!-- HUD -->
+    <div class="absolute top-0 left-0 w-full p-6 flex justify-between items-start pointer-events-none z-30">
+        <div class="bg-slate-900/80 border border-cyan-500/30 p-4 rounded-lg min-w-[140px]">
+            <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">Lines Hacked</div>
+            <div id="scoreDisplay" class="text-4xl font-bold text-cyan-400 neon-text">0</div>
+        </div>
+
+        <!-- Active Word Display (Bottom Center) -->
+        <div id="typingFocus" class="absolute bottom-12 left-1/2 transform -translate-x-1/2 text-center transition-opacity duration-200 opacity-0">
+            <div class="text-[10px] text-cyan-500 mb-1 tracking-[0.3em] uppercase">Current Node</div>
+            <div id="lockedWordDisplay" class="text-5xl font-bold text-white bg-black/80 px-8 py-4 rounded border-b-4 border-cyan-500 shadow-[0_0_30px_rgba(6,182,212,0.4)]"></div>
+        </div>
+
+        <div class="bg-slate-900/80 border border-cyan-500/30 p-4 rounded-lg text-right min-w-[160px]">
+            <div class="text-xs text-slate-400 uppercase tracking-widest mb-2">System Integrity</div>
+            <div class="flex space-x-1 justify-end" id="healthContainer"></div>
         </div>
     </div>
 
     <!-- Start Screen -->
-    <div id="startScreen" class="absolute inset-0 flex items-center justify-center z-50 bg-slate-900/95 backdrop-blur-sm">
-        <div class="max-w-2xl w-full p-8 text-center">
-            <h1 class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 mb-2 neon-text">CYBER REFLEX</h1>
-            <p class="text-slate-400 text-lg mb-8 tracking-wide">NEURAL LINK CALIBRATION PROTOCOL</p>
+    <div id="startScreen" class="absolute inset-0 flex items-center justify-center z-50 bg-black/90 backdrop-blur-sm">
+        <div class="max-w-2xl w-full p-8 text-center relative border border-slate-800 bg-slate-900/50 rounded-xl">
+            <h1 class="text-7xl font-black text-white mb-2 glitch-text tracking-tighter" data-text="CYBER//HACK">CYBER//HACK</h1>
+            <p class="text-cyan-500 text-lg mb-10 tracking-[0.3em] uppercase">Infiltration Protocol</p>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-                <div class="ui-panel p-6 rounded-xl border border-rose-500/30 hover:border-rose-500/80 transition-colors group">
-                    <div class="text-rose-400 font-bold text-xl mb-2 group-hover:text-rose-300">AIM TARGETS</div>
-                    <div class="w-12 h-12 rounded-full bg-rose-500 mx-auto mb-3 animate-pulse shadow-[0_0_15px_rgba(244,63,94,0.6)]"></div>
-                    <p class="text-sm text-slate-400">Click the <span class="text-rose-400">RED ORBS</span> before they shrink.</p>
+            <div class="flex flex-col gap-6 mb-12 text-left max-w-md mx-auto">
+                <div class="flex items-start gap-4">
+                    <div class="bg-cyan-900/30 p-3 rounded text-cyan-400 font-bold">1</div>
+                    <div>
+                        <div class="text-white font-bold mb-1">Type to Hack</div>
+                        <p class="text-slate-400 text-sm">Type falling words to infiltrate the system. It's low stress.</p>
+                    </div>
                 </div>
-                
-                <div class="ui-panel p-6 rounded-xl border border-cyan-500/30 hover:border-cyan-500/80 transition-colors group">
-                    <div class="text-cyan-400 font-bold text-xl mb-2 group-hover:text-cyan-300">TYPE TARGETS</div>
-                    <div class="w-12 h-12 rounded bg-cyan-500 mx-auto mb-3 shadow-[0_0_15px_rgba(34,211,238,0.6)] flex items-center justify-center text-black font-bold text-xs">CMD</div>
-                    <p class="text-sm text-slate-400">Type the <span class="text-cyan-400">WORDS</span> to destroy blocks.</p>
+                <div class="flex items-start gap-4">
+                    <div class="bg-rose-900/30 p-3 rounded text-rose-400 font-bold">2</div>
+                    <div>
+                        <div class="text-white font-bold mb-1">Breach Protocol</div>
+                        <p class="text-slate-400 text-sm">If you miss a word, the alarm sounds! <span class="text-rose-400 font-bold">Click the red nodes</span> quickly to save your life.</p>
+                    </div>
                 </div>
             </div>
 
-            <button id="startBtn" class="group relative px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xl rounded-lg transition-all hover:scale-105 hover:shadow-[0_0_30px_rgba(8,145,178,0.6)] overflow-hidden">
-                <span class="relative z-10">INITIALIZE SIMULATION</span>
-                <div class="absolute inset-0 h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
+            <button id="startBtn" class="px-12 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xl tracking-widest rounded transition-all shadow-[0_0_30px_rgba(8,145,178,0.4)]">
+                START HACK
             </button>
         </div>
     </div>
 
-    <!-- Game Over Screen -->
-    <div id="gameOverScreen" class="hidden absolute inset-0 flex items-center justify-center z-50 bg-slate-900/90 backdrop-blur-md">
-        <div class="ui-panel p-10 rounded-2xl text-center max-w-lg w-full border-2 border-slate-700">
-            <h2 class="text-5xl font-bold text-white mb-2">SYSTEM FAILURE</h2>
-            <div class="text-xl text-rose-500 mb-8 neon-danger">SIGNAL LOST</div>
-            
-            <div class="grid grid-cols-3 gap-4 mb-8">
-                <div class="bg-slate-800 p-3 rounded">
-                    <div class="text-xs text-slate-400">SCORE</div>
-                    <div id="finalScore" class="text-2xl font-bold text-white">0</div>
-                </div>
-                <div class="bg-slate-800 p-3 rounded">
-                    <div class="text-xs text-slate-400">ACCURACY</div>
-                    <div id="finalAcc" class="text-2xl font-bold text-yellow-400">0%</div>
-                </div>
-                <div class="bg-slate-800 p-3 rounded">
-                    <div class="text-xs text-slate-400">PEAK COMBO</div>
-                    <div id="finalCombo" class="text-2xl font-bold text-purple-400">0</div>
-                </div>
-            </div>
-
-            <button id="restartBtn" class="w-full py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded border border-slate-500 hover:border-white transition-all">
-                REBOOT SYSTEM
+    <!-- Game Over -->
+    <div id="gameOverScreen" class="hidden absolute inset-0 flex items-center justify-center z-50 bg-black/95 backdrop-blur-md">
+        <div class="p-10 text-center border-2 border-rose-600 bg-slate-900 max-w-lg w-full rounded-lg shadow-[0_0_50px_rgba(225,29,72,0.3)]">
+            <h2 class="text-5xl font-black text-white mb-2">DISCONNECTED</h2>
+            <div class="text-rose-500 mb-8 tracking-[0.5em] uppercase text-sm">Signal Lost</div>
+            <div class="text-xs text-slate-500 mb-2">FINAL SCORE</div>
+            <div id="finalScore" class="text-5xl font-bold text-white mb-8">0</div>
+            <button id="restartBtn" class="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded border border-slate-600 transition-all tracking-widest">
+                RE-INITIALIZE
             </button>
         </div>
     </div>
 
     <script>
-        /**
-         * CYBER REFLEX ENGINE
-         * A hybrid aim-trainer and typing game.
-         */
+        // --- AUDIO ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(key) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
 
-        // --- Word Database ---
-        const WORD_LIST = [
-            "system", "data", "cyber", "neon", "flux", "grid", "node", "hack", "code", "link",
-            "core", "byte", "pixel", "laser", "tech", "mech", "void", "null", "root", "user",
-            "admin", "shell", "bash", "sudo", "echo", "ping", "host", "port", "wifi", "sync",
-            "load", "save", "edit", "file", "type", "click", "zoom", "pan", "scan", "read",
-            "logic", "power", "drive", "chip", "gate", "wave", "pulse", "beam", "warp", "dash",
-            "quantum", "neural", "matrix", "vector", "sprite", "render", "shader", "buffer", "memory", "kernel",
-            "protocol", "security", "firewall", "encrypt", "decrypt", "terminal", "interface", "mainframe", "database", "algorithm",
-            "sequence", "compile", "runtime", "syntax", "variable", "function", "module", "plugin", "widget", "asset"
+            const sounds = {
+                type: () => { // Subtle click
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, now);
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                },
+                complete: () => { // Satisfying blip
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                },
+                alarm: () => { // Low breach alarm
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.linearRampToValueAtTime(100, now + 0.5);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.5);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                },
+                shoot: () => { // Zap
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                },
+                fail: () => { // Crunch
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(80, now);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                }
+            };
+            if(sounds[key]) sounds[key]();
+        }
+
+        // --- DATA & CONFIG ---
+        const WORDS = [
+            "admin", "root", "user", "pass", "hack", "code", "java", "node", "flux", "grid", 
+            "data", "byte", "bit", "link", "sync", "host", "port", "void", "null", "main",
+            "cyber", "proxy", "shell", "bash", "stack", "queue", "heap", "logic", "loop",
+            "while", "break", "catch", "throw", "async", "await", "const", "class", "super",
+            "import", "export", "return", "static", "public", "private", "switch", "typeof",
+            "access", "denied", "system", "kernel", "memory", "buffer", "socket", "thread",
+            "script", "cookie", "token", "crypto", "cipher", "hacker", "server", "client",
+            "config", "deploy", "docker", "python", "rust", "react", "build", "debug"
         ];
 
-        // --- Configuration ---
         const CONFIG = {
-            spawnRate: 1200, // ms between spawns
-            spawnRateMin: 400,
-            decayRate: 0.98, // Spawn rate multiplier
-            aimTargetLife: 2500, // ms duration for aim targets
-            typeTargetSpeed: 1.5, // px per frame
-            maxHealth: 5,
+            spawnRate: 1800, // Relaxed start
+            fallSpeed: 0.5,  // Relaxed start
             colors: {
-                aim: '#f43f5e', // Rose-500
-                aimRing: '#fda4af', 
-                type: '#06b6d4', // Cyan-500
-                typeText: '#ffffff',
-                typeHighlight: '#fcd34d', // Amber-300
-                particle: ['#f43f5e', '#06b6d4', '#e879f9', '#ffffff']
-            }
+                word: '#94a3b8',
+                wordLocked: '#ffffff',
+                wordTyped: '#22d3ee', // Cyan
+                breach: '#f43f5e'     // Rose
+            },
+            maxHealth: 3
         };
 
-        // --- Game State ---
+        // --- STATE ---
         const state = {
-            isActive: false,
-            lastTime: 0,
-            score: 0,
+            phase: 'hacking', // 'hacking' or 'breach'
+            words: [],
+            breachTargets: [],
             health: CONFIG.maxHealth,
-            targets: [],
-            particles: [],
-            lastSpawn: 0,
-            currentSpawnRate: CONFIG.spawnRate,
-            combo: 0,
-            totalClicks: 0,
-            successfulClicks: 0,
-            lockedTarget: null, // The TypingTarget currently being typed
-            wpmStart: 0,
-            charsTyped: 0
+            score: 0,
+            activeWord: null,
+            spawnTimer: 0,
+            lastTime: 0,
+            breachTimer: 0,
+            particles: []
         };
 
-        // --- Canvas Setup ---
+        // --- CLASSES ---
+        class WordTarget {
+            constructor() {
+                this.text = WORDS[Math.floor(Math.random() * WORDS.length)];
+                ctx.font = "bold 24px 'JetBrains Mono'";
+                this.width = ctx.measureText(this.text).width;
+                this.x = Math.random() * (canvas.width - this.width - 100) + 50;
+                this.y = -30;
+                this.typedIdx = 0;
+                this.speed = CONFIG.fallSpeed + (Math.random() * 0.2);
+            }
+            draw(ctx) {
+                ctx.font = "bold 24px 'JetBrains Mono'";
+                
+                const isActive = state.activeWord === this;
+                
+                // Background pill
+                const pad = 10;
+                ctx.fillStyle = isActive ? 'rgba(6, 182, 212, 0.15)' : 'rgba(15, 23, 42, 0.6)';
+                ctx.beginPath();
+                ctx.roundRect(this.x - pad, this.y - 24, this.width + (pad*2), 34, 4);
+                ctx.fill();
+                if(isActive) {
+                    ctx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+
+                // Text
+                const done = this.text.substring(0, this.typedIdx);
+                const rest = this.text.substring(this.typedIdx);
+                
+                ctx.fillStyle = CONFIG.colors.wordTyped;
+                ctx.fillText(done, this.x, this.y);
+                
+                ctx.fillStyle = isActive ? CONFIG.colors.wordLocked : CONFIG.colors.word;
+                ctx.fillText(rest, this.x + ctx.measureText(done).width, this.y);
+            }
+            update() {
+                this.y += this.speed;
+                return this.y > canvas.height + 20; // Return true if offscreen
+            }
+        }
+
+        class BreachNode {
+            constructor() {
+                this.x = Math.random() * (canvas.width - 100) + 50;
+                this.y = Math.random() * (canvas.height - 100) + 50;
+                this.radius = 40;
+                this.born = performance.now();
+                this.life = 2000; // 2 seconds to click
+            }
+            draw(ctx) {
+                const age = performance.now() - this.born;
+                const lifePct = 1 - (age / this.life);
+                
+                // Shrinking ring
+                ctx.strokeStyle = CONFIG.colors.breach;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * lifePct, 0, Math.PI*2);
+                ctx.stroke();
+
+                // Static core
+                ctx.fillStyle = 'rgba(244, 63, 94, 0.5)';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 10, 0, Math.PI*2);
+                ctx.fill();
+            }
+            checkHit(x, y) {
+                return Math.hypot(this.x - x, this.y - y) < 40; // Forgive hit area
+            }
+            isDead() {
+                return (performance.now() - this.born) > this.life;
+            }
+        }
+
+        // --- GAME LOGIC ---
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+            // Matrix BG setup
+            const mCanvas = document.getElementById('matrixCanvas');
+            mCanvas.width = window.innerWidth;
+            mCanvas.height = window.innerHeight;
         }
         window.addEventListener('resize', resize);
-        resize();
 
-        // --- Classes ---
-
-        class Particle {
-            constructor(x, y, color) {
-                this.x = x;
-                this.y = y;
-                this.color = color;
-                const angle = Math.random() * Math.PI * 2;
-                const speed = Math.random() * 3 + 1;
-                this.vx = Math.cos(angle) * speed;
-                this.vy = Math.sin(angle) * speed;
-                this.life = 1.0;
-                this.decay = Math.random() * 0.03 + 0.01;
-                this.size = Math.random() * 3 + 1;
-            }
-
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.life -= this.decay;
-                this.size *= 0.95;
-            }
-
-            draw(ctx) {
-                ctx.globalAlpha = this.life;
-                ctx.fillStyle = this.color;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.globalAlpha = 1.0;
-            }
+        function spawnWord() {
+            state.words.push(new WordTarget());
+            state.spawnTimer = 0;
         }
 
-        class AimTarget {
-            constructor() {
-                this.type = 'aim';
-                this.radius = 40; // Max radius
-                this.x = Math.random() * (canvas.width - 100) + 50;
-                this.y = Math.random() * (canvas.height - 100) + 50;
-                this.creationTime = performance.now();
-                this.lifeDuration = CONFIG.aimTargetLife; // How long it lasts
-                this.active = true;
-                this.maxRadius = 40;
-            }
-
-            update(now) {
-                const age = now - this.creationTime;
-                const progress = age / this.lifeDuration;
-                
-                // Shrink effect
-                this.radius = this.maxRadius * (1 - progress);
-
-                if (progress >= 1) {
-                    this.active = false;
-                    takeDamage();
-                }
-            }
-
-            draw(ctx) {
-                // Outer glow
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = CONFIG.colors.aim;
-                
-                // Main circle
-                ctx.fillStyle = CONFIG.colors.aim;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, Math.max(0, this.radius), 0, Math.PI * 2);
-                ctx.fill();
-
-                // Inner white ring (shrinks faster to create urgency visual)
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, Math.max(0, this.radius * 0.6), 0, Math.PI * 2);
-                ctx.stroke();
-
-                ctx.shadowBlur = 0;
-            }
-
-            checkClick(x, y) {
-                const dist = Math.hypot(this.x - x, this.y - y);
-                return dist < this.radius;
-            }
-        }
-
-        class TypeTarget {
-            constructor() {
-                this.type = 'type';
-                this.word = WORD_LIST[Math.floor(Math.random() * WORD_LIST.length)];
-                this.typedIndex = 0; // How many chars typed correctly
-                
-                // Always spawn at top
-                this.width = ctx.measureText(this.word).width + 40;
-                this.height = 40;
-                this.x = Math.random() * (canvas.width - this.width - 20) + 10;
-                this.y = -50;
-                this.speed = CONFIG.typeTargetSpeed + (Math.random() * 0.5);
-                
-                this.active = true;
-                this.isLocked = false; // Is the player currently typing this word?
-            }
-
-            update() {
-                this.y += this.speed;
-
-                // Check if hit bottom
-                if (this.y > canvas.height + 50) {
-                    this.active = false;
-                    if (state.isActive) takeDamage(); // Only damage if game still running
-                    if (state.lockedTarget === this) releaseLock();
-                }
-            }
-
-            draw(ctx) {
-                ctx.font = "bold 20px 'JetBrains Mono'";
-                const textWidth = ctx.measureText(this.word).width;
-                const padding = 12;
-                const boxWidth = textWidth + (padding * 2);
-                const boxHeight = 34;
-
-                // Draw Background Box
-                ctx.fillStyle = this.isLocked ? 'rgba(6, 182, 212, 0.2)' : 'rgba(15, 23, 42, 0.6)';
-                ctx.strokeStyle = this.isLocked ? CONFIG.colors.type : '#334155';
-                ctx.lineWidth = this.isLocked ? 3 : 1;
-                
-                // Rounded Rect manually for compatibility
-                ctx.beginPath();
-                ctx.rect(this.x - padding, this.y - 24, boxWidth, boxHeight);
-                ctx.fill();
-                ctx.stroke();
-
-                // Draw Text
-                const typedPart = this.word.substring(0, this.typedIndex);
-                const untypedPart = this.word.substring(this.typedIndex);
-
-                // Draw Typed part (Green/Yellow)
-                ctx.fillStyle = CONFIG.colors.typeHighlight;
-                ctx.fillText(typedPart, this.x, this.y);
-
-                // Draw Untyped part (White/Cyan)
-                const typedWidth = ctx.measureText(typedPart).width;
-                ctx.fillStyle = CONFIG.colors.typeText;
-                ctx.fillText(untypedPart, this.x + typedWidth, this.y);
-                
-                // Connecting line if locked
-                if (this.isLocked) {
-                     ctx.beginPath();
-                     ctx.moveTo(this.x + boxWidth/2 - padding, this.y + 10);
-                     ctx.lineTo(canvas.width/2, canvas.height);
-                     ctx.strokeStyle = 'rgba(6, 182, 212, 0.1)';
-                     ctx.lineWidth = 2;
-                     ctx.stroke();
-                }
-            }
-        }
-
-        // --- Audio System ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
-        function playSound(type) {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
+        function triggerBreach() {
+            state.phase = 'breach';
+            state.breachTargets = [];
+            // Clear the word that failed us
+            state.words = state.words.filter(w => w.y < canvas.height);
+            state.activeWord = null;
             
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-
-            const now = audioCtx.currentTime;
-
-            if (type === 'shoot') {
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(800, now);
-                osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                osc.start(now);
-                osc.stop(now + 0.1);
-            } else if (type === 'type') {
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(1200, now); // High blip
-                gain.gain.setValueAtTime(0.05, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
-                osc.start(now);
-                osc.stop(now + 0.05);
-            } else if (type === 'kill') {
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(200, now);
-                osc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-                osc.start(now);
-                osc.stop(now + 0.2);
-            } else if (type === 'damage') {
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(100, now);
-                osc.frequency.linearRampToValueAtTime(50, now + 0.3);
-                gain.gain.setValueAtTime(0.2, now);
-                gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
-                osc.start(now);
-                osc.stop(now + 0.3);
-            }
+            // Spawn 3 safety nodes
+            for(let i=0; i<3; i++) state.breachTargets.push(new BreachNode());
+            
+            // UI
+            document.getElementById('defenseOverlay').style.opacity = '1';
+            document.body.classList.add('breach-active');
+            document.getElementById('gameCanvas').style.filter = 'blur(4px)';
+            playSound('alarm');
         }
 
-        // --- Core Logic ---
-
-        function spawnTarget() {
-            // 50/50 chance of aim vs type
-            // Adjustment: If locked on a word, prefer aiming targets to keep screen chaotic but fair
-            const chance = state.lockedTarget ? 0.7 : 0.5;
+        function resolveBreach(success) {
+            state.phase = 'hacking';
+            state.breachTargets = [];
             
-            if (Math.random() < chance) {
-                state.targets.push(new AimTarget());
+            document.getElementById('defenseOverlay').style.opacity = '0';
+            document.body.classList.remove('breach-active');
+            document.getElementById('gameCanvas').style.filter = 'none';
+            
+            if(success) {
+                playSound('complete');
             } else {
-                state.targets.push(new TypeTarget());
-            }
-
-            // Increase difficulty
-            state.currentSpawnRate = Math.max(CONFIG.spawnRateMin, state.currentSpawnRate * CONFIG.decayRate);
-        }
-
-        function createExplosion(x, y, color) {
-            for (let i = 0; i < 12; i++) {
-                state.particles.push(new Particle(x, y, color));
+                takeDamage();
             }
         }
 
         function takeDamage() {
             state.health--;
-            playSound('damage');
+            playSound('fail');
             updateHUD();
-            
-            // Screen shake effect
             document.body.classList.add('shake');
-            setTimeout(() => document.body.classList.remove('shake'), 500);
-
-            if (state.health <= 0) {
+            setTimeout(()=>document.body.classList.remove('shake'), 400);
+            
+            if(state.health <= 0) {
                 gameOver();
             }
         }
 
-        function addScore(points) {
-            state.combo++;
-            const multiplier = 1 + Math.floor(state.combo / 10) * 0.5;
-            state.score += Math.floor(points * multiplier);
-            updateHUD();
+        function gameOver() {
+            state.phase = 'gameover';
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+            document.getElementById('finalScore').textContent = state.score;
         }
 
-        function resetCombo() {
-            state.combo = 0;
+        // --- INPUTS ---
+        window.addEventListener('keydown', (e) => {
+            if(state.phase !== 'hacking') return;
+            if(e.ctrlKey || e.altKey || e.metaKey) return;
+            
+            const key = e.key.toLowerCase();
+            if(key.length !== 1) return;
+
+            if(state.activeWord) {
+                // Typing locked word
+                const w = state.activeWord;
+                if(w.text[w.typedIdx] === key) {
+                    w.typedIdx++;
+                    playSound('type');
+                    if(w.typedIdx >= w.text.length) {
+                        // Word cleared
+                        state.words = state.words.filter(word => word !== w);
+                        state.activeWord = null;
+                        state.score += 1;
+                        playSound('complete');
+                        updateHUD();
+                    }
+                }
+            } else {
+                // Find new word
+                // Prioritize lowest word that starts with key
+                const candidates = state.words.filter(w => w.text.startsWith(key));
+                if(candidates.length > 0) {
+                    candidates.sort((a,b) => b.y - a.y); // Lowest first
+                    state.activeWord = candidates[0];
+                    state.activeWord.typedIdx = 1;
+                    playSound('type');
+                    // Check if 1 letter word (edge case)
+                    if(state.activeWord.text.length === 1) {
+                         state.words = state.words.filter(word => word !== state.activeWord);
+                         state.activeWord = null;
+                         state.score += 1;
+                    }
+                }
+            }
             updateHUD();
-        }
+        });
+
+        window.addEventListener('mousedown', (e) => {
+            if(state.phase !== 'breach') return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Check clicks on breach nodes
+            for(let i=state.breachTargets.length-1; i>=0; i--) {
+                const t = state.breachTargets[i];
+                if(t.checkHit(x, y)) {
+                    state.breachTargets.splice(i, 1);
+                    playSound('shoot');
+                    if(state.breachTargets.length === 0) {
+                        resolveBreach(true); // Success!
+                    }
+                    return;
+                }
+            }
+        });
 
         function updateHUD() {
             document.getElementById('scoreDisplay').textContent = state.score;
             
-            // Health Bars
-            const healthContainer = document.getElementById('healthContainer');
-            healthContainer.innerHTML = '';
-            for (let i = 0; i < CONFIG.maxHealth; i++) {
-                const bar = document.createElement('div');
-                bar.className = `w-3 h-8 rounded-sm transition-all duration-300 ${i < state.health ? 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.8)]' : 'bg-slate-800'}`;
-                healthContainer.appendChild(bar);
+            const hCont = document.getElementById('healthContainer');
+            hCont.innerHTML = '';
+            for(let i=0; i<CONFIG.maxHealth; i++) {
+                const pip = document.createElement('div');
+                pip.className = `w-8 h-2 rounded-sm skew-x-12 ${i < state.health ? 'bg-cyan-400 shadow-[0_0_5px_cyan]' : 'bg-slate-800'}`;
+                hCont.appendChild(pip);
             }
 
-            // Combo
-            const comboEl = document.getElementById('comboContainer');
-            const comboText = document.getElementById('comboDisplay');
-            if (state.combo > 1) {
-                comboEl.style.opacity = '1';
-                comboText.textContent = state.combo;
-                comboText.parentElement.style.transform = `scale(${1 + Math.min(state.combo * 0.05, 0.5)}) skewX(-12deg)`;
-            } else {
-                comboEl.style.opacity = '0';
-            }
-
-            // Locked Target UI
-            const focusEl = document.getElementById('typingFocus');
+            const focus = document.getElementById('typingFocus');
             const focusText = document.getElementById('lockedWordDisplay');
-            if (state.lockedTarget) {
-                focusEl.style.opacity = '1';
-                const word = state.lockedTarget.word;
-                const idx = state.lockedTarget.typedIndex;
-                focusText.innerHTML = `<span class="text-slate-500">${word.substring(0,idx)}</span><span class="text-white text-shadow-lg">${word.substring(idx, idx+1)}</span><span class="text-slate-300">${word.substring(idx+1)}</span>`;
+            
+            if(state.activeWord) {
+                focus.style.opacity = 1;
+                const w = state.activeWord;
+                const done = w.text.substring(0, w.typedIdx);
+                const curr = w.text.substring(w.typedIdx, w.typedIdx+1);
+                const rest = w.text.substring(w.typedIdx+1);
+                focusText.innerHTML = `<span class="text-cyan-400">${done}</span><span class="text-white border-b-2 border-white">${curr}</span><span class="text-slate-600">${rest}</span>`;
             } else {
-                focusEl.style.opacity = '0';
-            }
-
-            // WPM
-            if (state.isActive) {
-                const minutes = (performance.now() - state.wpmStart) / 60000;
-                const wpm = Math.floor((state.charsTyped / 5) / minutes) || 0;
-                document.getElementById('wpmDisplay').textContent = wpm;
+                focus.style.opacity = 0;
             }
         }
 
-        function releaseLock() {
-            if (state.lockedTarget) {
-                state.lockedTarget.isLocked = false;
-                state.lockedTarget = null;
+        // --- MATRIX BACKGROUND ---
+        const mCanvas = document.getElementById('matrixCanvas');
+        const mCtx = mCanvas.getContext('2d');
+        let drops = [];
+        function initMatrix() {
+            mCanvas.width = window.innerWidth;
+            mCanvas.height = window.innerHeight;
+            drops = Array(Math.floor(mCanvas.width/20)).fill(1);
+        }
+        initMatrix();
+
+        function drawMatrix() {
+            mCtx.fillStyle = 'rgba(5, 10, 20, 0.1)';
+            mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
+            mCtx.fillStyle = '#0f0';
+            mCtx.font = '14px monospace';
+            for(let i=0; i<drops.length; i++) {
+                const text = String.fromCharCode(0x30A0 + Math.random()*96);
+                mCtx.fillStyle = Math.random() > 0.95 ? '#fff' : '#15803d';
+                mCtx.fillText(text, i*20, drops[i]*20);
+                if(drops[i]*20 > mCanvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
             }
-            updateHUD();
         }
 
-        // --- Input Handling ---
-
-        window.addEventListener('mousedown', (e) => {
-            if (!state.isActive) return;
-            
-            state.totalClicks++;
-            const rect = canvas.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const clickY = e.clientY - rect.top;
-            
-            let hit = false;
-
-            // Iterate backwards to hit top targets first
-            for (let i = state.targets.length - 1; i >= 0; i--) {
-                const t = state.targets[i];
-                if (t.type === 'aim' && t.checkClick(clickX, clickY)) {
-                    // Hit!
-                    createExplosion(t.x, t.y, CONFIG.colors.aim);
-                    state.targets.splice(i, 1);
-                    addScore(100);
-                    playSound('shoot');
-                    hit = true;
-                    state.successfulClicks++;
-                    break; // Only hit one per click
-                }
-            }
-
-            if (!hit) {
-                resetCombo(); // Miss click breaks combo
-            }
-        });
-
-        window.addEventListener('keydown', (e) => {
-            if (!state.isActive) return;
-
-            // Ignore modifier keys
-            if (e.key.length > 1) return;
-
-            const key = e.key.toLowerCase();
-
-            if (state.lockedTarget) {
-                // We are locked onto a specific word
-                const target = state.lockedTarget;
-                const expectedChar = target.word[target.typedIndex];
-
-                if (key === expectedChar) {
-                    // Correct letter
-                    target.typedIndex++;
-                    state.charsTyped++;
-                    playSound('type');
-                    
-                    // Word Complete?
-                    if (target.typedIndex >= target.word.length) {
-                        createExplosion(target.x + 20, target.y, CONFIG.colors.type);
-                        state.targets = state.targets.filter(t => t !== target);
-                        addScore(150 + (target.word.length * 10));
-                        playSound('kill');
-                        releaseLock();
-                    }
-                    updateHUD();
-                } else {
-                    // Wrong letter on locked target
-                    resetCombo();
-                    // Visual feedback?
-                    const focusText = document.getElementById('lockedWordDisplay');
-                    focusText.classList.add('shake');
-                    setTimeout(() => focusText.classList.remove('shake'), 300);
-                }
-            } else {
-                // No lock, search for a word starting with this key
-                const match = state.targets.find(t => t.type === 'type' && t.word.startsWith(key));
-                if (match) {
-                    state.lockedTarget = match;
-                    match.isLocked = true;
-                    match.typedIndex = 1; // First char already typed
-                    state.charsTyped++;
-                    playSound('type');
-                    
-                    // Edge case: 1 letter word (rare but possible)
-                    if (match.word.length === 1) {
-                         createExplosion(match.x, match.y, CONFIG.colors.type);
-                         state.targets = state.targets.filter(t => t !== match);
-                         addScore(160);
-                         playSound('kill');
-                         releaseLock();
-                    }
-                    updateHUD();
-                } else {
-                    // Typed a key but no word starts with it
-                    // Can be strict and reset combo here, or lenient
-                    // Let's be strict
-                    // resetCombo(); 
-                }
-            }
-        });
-
-        // --- Game Loop ---
-
-        function gameLoop(timestamp) {
-            if (!state.isActive) return;
-
+        // --- MAIN LOOP ---
+        function loop(timestamp) {
+            if(state.phase === 'gameover') return;
             const dt = timestamp - state.lastTime;
             state.lastTime = timestamp;
 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Matrix BG (runs independently)
+            if(Math.floor(timestamp/50) !== Math.floor((timestamp-dt)/50)) drawMatrix();
 
-            // Grid Background Effect
-            ctx.strokeStyle = 'rgba(56, 189, 248, 0.05)';
-            ctx.lineWidth = 1;
-            const gridSize = 50;
-            // Moving grid effect
-            const offset = (timestamp / 50) % gridSize;
-            
-            ctx.beginPath();
-            for(let x=0; x<canvas.width; x+=gridSize) {
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, canvas.height);
-            }
-            for(let y=offset; y<canvas.height; y+=gridSize) {
-                ctx.moveTo(0, y);
-                ctx.lineTo(canvas.width, y);
-            }
-            ctx.stroke();
+            // Logic
+            if(state.phase === 'hacking') {
+                // Spawn words
+                state.spawnTimer += dt;
+                if(state.spawnTimer > CONFIG.spawnRate) {
+                    spawnWord();
+                    // Gently increase difficulty
+                    CONFIG.spawnRate = Math.max(800, CONFIG.spawnRate * 0.995);
+                }
 
-            // Spawning Logic
-            if (timestamp - state.lastSpawn > state.currentSpawnRate) {
-                spawnTarget();
-                state.lastSpawn = timestamp;
-            }
+                ctx.clearRect(0,0,canvas.width, canvas.height);
 
-            // Update & Draw Targets
-            // Draw Type targets behind Aim targets so clicks don't get obscured visually?
-            // Actually, Type targets drift, Aim targets sit. Draw aim on top.
-            
-            // Filter out dead targets first
-            // Note: doing this in update loop carefully
-            
-            for (let i = state.targets.length - 1; i >= 0; i--) {
-                const t = state.targets[i];
-                t.update(timestamp);
-                if (!t.active) {
-                    state.targets.splice(i, 1);
-                } else {
+                // Update Words
+                for(let i=state.words.length-1; i>=0; i--) {
+                    const w = state.words[i];
+                    const fail = w.update();
+                    w.draw(ctx);
+                    
+                    if(fail) {
+                        triggerBreach();
+                        break;
+                    }
+                }
+            } 
+            else if (state.phase === 'breach') {
+                // Just clear for breach overlay clarity or keep words frozen in bg?
+                // Let's redraw words static to show "paused" state
+                ctx.clearRect(0,0,canvas.width, canvas.height);
+                state.words.forEach(w => w.draw(ctx)); // Static draw
+                
+                // Draw Breach Nodes
+                for(let i=state.breachTargets.length-1; i>=0; i--) {
+                    const t = state.breachTargets[i];
                     t.draw(ctx);
+                    if(t.isDead()) {
+                        // Time ran out on a node!
+                        resolveBreach(false); // Fail
+                        break;
+                    }
                 }
             }
 
-            // Particles
-            for (let i = state.particles.length - 1; i >= 0; i--) {
-                const p = state.particles[i];
-                p.update();
-                if (p.life <= 0) {
-                    state.particles.splice(i, 1);
-                } else {
-                    p.draw(ctx);
-                }
-            }
-
-            requestAnimationFrame(gameLoop);
+            requestAnimationFrame(loop);
         }
 
         function startGame() {
             document.getElementById('startScreen').classList.add('hidden');
             document.getElementById('gameOverScreen').classList.add('hidden');
             
-            // Reset State
-            state.isActive = true;
+            state.phase = 'hacking';
             state.score = 0;
             state.health = CONFIG.maxHealth;
-            state.targets = [];
-            state.particles = [];
-            state.combo = 0;
-            state.currentSpawnRate = CONFIG.spawnRate;
+            state.words = [];
+            state.activeWord = null;
+            state.spawnTimer = 0;
             state.lastTime = performance.now();
-            state.lastSpawn = performance.now();
-            state.totalClicks = 0;
-            state.successfulClicks = 0;
-            state.charsTyped = 0;
-            state.wpmStart = performance.now();
-            releaseLock();
+            CONFIG.spawnRate = 1800; // Reset speed
 
+            resize();
             updateHUD();
-            requestAnimationFrame(gameLoop);
+            requestAnimationFrame(loop);
         }
 
-        function gameOver() {
-            state.isActive = false;
-            document.getElementById('gameOverScreen').classList.remove('hidden');
-            
-            document.getElementById('finalScore').textContent = state.score;
-            document.getElementById('finalCombo').textContent = state.combo;
-            
-            const acc = state.totalClicks > 0 ? Math.round((state.successfulClicks / state.totalClicks) * 100) : 0;
-            document.getElementById('finalAcc').textContent = acc + "%";
-        }
-
-        // --- UI Bindings ---
         document.getElementById('startBtn').addEventListener('click', () => {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if(audioCtx.state === 'suspended') audioCtx.resume();
             startGame();
         });
-
-        document.getElementById('restartBtn').addEventListener('click', () => {
-            startGame();
-        });
+        document.getElementById('restartBtn').addEventListener('click', startGame);
+        window.addEventListener('resize', resize);
 
     </script>
 </body>
