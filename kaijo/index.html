@@ -3,19 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Earth Flyer</title>
+    <title>SYSTEM BREACH // FATAL ERROR</title>
     <link rel="stylesheet" href="style.css">
-    
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
-        }
-    </script>
 </head>
 <body>
-    <script type="module" src="main.js"></script>
+    <div class="scanlines"></div>
+    <div class="vignette"></div>
+    
+    <div id="console-container">
+        <div id="output"></div>
+        <div id="cursor">_</div>
+    </div>
+
+    <div id="flash-overlay"></div>
+
+    <script src="script.js"></script>
 </body>
 </html>
