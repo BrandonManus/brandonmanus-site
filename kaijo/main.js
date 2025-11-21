@@ -1,50 +1,87 @@
 import * as THREE from "https://unpkg.com/three@0.162.0/build/three.module.js";
-import { GLTFLoader } from "https://unpkg.com/three@0.162.0/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "https://unpkg.com/three@0.162.0/examples/jsm/controls/OrbitControls.js";
+import { FBXLoader } from "https://unpkg.com/three@0.162.0/examples/jsm/loaders/FBXLoader.js";
+import { GLTFLoader } from "https://unpkg.com/three@0.162.0/examples/jsm/loaders/GLTFLoader.js";
 
-// Scene
+// Scene setup
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
-// Camera
 const camera = new THREE.PerspectiveCamera(
   45,
   window.innerWidth / window.innerHeight,
   0.1,
-  100
+  200
 );
-camera.position.set(0, 1.5, 3);
+camera.position.set(0, 1, 4);
 
-// Renderer
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// Controls
 const controls = new OrbitControls(camera, renderer.domElement);
 
 // Lights
-scene.add(new THREE.DirectionalLight(0xffffff, 2).position.set(5, 10, 5));
-scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+scene.add(new THREE.AmbientLight(0xffffff, 1));
+const dir = new THREE.DirectionalLight(0xffffff, 2);
+dir.position.set(5, 10, 5);
+scene.add(dir);
 
-// Load the GLB from your site root
-const loader = new GLTFLoader();
-loader.load(
-  "./Kaijo.glb",
-  (gltf) => {
-    const model = gltf.scene;
-    scene.add(model);
-    console.log("Model loaded:", model);
-  },
-  (xhr) => console.log((xhr.loaded / xhr.total) * 100 + "% loaded"),
-  (err) => console.error("GLB load error:", err)
-);
+let currentModel = null;
 
-// Render loop
+// Handle file upload
+document.getElementById("fileInput").addEventListener("change", (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const url = URL.createObjectURL(file);
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  if (currentModel) {
+    scene.remove(currentModel);
+    currentModel = null;
+  }
+
+  // Load GLB/GLTF
+  if (ext === "glb" || ext === "gltf") {
+    const loader = new GLTFLoader();
+    loader.load(url, (gltf) => {
+      currentModel = gltf.scene;
+      scene.add(currentModel);
+      centerModel(currentModel);
+    });
+  }
+
+  // Load FBX
+  else if (ext === "fbx") {
+    const loader = new FBXLoader();
+    loader.load(url, (fbx) => {
+      currentModel = fbx;
+      scene.add(currentModel);
+      centerModel(currentModel);
+    });
+  }
+});
+
+// Center and scale model nicely
+function centerModel(model) {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const maxAxis = Math.max(size.x, size.y, size.z);
+
+  model.scale.setScalar(2 / maxAxis); // normalize size
+  box.setFromObject(model);
+
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  model.position.sub(center); // recenter
+}
+
 function animate() {
   requestAnimationFrame(animate);
-  controls.update();
   renderer.render(scene, camera);
+  controls.update();
 }
 animate();
 
