@@ -1,26 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kaijo Viewer</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>3D File Viewer</title>
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: #000;
+    font-family: Arial, sans-serif;
+  }
 
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background: #000;
-      height: 100%;
-      width: 100%;
-    }
-    canvas {
-      display: block;
-    }
-  </style>
+  #uploadBox {
+    position: absolute;
+    z-index: 10;
+    top: 20px;
+    left: 20px;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 10px 15px;
+    border-radius: 8px;
+    color: white;
+  }
+</style>
 </head>
-
 <body>
-  <script type="module" src="./main.js"></script>
+
+<div id="uploadBox">
+  <input type="file" id="fileInput" accept=".glb,.gltf,.fbx" />
+</div>
+
+<script type="module" src="./main.js"></script>
 </body>
 </html>
