@@ -1,9 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My 3D Viewer</title>
+    
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://unpkg.com blob: data:;">
+    
     <link rel="stylesheet" href="style.css">
     <script type="importmap">
         {
@@ -15,8 +16,3 @@
         }
     </script>
 </head>
-<body>
-    <div id="info">Drag & Drop files here<br>(.glb, .gltf, .fbx, .stl, .vrm)</div>
-    <script type="module" src="main.js"></script>
-</body>
-</html>
