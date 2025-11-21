@@ -2,10 +2,11 @@ import * as THREE from "https://unpkg.com/three@0.162.0/build/three.module.js";
 import { GLTFLoader } from "https://unpkg.com/three@0.162.0/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "https://unpkg.com/three@0.162.0/examples/jsm/controls/OrbitControls.js";
 
-// ----- BASIC SCENE -----
+// Scene
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
+// Camera
 const camera = new THREE.PerspectiveCamera(
   45,
   window.innerWidth / window.innerHeight,
@@ -19,40 +20,27 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// Orbit Controls
+// Controls
 const controls = new OrbitControls(camera, renderer.domElement);
 
-// Light
-const light = new THREE.DirectionalLight(0xffffff, 2);
-light.position.set(5, 10, 5);
-scene.add(light);
+// Lights
+scene.add(new THREE.DirectionalLight(0xffffff, 2).position.set(5, 10, 5));
+scene.add(new THREE.AmbientLight(0xffffff, 1.2));
 
-const ambient = new THREE.AmbientLight(0xffffff, 1.2);
-scene.add(ambient);
-
-// ----- LOAD KAIO MODEL -----
+// Load the GLB from your site root
 const loader = new GLTFLoader();
-
 loader.load(
   "./Kaijo.glb",
   (gltf) => {
     const model = gltf.scene;
     scene.add(model);
-
-    // Optional: center model
-    model.position.set(0, 0, 0);
-
-    console.log("GLB Loaded:", model);
+    console.log("Model loaded:", model);
   },
-  (xhr) => {
-    console.log((xhr.loaded / xhr.total) * 100 + "% loaded");
-  },
-  (error) => {
-    console.error("GLB load error:", error);
-  }
+  (xhr) => console.log((xhr.loaded / xhr.total) * 100 + "% loaded"),
+  (err) => console.error("GLB load error:", err)
 );
 
-// ----- RENDER LOOP -----
+// Render loop
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
@@ -60,7 +48,7 @@ function animate() {
 }
 animate();
 
-// Window Resize Handler
+// Resize
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
