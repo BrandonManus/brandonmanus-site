@@ -1,93 +1,149 @@
-import * as THREE from "https://unpkg.com/three@0.162.0/build/three.module.js";
-import { OrbitControls } from "https://unpkg.com/three@0.162.0/examples/jsm/controls/OrbitControls.js";
-import { FBXLoader } from "https://unpkg.com/three@0.162.0/examples/jsm/loaders/FBXLoader.js";
-import { GLTFLoader } from "https://unpkg.com/three@0.162.0/examples/jsm/loaders/GLTFLoader.js";
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 
-// Scene setup
+// --- SCENE SETUP ---
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000000);
+scene.background = new THREE.Color(0x2a2a2a);
 
-const camera = new THREE.PerspectiveCamera(
-  45,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  200
-);
-camera.position.set(0, 1, 4);
+// Grid for reference
+const gridHelper = new THREE.GridHelper(10, 10);
+scene.add(gridHelper);
 
+// Camera
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 2, 5);
+
+// Renderer
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
+// Controls
 const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
 
-// Lights
-scene.add(new THREE.AmbientLight(0xffffff, 1));
-const dir = new THREE.DirectionalLight(0xffffff, 2);
-dir.position.set(5, 10, 5);
-scene.add(dir);
+// Lighting (Crucial for visibility)
+const ambientLight = new THREE.AmbientLight(0xffffff, 1); 
+scene.add(ambientLight);
+const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+dirLight.position.set(5, 10, 7.5);
+scene.add(dirLight);
+
+// --- LOADERS SETUP ---
+const gltfLoader = new GLTFLoader();
+// Register VRM plugin for GLTF loader
+gltfLoader.register((parser) => new VRMLoaderPlugin(parser));
+
+const fbxLoader = new FBXLoader();
+const stlLoader = new STLLoader();
 
 let currentModel = null;
 
-// Handle file upload
-document.getElementById("fileInput").addEventListener("change", (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
+// --- DRAG & DROP LOGIC ---
+window.addEventListener('dragover', (e) => e.preventDefault(), false);
+window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    
+    // Hide instruction text
+    document.getElementById('info').style.display = 'none';
 
-  const url = URL.createObjectURL(file);
-  const ext = file.name.split('.').pop().toLowerCase();
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
 
-  if (currentModel) {
-    scene.remove(currentModel);
-    currentModel = null;
-  }
+    const url = URL.createObjectURL(file);
+    const extension = file.name.split('.').pop().toLowerCase();
 
-  // Load GLB/GLTF
-  if (ext === "glb" || ext === "gltf") {
-    const loader = new GLTFLoader();
-    loader.load(url, (gltf) => {
-      currentModel = gltf.scene;
-      scene.add(currentModel);
-      centerModel(currentModel);
-    });
-  }
+    loadModel(url, extension);
+}, false);
 
-  // Load FBX
-  else if (ext === "fbx") {
-    const loader = new FBXLoader();
-    loader.load(url, (fbx) => {
-      currentModel = fbx;
-      scene.add(currentModel);
-      centerModel(currentModel);
-    });
-  }
-});
+// --- LOADING LOGIC ---
+function loadModel(url, ext) {
+    // Remove old model
+    if (currentModel) {
+        scene.remove(currentModel);
+        // Dispose memory (optional but good practice)
+        currentModel = null;
+    }
 
-// Center and scale model nicely
-function centerModel(model) {
-  const box = new THREE.Box3().setFromObject(model);
-  const size = new THREE.Vector3();
-  box.getSize(size);
-  const maxAxis = Math.max(size.x, size.y, size.z);
+    switch (ext) {
+        case 'gltf':
+        case 'glb':
+        case 'vrm': // VRM is technically a GLB
+            gltfLoader.load(url, (gltf) => {
+                const model = gltf.scene || gltf.userData.vrm?.scene;
+                
+                // Handle VRM specific logic
+                if (gltf.userData.vrm) {
+                    VRMUtils.removeUnnecessaryJoints(gltf.scene);
+                    VRMUtils.rotateVRM0(gltf.userData.vrm);
+                }
+                
+                addToScene(model);
+            }, undefined, (error) => console.error(error));
+            break;
 
-  model.scale.setScalar(2 / maxAxis); // normalize size
-  box.setFromObject(model);
+        case 'fbx':
+            fbxLoader.load(url, (fbx) => {
+                addToScene(fbx);
+            }, undefined, (error) => console.error(error));
+            break;
 
-  const center = new THREE.Vector3();
-  box.getCenter(center);
-  model.position.sub(center); // recenter
+        case 'stl':
+            stlLoader.load(url, (geometry) => {
+                const material = new THREE.MeshStandardMaterial({ color: 0x808080 });
+                const mesh = new THREE.Mesh(geometry, material);
+                addToScene(mesh);
+            }, undefined, (error) => console.error(error));
+            break;
+
+        default:
+            alert(`File format .${ext} not supported yet.`);
+    }
 }
 
+function addToScene(object) {
+    currentModel = object;
+    scene.add(object);
+    fitCameraToObject(object);
+}
+
+// Helper to center camera on loaded object
+function fitCameraToObject(object) {
+    const box = new THREE.Box3().setFromObject(object);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fov = camera.fov * (Math.PI / 180);
+    let cameraZ = Math.abs(maxDim / 2 * Math.tan(fov * 2));
+    
+    cameraZ *= 1.5; // Zoom out a little
+    camera.position.z = center.z + cameraZ;
+    
+    const minZ = box.min.z;
+    const cameraToFarEdge = (minZ < 0) ? -minZ + cameraZ : cameraZ - minZ;
+
+    camera.far = cameraToFarEdge * 3;
+    camera.updateProjectionMatrix();
+    controls.target.copy(center);
+    controls.update();
+}
+
+// --- ANIMATION LOOP ---
 function animate() {
-  requestAnimationFrame(animate);
-  renderer.render(scene, camera);
-  controls.update();
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
 }
 animate();
 
-// Resize
-window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+// Handle window resize
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
 });
