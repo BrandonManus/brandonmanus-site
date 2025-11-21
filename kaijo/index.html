@@ -3,142 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CyberReflex: Firewall</title>
+    <title>TERMINAL_V3.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap');
 
         body {
-            font-family: 'JetBrains Mono', monospace;
-            background-color: #050a14;
-            color: #e2e8f0;
+            font-family: 'Fira Code', monospace;
+            background-color: #020402;
+            color: #4ade80; /* Terminal Green */
             overflow: hidden;
             user-select: none;
-            cursor: text; /* Default cursor for typing */
         }
 
         #matrixCanvas {
-            position: absolute; top: 0; left: 0; z-index: 0; opacity: 0.15;
+            position: absolute; top: 0; left: 0; z-index: 0; opacity: 0.08;
         }
         #gameCanvas {
             position: relative; z-index: 10;
         }
 
-        .scanlines {
-            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
-            background-size: 100% 4px;
-            position: absolute; inset: 0; pointer-events: none; z-index: 20;
+        /* CRT Scanline & Vignette */
+        .crt-overlay {
+            background: 
+                linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2)),
+                radial-gradient(circle, transparent 60%, #000 150%);
+            background-size: 100% 4px, 100% 100%;
+            position: absolute; inset: 0; pointer-events: none; z-index: 50;
         }
 
-        /* Defense Mode Overlay */
-        #defenseOverlay {
-            pointer-events: none;
-            transition: opacity 0.2s;
-            background: radial-gradient(circle, transparent 0%, rgba(225, 29, 72, 0.3) 100%);
-            box-shadow: inset 0 0 100px rgba(225, 29, 72, 0.5);
-        }
-        .breach-active body {
-            cursor: crosshair !important; /* Switch to crosshair only during breach */
-        }
+        .glow-text { text-shadow: 0 0 5px rgba(74, 222, 128, 0.6), 0 0 10px rgba(74, 222, 128, 0.4); }
+        .glow-danger { text-shadow: 0 0 5px rgba(239, 68, 68, 0.6), 0 0 10px rgba(239, 68, 68, 0.4); }
 
-        .neon-text { text-shadow: 0 0 10px rgba(6, 182, 212, 0.8); }
-        .neon-danger { text-shadow: 0 0 15px rgba(244, 63, 94, 1); }
+        /* Terminal Input Cursor */
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 1.2em;
+            background-color: #4ade80;
+            animation: blink 1s step-end infinite;
+            vertical-align: text-bottom;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
 
-        .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+        .shake { animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both; }
         @keyframes shake {
             10%, 90% { transform: translate3d(-2px, 0, 0); }
             20%, 80% { transform: translate3d(4px, 0, 0); }
             30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
             40%, 60% { transform: translate3d(6px, 0, 0); }
         }
-
-        .glitch-text { position: relative; }
-        .glitch-text::before, .glitch-text::after {
-            content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #050a14;
-        }
-        .glitch-text::before { left: 2px; text-shadow: -1px 0 #ff00c1; animation: glitch-anim-1 2s infinite linear alternate-reverse; }
-        .glitch-text::after { left: -2px; text-shadow: -1px 0 #00fff9; animation: glitch-anim-2 3s infinite linear alternate-reverse; }
+        
+        /* Sidebar Log Fade */
+        .log-entry { animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
     </style>
 </head>
-<body class="h-screen w-screen relative bg-black">
+<body class="h-screen w-screen relative bg-black flex flex-col">
 
     <canvas id="matrixCanvas"></canvas>
-    <canvas id="gameCanvas"></canvas>
-    <div class="scanlines"></div>
+    <canvas id="gameCanvas" class="absolute inset-0"></canvas>
+    <div class="crt-overlay"></div>
 
-    <!-- Defense/Breach Overlay -->
-    <div id="defenseOverlay" class="absolute inset-0 opacity-0 z-15 flex items-center justify-center">
-        <div class="text-center pointer-events-none">
-            <h1 class="text-6xl font-black text-rose-500 neon-danger mb-2 tracking-tighter">SECURITY BREACH</h1>
-            <p class="text-rose-300 tracking-[0.5em] font-bold animate-pulse">MANUAL OVERRIDE REQUIRED</p>
-        </div>
-    </div>
-
-    <!-- HUD -->
-    <div class="absolute top-0 left-0 w-full p-6 flex justify-between items-start pointer-events-none z-30">
-        <div class="bg-slate-900/80 border border-cyan-500/30 p-4 rounded-lg min-w-[140px]">
-            <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">Lines Hacked</div>
-            <div id="scoreDisplay" class="text-4xl font-bold text-cyan-400 neon-text">0</div>
-        </div>
-
-        <!-- Active Word Display (Bottom Center) -->
-        <div id="typingFocus" class="absolute bottom-12 left-1/2 transform -translate-x-1/2 text-center transition-opacity duration-200 opacity-0">
-            <div class="text-[10px] text-cyan-500 mb-1 tracking-[0.3em] uppercase">Current Node</div>
-            <div id="lockedWordDisplay" class="text-5xl font-bold text-white bg-black/80 px-8 py-4 rounded border-b-4 border-cyan-500 shadow-[0_0_30px_rgba(6,182,212,0.4)]"></div>
+    <!-- UI Layer -->
+    <div class="absolute inset-0 z-30 flex flex-col pointer-events-none p-6">
+        
+        <!-- Header -->
+        <div class="flex justify-between items-start w-full border-b border-green-900/50 pb-2 mb-4">
+            <div>
+                <h1 class="text-2xl font-bold glow-text">ROOT_ACCESS_TERMINAL</h1>
+                <div class="text-xs text-green-700">v3.1.0 // SECURE CONNECTION</div>
+            </div>
+            <div class="text-right">
+                <div class="text-xs text-green-700 uppercase tracking-widest mb-1">Proxy Integrity</div>
+                <div class="flex space-x-1 justify-end" id="healthContainer">
+                    <!-- JS Populated -->
+                </div>
+            </div>
         </div>
 
-        <div class="bg-slate-900/80 border border-cyan-500/30 p-4 rounded-lg text-right min-w-[160px]">
-            <div class="text-xs text-slate-400 uppercase tracking-widest mb-2">System Integrity</div>
-            <div class="flex space-x-1 justify-end" id="healthContainer"></div>
+        <!-- Main Content Area (Split) -->
+        <div class="flex-1 flex relative">
+            <!-- System Log (Left) -->
+            <div class="w-64 hidden md:block border-r border-green-900/30 pr-4 overflow-hidden relative">
+                <div class="text-xs text-green-600 mb-2 border-b border-green-900/30 pb-1">SYSTEM_LOG</div>
+                <div id="systemLog" class="flex flex-col-reverse h-full text-xs font-mono space-y-1 space-y-reverse opacity-80">
+                    <!-- Log entries appear here -->
+                </div>
+            </div>
+            
+            <!-- Center Game Area is handled by Canvas, but we can put overlay stats here -->
+            <div class="flex-1 relative">
+                <div class="absolute top-0 right-0 p-4 text-right">
+                    <div class="text-sm text-green-600">DATA_MINED</div>
+                    <div id="scoreDisplay" class="text-4xl font-bold glow-text">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer / Command Prompt -->
+        <div class="mt-4 w-full bg-black/80 border border-green-800 p-4 rounded shadow-[0_0_20px_rgba(74,222,128,0.1)] backdrop-blur-sm">
+            <div class="flex items-center font-bold text-lg text-green-400">
+                <span class="mr-3 text-green-600">root@cyberdeck:~$</span>
+                <span id="commandInput" class="text-white glow-text"></span><span class="cursor"></span>
+            </div>
         </div>
     </div>
 
     <!-- Start Screen -->
-    <div id="startScreen" class="absolute inset-0 flex items-center justify-center z-50 bg-black/90 backdrop-blur-sm">
-        <div class="max-w-2xl w-full p-8 text-center relative border border-slate-800 bg-slate-900/50 rounded-xl">
-            <h1 class="text-7xl font-black text-white mb-2 glitch-text tracking-tighter" data-text="CYBER//HACK">CYBER//HACK</h1>
-            <p class="text-cyan-500 text-lg mb-10 tracking-[0.3em] uppercase">Infiltration Protocol</p>
+    <div id="startScreen" class="absolute inset-0 flex items-center justify-center z-50 bg-black/95">
+        <div class="max-w-xl w-full p-8 border border-green-500/30 bg-green-900/10 rounded shadow-[0_0_50px_rgba(74,222,128,0.1)] text-center">
+            <div class="mb-6">
+                <div class="text-6xl font-bold text-green-500 glow-text mb-2">TERMINAL</div>
+                <div class="text-green-700 tracking-[0.5em] uppercase text-sm">Typing Proficiency Test</div>
+            </div>
             
-            <div class="flex flex-col gap-6 mb-12 text-left max-w-md mx-auto">
-                <div class="flex items-start gap-4">
-                    <div class="bg-cyan-900/30 p-3 rounded text-cyan-400 font-bold">1</div>
-                    <div>
-                        <div class="text-white font-bold mb-1">Type to Hack</div>
-                        <p class="text-slate-400 text-sm">Type falling words to infiltrate the system. It's low stress.</p>
-                    </div>
-                </div>
-                <div class="flex items-start gap-4">
-                    <div class="bg-rose-900/30 p-3 rounded text-rose-400 font-bold">2</div>
-                    <div>
-                        <div class="text-white font-bold mb-1">Breach Protocol</div>
-                        <p class="text-slate-400 text-sm">If you miss a word, the alarm sounds! <span class="text-rose-400 font-bold">Click the red nodes</span> quickly to save your life.</p>
-                    </div>
-                </div>
+            <div class="text-left space-y-4 mb-8 font-mono text-sm text-green-400/80 border-l-2 border-green-800 pl-4 mx-8">
+                <p>> INCOMING DATA STREAMS DETECTED.</p>
+                <p>> INTERCEPT PACKETS BY TYPING COMMANDS.</p>
+                <p>> DO NOT ALLOW BUFFER OVERFLOW.</p>
             </div>
 
-            <button id="startBtn" class="px-12 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xl tracking-widest rounded transition-all shadow-[0_0_30px_rgba(8,145,178,0.4)]">
-                START HACK
+            <button id="startBtn" class="group px-10 py-3 bg-green-900/20 border border-green-500 hover:bg-green-500 hover:text-black text-green-500 font-bold transition-all uppercase tracking-widest">
+                <span class="group-hover:hidden">Initialize_System</span>
+                <span class="hidden group-hover:inline">Execute_Launch</span>
             </button>
         </div>
     </div>
 
     <!-- Game Over -->
-    <div id="gameOverScreen" class="hidden absolute inset-0 flex items-center justify-center z-50 bg-black/95 backdrop-blur-md">
-        <div class="p-10 text-center border-2 border-rose-600 bg-slate-900 max-w-lg w-full rounded-lg shadow-[0_0_50px_rgba(225,29,72,0.3)]">
-            <h2 class="text-5xl font-black text-white mb-2">DISCONNECTED</h2>
-            <div class="text-rose-500 mb-8 tracking-[0.5em] uppercase text-sm">Signal Lost</div>
-            <div class="text-xs text-slate-500 mb-2">FINAL SCORE</div>
-            <div id="finalScore" class="text-5xl font-bold text-white mb-8">0</div>
-            <button id="restartBtn" class="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded border border-slate-600 transition-all tracking-widest">
-                RE-INITIALIZE
+    <div id="gameOverScreen" class="hidden absolute inset-0 flex items-center justify-center z-50 bg-black/95">
+        <div class="text-center">
+            <h2 class="text-5xl font-bold text-red-500 glow-danger mb-4">CONNECTION TERMINATED</h2>
+            <div class="text-red-800 tracking-[0.5em] mb-8">PROXY SERVER TRACED</div>
+            
+            <div class="grid grid-cols-2 gap-8 mb-8 max-w-md mx-auto">
+                <div class="border border-green-900 p-4">
+                    <div class="text-xs text-green-700">TOTAL LINES</div>
+                    <div id="finalScore" class="text-3xl text-green-500">0</div>
+                </div>
+                <div class="border border-green-900 p-4">
+                    <div class="text-xs text-green-700">WPM PEAK</div>
+                    <div id="finalWPM" class="text-3xl text-green-500">0</div>
+                </div>
+            </div>
+
+            <button id="restartBtn" class="px-8 py-3 border border-green-800 text-green-600 hover:border-green-500 hover:text-green-400 transition-all">
+                ./reboot_system.sh
             </button>
         </div>
     </div>
 
     <script>
+        // --- WORD DATABASE (Hacker Theme) ---
+        const WORD_CATEGORIES = [
+            // Short / Common / Unix
+            ["grep", "sudo", "ping", "ls -la", "chmod", "chown", "mkdir", "touch", "cat", "tail", "head", "vim", "nano", "git", "ssh", "cd", "pwd", "cp", "mv", "rm", "top", "ps", "kill", "man", "sed", "awk", "tar", "zip", "unzip", "diff", "wc", "du", "df", "free", "date", "who"],
+            
+            // Networking & Security
+            ["buffer", "socket", "packet", "daemon", "kernel", "proxy", "router", "switch", "uplink", "subnet", "cookie", "token", "cipher", "hash", "firewall", "latency", "bandwidth", "protocol", "port", "dns", "dhcp", "tcp/ip", "udp", "handshake", "encryption", "decryption", "vpn", "tunnel", "gateway", "localhost", "mac address", "ip address"],
+            
+            // Coding & Logic
+            ["function", "return", "import", "export", "const", "async", "await", "public", "class", "void", "null", "false", "true", "typeof", "undefined", "variable", "array", "object", "string", "integer", "boolean", "float", "double", "char", "if", "else", "switch", "case", "break", "continue", "try", "catch", "finally", "throw", "promise", "callback"],
+            
+            // Hacking & Cybersec
+            ["payload", "exploit", "backdoor", "trojan", "malware", "phishing", "spoofing", "rootkit", "injection", "override", "bypass", "firewall", "brute force", "ddos", "botnet", "ransomware", "spyware", "keylogger", "vulnerability", "zero day", "honeypot", "sandbox", "air gap", "social engineering", "penetration", "black hat", "white hat"],
+            
+            // Complex Commands & Git
+            ["git commit", "npm install", "docker run", "systemctl", "ip address", "netstat", "traceroute", "whoami", "apt-get", "pip install", "git push", "git pull", "git clone", "git merge", "git checkout", "docker build", "docker compose", "kubectl apply", "sudo apt update", "make install", "./configure", "python3 script.py", "gcc main.c", "ssh-keygen"]
+        ];
+
+        const CONFIG = {
+            maxHealth: 10, // More health for "stress free" feel
+            baseSpeed: 0.6,
+            speedInc: 0.02,
+            spawnRate: 1600, // ms
+            colors: {
+                text: '#4ade80',        // Green-400
+                textDim: '#14532d',     // Green-900
+                textHighlight: '#ffffff', // White
+                bgMatch: 'rgba(20, 83, 45, 0.4)',
+                danger: '#ef4444'       // Red-500
+            }
+        };
+
         // --- AUDIO ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playSound(key) {
+        function playSound(type) {
             if (audioCtx.state === 'suspended') audioCtx.resume();
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
@@ -146,431 +197,315 @@
             gain.connect(audioCtx.destination);
             const now = audioCtx.currentTime;
 
-            const sounds = {
-                type: () => { // Subtle click
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(800, now);
-                    gain.gain.setValueAtTime(0.05, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-                    osc.start(now);
-                    osc.stop(now + 0.05);
-                },
-                complete: () => { // Satisfying blip
-                    osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(400, now);
-                    osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
-                    gain.gain.setValueAtTime(0.05, now);
-                    gain.gain.linearRampToValueAtTime(0, now + 0.15);
-                    osc.start(now);
-                    osc.stop(now + 0.15);
-                },
-                alarm: () => { // Low breach alarm
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(150, now);
-                    osc.frequency.linearRampToValueAtTime(100, now + 0.5);
-                    gain.gain.setValueAtTime(0.1, now);
-                    gain.gain.linearRampToValueAtTime(0, now + 0.5);
-                    osc.start(now);
-                    osc.stop(now + 0.5);
-                },
-                shoot: () => { // Zap
-                    osc.type = 'square';
-                    osc.frequency.setValueAtTime(600, now);
-                    osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
-                    gain.gain.setValueAtTime(0.05, now);
-                    gain.gain.linearRampToValueAtTime(0, now + 0.1);
-                    osc.start(now);
-                    osc.stop(now + 0.1);
-                },
-                fail: () => { // Crunch
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(80, now);
-                    gain.gain.setValueAtTime(0.2, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-                    osc.start(now);
-                    osc.stop(now + 0.4);
-                }
-            };
-            if(sounds[key]) sounds[key]();
+            if (type === 'click') { // Mechanical Key Sound
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+                gain.gain.setValueAtTime(0.03, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            } else if (type === 'success') { // Subtle chirp
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.linearRampToValueAtTime(1200, now + 0.1);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'error') { // Low buzz
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(100, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
         }
 
-        // --- DATA & CONFIG ---
-        const WORDS = [
-            "admin", "root", "user", "pass", "hack", "code", "java", "node", "flux", "grid", 
-            "data", "byte", "bit", "link", "sync", "host", "port", "void", "null", "main",
-            "cyber", "proxy", "shell", "bash", "stack", "queue", "heap", "logic", "loop",
-            "while", "break", "catch", "throw", "async", "await", "const", "class", "super",
-            "import", "export", "return", "static", "public", "private", "switch", "typeof",
-            "access", "denied", "system", "kernel", "memory", "buffer", "socket", "thread",
-            "script", "cookie", "token", "crypto", "cipher", "hacker", "server", "client",
-            "config", "deploy", "docker", "python", "rust", "react", "build", "debug"
-        ];
-
-        const CONFIG = {
-            spawnRate: 1800, // Relaxed start
-            fallSpeed: 0.5,  // Relaxed start
-            colors: {
-                word: '#94a3b8',
-                wordLocked: '#ffffff',
-                wordTyped: '#22d3ee', // Cyan
-                breach: '#f43f5e'     // Rose
-            },
-            maxHealth: 3
-        };
-
-        // --- STATE ---
+        // --- GAME STATE ---
         const state = {
-            phase: 'hacking', // 'hacking' or 'breach'
-            words: [],
-            breachTargets: [],
-            health: CONFIG.maxHealth,
+            active: false,
             score: 0,
-            activeWord: null,
-            spawnTimer: 0,
+            health: CONFIG.maxHealth,
+            words: [],
+            particles: [],
             lastTime: 0,
-            breachTimer: 0,
-            particles: []
+            spawnTimer: 0,
+            activeWord: null,
+            startTime: 0,
+            charsTyped: 0
         };
+
+        // --- LOG SYSTEM ---
+        function addLog(msg, type = 'info') {
+            const log = document.getElementById('systemLog');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type === 'error' ? 'text-red-400' : type === 'success' ? 'text-green-300' : 'text-green-600'}`;
+            const time = new Date().toLocaleTimeString('en-US', {hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit"});
+            entry.innerText = `[${time}] ${msg}`;
+            log.prepend(entry);
+            if (log.children.length > 20) log.lastChild.remove();
+        }
 
         // --- CLASSES ---
-        class WordTarget {
+        class Word {
             constructor() {
-                this.text = WORDS[Math.floor(Math.random() * WORDS.length)];
-                ctx.font = "bold 24px 'JetBrains Mono'";
-                this.width = ctx.measureText(this.text).width;
-                this.x = Math.random() * (canvas.width - this.width - 100) + 50;
+                // Pick random category based on score (difficulty)
+                const difficulty = Math.min(4, Math.floor(state.score / 15));
+                const pool = WORD_CATEGORIES[Math.floor(Math.random() * (difficulty + 1))]; // Can pick simpler categories too
+                
+                this.text = pool[Math.floor(Math.random() * pool.length)];
+                this.x = Math.random() * (window.innerWidth - 350) + 280; // Keep away from sidebar
                 this.y = -30;
-                this.typedIdx = 0;
-                this.speed = CONFIG.fallSpeed + (Math.random() * 0.2);
+                this.typedIndex = 0;
+                this.speed = CONFIG.baseSpeed + (state.score * 0.005);
+                this.failed = false;
             }
+
             draw(ctx) {
-                ctx.font = "bold 24px 'JetBrains Mono'";
+                ctx.font = "bold 20px 'Fira Code', monospace";
                 
                 const isActive = state.activeWord === this;
+                const done = this.text.substring(0, this.typedIndex);
+                const rest = this.text.substring(this.typedIndex);
                 
-                // Background pill
-                const pad = 10;
-                ctx.fillStyle = isActive ? 'rgba(6, 182, 212, 0.15)' : 'rgba(15, 23, 42, 0.6)';
-                ctx.beginPath();
-                ctx.roundRect(this.x - pad, this.y - 24, this.width + (pad*2), 34, 4);
-                ctx.fill();
-                if(isActive) {
-                    ctx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
-                    ctx.lineWidth = 1;
+                const width = ctx.measureText(this.text).width;
+                const height = 24;
+
+                // If active, draw a "cursor box" or highlight background
+                if (isActive) {
+                    ctx.fillStyle = CONFIG.colors.bgMatch;
+                    ctx.fillRect(this.x - 5, this.y - 20, width + 10, height + 8);
+                    
+                    // Connect line to bottom console to simulate "downloading"
+                    ctx.strokeStyle = 'rgba(74, 222, 128, 0.1)';
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + width/2, this.y + 5);
+                    ctx.lineTo(window.innerWidth/2, window.innerHeight - 60);
                     ctx.stroke();
                 }
 
-                // Text
-                const done = this.text.substring(0, this.typedIdx);
-                const rest = this.text.substring(this.typedIdx);
-                
-                ctx.fillStyle = CONFIG.colors.wordTyped;
+                // Draw Typed Portion (White/Bright)
+                ctx.fillStyle = CONFIG.colors.textHighlight;
                 ctx.fillText(done, this.x, this.y);
                 
-                ctx.fillStyle = isActive ? CONFIG.colors.wordLocked : CONFIG.colors.word;
-                ctx.fillText(rest, this.x + ctx.measureText(done).width, this.y);
+                // Draw Remaining (Green)
+                const offset = ctx.measureText(done).width;
+                ctx.fillStyle = isActive ? CONFIG.colors.text : CONFIG.colors.textDim;
+                ctx.fillText(rest, this.x + offset, this.y);
             }
+
             update() {
                 this.y += this.speed;
-                return this.y > canvas.height + 20; // Return true if offscreen
+                return this.y > window.innerHeight - 80; // Hit bottom area
             }
         }
 
-        class BreachNode {
-            constructor() {
-                this.x = Math.random() * (canvas.width - 100) + 50;
-                this.y = Math.random() * (canvas.height - 100) + 50;
-                this.radius = 40;
-                this.born = performance.now();
-                this.life = 2000; // 2 seconds to click
-            }
-            draw(ctx) {
-                const age = performance.now() - this.born;
-                const lifePct = 1 - (age / this.life);
-                
-                // Shrinking ring
-                ctx.strokeStyle = CONFIG.colors.breach;
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius * lifePct, 0, Math.PI*2);
-                ctx.stroke();
-
-                // Static core
-                ctx.fillStyle = 'rgba(244, 63, 94, 0.5)';
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, 10, 0, Math.PI*2);
-                ctx.fill();
-            }
-            checkHit(x, y) {
-                return Math.hypot(this.x - x, this.y - y) < 40; // Forgive hit area
-            }
-            isDead() {
-                return (performance.now() - this.born) > this.life;
-            }
-        }
-
-        // --- GAME LOGIC ---
+        // --- CORE LOGIC ---
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        
+
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            // Matrix BG setup
-            const mCanvas = document.getElementById('matrixCanvas');
-            mCanvas.width = window.innerWidth;
-            mCanvas.height = window.innerHeight;
+            initMatrix();
         }
         window.addEventListener('resize', resize);
 
         function spawnWord() {
-            state.words.push(new WordTarget());
-            state.spawnTimer = 0;
+            state.words.push(new Word());
         }
 
-        function triggerBreach() {
-            state.phase = 'breach';
-            state.breachTargets = [];
-            // Clear the word that failed us
-            state.words = state.words.filter(w => w.y < canvas.height);
-            state.activeWord = null;
-            
-            // Spawn 3 safety nodes
-            for(let i=0; i<3; i++) state.breachTargets.push(new BreachNode());
-            
-            // UI
-            document.getElementById('defenseOverlay').style.opacity = '1';
-            document.body.classList.add('breach-active');
-            document.getElementById('gameCanvas').style.filter = 'blur(4px)';
-            playSound('alarm');
-        }
-
-        function resolveBreach(success) {
-            state.phase = 'hacking';
-            state.breachTargets = [];
-            
-            document.getElementById('defenseOverlay').style.opacity = '0';
-            document.body.classList.remove('breach-active');
-            document.getElementById('gameCanvas').style.filter = 'none';
-            
-            if(success) {
-                playSound('complete');
-            } else {
-                takeDamage();
-            }
-        }
-
-        function takeDamage() {
+        function takeDamage(wordText) {
             state.health--;
-            playSound('fail');
+            playSound('error');
+            addLog(`PACKET LOST: ${wordText}`, 'error');
             updateHUD();
-            document.body.classList.add('shake');
-            setTimeout(()=>document.body.classList.remove('shake'), 400);
             
-            if(state.health <= 0) {
-                gameOver();
+            // Screen glitch effect
+            document.body.classList.add('shake');
+            setTimeout(() => document.body.classList.remove('shake'), 200);
+
+            if (state.health <= 0) gameOver();
+        }
+
+        function updateHUD() {
+            document.getElementById('scoreDisplay').innerText = state.score;
+            
+            // Health Bars
+            const hCont = document.getElementById('healthContainer');
+            hCont.innerHTML = '';
+            for(let i=0; i<CONFIG.maxHealth; i++) {
+                const block = document.createElement('div');
+                block.className = `w-2 h-4 ${i < state.health ? 'bg-green-500 shadow-[0_0_5px_#4ade80]' : 'bg-green-900/30'}`;
+                hCont.appendChild(block);
+            }
+
+            // Command Line Display
+            const input = document.getElementById('commandInput');
+            if (state.activeWord) {
+                input.innerText = state.activeWord.text.substring(0, state.activeWord.typedIndex);
+            } else {
+                input.innerText = "";
             }
         }
 
         function gameOver() {
-            state.phase = 'gameover';
+            state.active = false;
             document.getElementById('gameOverScreen').classList.remove('hidden');
-            document.getElementById('finalScore').textContent = state.score;
+            document.getElementById('finalScore').innerText = state.score;
+            
+            const duration = (performance.now() - state.startTime) / 60000;
+            const wpm = Math.round((state.charsTyped / 5) / duration) || 0;
+            document.getElementById('finalWPM').innerText = wpm;
         }
 
-        // --- INPUTS ---
+        // --- INPUT ---
         window.addEventListener('keydown', (e) => {
-            if(state.phase !== 'hacking') return;
-            if(e.ctrlKey || e.altKey || e.metaKey) return;
-            
-            const key = e.key.toLowerCase();
-            if(key.length !== 1) return;
+            if (!state.active) return;
+            if (e.ctrlKey || e.altKey || e.metaKey) return;
+            if (e.key.length !== 1) return; // Ignore special keys
 
-            if(state.activeWord) {
-                // Typing locked word
+            const char = e.key; // No lowercase forcing, let's allow Case Sensitivity if we want? 
+            // Actually, let's match against the word's char exactly, but let's handle case logic in match.
+            // Most Linux commands are lowercase, but let's just compare key to char.
+
+            if (state.activeWord) {
                 const w = state.activeWord;
-                if(w.text[w.typedIdx] === key) {
-                    w.typedIdx++;
-                    playSound('type');
-                    if(w.typedIdx >= w.text.length) {
-                        // Word cleared
+                if (w.text[w.typedIndex] === char) {
+                    w.typedIndex++;
+                    state.charsTyped++;
+                    playSound('click');
+                    updateHUD();
+
+                    if (w.typedIndex >= w.text.length) {
+                        // Word Complete
+                        state.score++;
                         state.words = state.words.filter(word => word !== w);
+                        addLog(`EXECUTED: ${w.text}`, 'success');
+                        playSound('success');
                         state.activeWord = null;
-                        state.score += 1;
-                        playSound('complete');
                         updateHUD();
                     }
+                } else {
+                    // Typo
+                    // Optional: Play typo sound or flash red?
                 }
             } else {
                 // Find new word
-                // Prioritize lowest word that starts with key
-                const candidates = state.words.filter(w => w.text.startsWith(key));
-                if(candidates.length > 0) {
-                    candidates.sort((a,b) => b.y - a.y); // Lowest first
+                // Prioritize words closest to bottom
+                const candidates = state.words.filter(w => w.text.startsWith(char));
+                if (candidates.length > 0) {
+                    candidates.sort((a, b) => b.y - a.y);
                     state.activeWord = candidates[0];
-                    state.activeWord.typedIdx = 1;
-                    playSound('type');
-                    // Check if 1 letter word (edge case)
-                    if(state.activeWord.text.length === 1) {
-                         state.words = state.words.filter(word => word !== state.activeWord);
-                         state.activeWord = null;
-                         state.score += 1;
+                    state.activeWord.typedIndex = 1;
+                    state.charsTyped++;
+                    playSound('click');
+                    
+                    // Immediate clear 1-char word
+                    if (state.activeWord.text.length === 1) {
+                        state.score++;
+                        state.words = state.words.filter(word => word !== state.activeWord);
+                        addLog(`EXECUTED: ${state.activeWord.text}`, 'success');
+                        playSound('success');
+                        state.activeWord = null;
                     }
-                }
-            }
-            updateHUD();
-        });
-
-        window.addEventListener('mousedown', (e) => {
-            if(state.phase !== 'breach') return;
-            
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            
-            // Check clicks on breach nodes
-            for(let i=state.breachTargets.length-1; i>=0; i--) {
-                const t = state.breachTargets[i];
-                if(t.checkHit(x, y)) {
-                    state.breachTargets.splice(i, 1);
-                    playSound('shoot');
-                    if(state.breachTargets.length === 0) {
-                        resolveBreach(true); // Success!
-                    }
-                    return;
+                    updateHUD();
                 }
             }
         });
 
-        function updateHUD() {
-            document.getElementById('scoreDisplay').textContent = state.score;
-            
-            const hCont = document.getElementById('healthContainer');
-            hCont.innerHTML = '';
-            for(let i=0; i<CONFIG.maxHealth; i++) {
-                const pip = document.createElement('div');
-                pip.className = `w-8 h-2 rounded-sm skew-x-12 ${i < state.health ? 'bg-cyan-400 shadow-[0_0_5px_cyan]' : 'bg-slate-800'}`;
-                hCont.appendChild(pip);
-            }
-
-            const focus = document.getElementById('typingFocus');
-            const focusText = document.getElementById('lockedWordDisplay');
-            
-            if(state.activeWord) {
-                focus.style.opacity = 1;
-                const w = state.activeWord;
-                const done = w.text.substring(0, w.typedIdx);
-                const curr = w.text.substring(w.typedIdx, w.typedIdx+1);
-                const rest = w.text.substring(w.typedIdx+1);
-                focusText.innerHTML = `<span class="text-cyan-400">${done}</span><span class="text-white border-b-2 border-white">${curr}</span><span class="text-slate-600">${rest}</span>`;
-            } else {
-                focus.style.opacity = 0;
-            }
-        }
-
-        // --- MATRIX BACKGROUND ---
-        const mCanvas = document.getElementById('matrixCanvas');
-        const mCtx = mCanvas.getContext('2d');
-        let drops = [];
-        function initMatrix() {
-            mCanvas.width = window.innerWidth;
-            mCanvas.height = window.innerHeight;
-            drops = Array(Math.floor(mCanvas.width/20)).fill(1);
-        }
-        initMatrix();
-
-        function drawMatrix() {
-            mCtx.fillStyle = 'rgba(5, 10, 20, 0.1)';
-            mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
-            mCtx.fillStyle = '#0f0';
-            mCtx.font = '14px monospace';
-            for(let i=0; i<drops.length; i++) {
-                const text = String.fromCharCode(0x30A0 + Math.random()*96);
-                mCtx.fillStyle = Math.random() > 0.95 ? '#fff' : '#15803d';
-                mCtx.fillText(text, i*20, drops[i]*20);
-                if(drops[i]*20 > mCanvas.height && Math.random() > 0.975) drops[i] = 0;
-                drops[i]++;
-            }
-        }
-
-        // --- MAIN LOOP ---
+        // --- LOOP ---
         function loop(timestamp) {
-            if(state.phase === 'gameover') return;
+            if (!state.active) return;
             const dt = timestamp - state.lastTime;
             state.lastTime = timestamp;
 
-            // Matrix BG (runs independently)
-            if(Math.floor(timestamp/50) !== Math.floor((timestamp-dt)/50)) drawMatrix();
+            // Matrix BG
+            if (Math.floor(timestamp/60) !== Math.floor((timestamp-dt)/60)) drawMatrix();
 
-            // Logic
-            if(state.phase === 'hacking') {
-                // Spawn words
-                state.spawnTimer += dt;
-                if(state.spawnTimer > CONFIG.spawnRate) {
-                    spawnWord();
-                    // Gently increase difficulty
-                    CONFIG.spawnRate = Math.max(800, CONFIG.spawnRate * 0.995);
-                }
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                ctx.clearRect(0,0,canvas.width, canvas.height);
+            // Spawning
+            state.spawnTimer += dt;
+            if (state.spawnTimer > CONFIG.spawnRate) {
+                spawnWord();
+                state.spawnTimer = 0;
+                // Gentle difficulty curve
+                CONFIG.spawnRate = Math.max(600, 1600 - (state.score * 5)); 
+            }
 
-                // Update Words
-                for(let i=state.words.length-1; i>=0; i--) {
-                    const w = state.words[i];
-                    const fail = w.update();
-                    w.draw(ctx);
-                    
-                    if(fail) {
-                        triggerBreach();
-                        break;
-                    }
-                }
-            } 
-            else if (state.phase === 'breach') {
-                // Just clear for breach overlay clarity or keep words frozen in bg?
-                // Let's redraw words static to show "paused" state
-                ctx.clearRect(0,0,canvas.width, canvas.height);
-                state.words.forEach(w => w.draw(ctx)); // Static draw
-                
-                // Draw Breach Nodes
-                for(let i=state.breachTargets.length-1; i>=0; i--) {
-                    const t = state.breachTargets[i];
-                    t.draw(ctx);
-                    if(t.isDead()) {
-                        // Time ran out on a node!
-                        resolveBreach(false); // Fail
-                        break;
+            // Update Words
+            for (let i = state.words.length - 1; i >= 0; i--) {
+                const w = state.words[i];
+                const hitBottom = w.update();
+                w.draw(ctx);
+
+                if (hitBottom) {
+                    takeDamage(w.text);
+                    state.words.splice(i, 1);
+                    if (state.activeWord === w) {
+                        state.activeWord = null;
+                        updateHUD();
                     }
                 }
             }
 
             requestAnimationFrame(loop);
+        }
+
+        // --- MATRIX EFFECT ---
+        const mCanvas = document.getElementById('matrixCanvas');
+        const mCtx = mCanvas.getContext('2d');
+        let drops = [];
+        
+        function initMatrix() {
+            mCanvas.width = window.innerWidth;
+            mCanvas.height = window.innerHeight;
+            drops = Array(Math.floor(mCanvas.width / 20)).fill(1);
+        }
+
+        function drawMatrix() {
+            mCtx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
+            mCtx.fillStyle = '#15803d'; // Darker green for BG matrix
+            mCtx.font = '14px monospace';
+            for (let i = 0; i < drops.length; i++) {
+                const text = String.fromCharCode(0x30A0 + Math.random() * 96);
+                mCtx.fillText(text, i * 20, drops[i] * 20);
+                if (drops[i] * 20 > mCanvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
         }
 
         function startGame() {
             document.getElementById('startScreen').classList.add('hidden');
             document.getElementById('gameOverScreen').classList.add('hidden');
             
-            state.phase = 'hacking';
+            state.active = true;
             state.score = 0;
             state.health = CONFIG.maxHealth;
             state.words = [];
             state.activeWord = null;
-            state.spawnTimer = 0;
+            state.charsTyped = 0;
+            state.startTime = performance.now();
             state.lastTime = performance.now();
-            CONFIG.spawnRate = 1800; // Reset speed
+            
+            addLog("SYSTEM INITIALIZED...", "info");
+            addLog("PROXY CONNECTION ESTABLISHED.", "info");
 
+            initMatrix();
             resize();
             updateHUD();
             requestAnimationFrame(loop);
         }
 
         document.getElementById('startBtn').addEventListener('click', () => {
-            if(audioCtx.state === 'suspended') audioCtx.resume();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             startGame();
         });
         document.getElementById('restartBtn').addEventListener('click', startGame);
-        window.addEventListener('resize', resize);
 
     </script>
 </body>
