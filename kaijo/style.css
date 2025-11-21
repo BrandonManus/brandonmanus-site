@@ -1,9 +1,96 @@
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
 body {
+    background-color: #050505;
+    color: #00ff41; /* Classic Terminal Green */
+    font-family: 'VT323', monospace;
     margin: 0;
-    overflow: hidden; /* Hides scrollbars */
-    background-color: #000000; /* Space color */
+    overflow: hidden;
+    height: 100vh;
+    cursor: none; /* Hide the normal mouse */
 }
 
-canvas {
-    display: block; /* Removes default inline spacing beneath canvas */
+/* --- CRT EFFECTS --- */
+.scanlines {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(
+        to bottom,
+        rgba(255,255,255,0),
+        rgba(255,255,255,0) 50%,
+        rgba(0,0,0,0.2) 50%,
+        rgba(0,0,0,0.2)
+    );
+    background-size: 100% 4px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.vignette {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(0,0,0,1) 100%);
+    z-index: 11;
+    pointer-events: none;
+}
+
+/* --- TEXT STYLING --- */
+#console-container {
+    padding: 40px;
+    font-size: 1.5rem;
+    text-shadow: 0 0 5px #00ff41, 0 0 10px #00ff41;
+    position: relative;
+    z-index: 5;
+}
+
+.system-msg { color: #00ff41; }
+.error-msg { color: #ff3333; text-shadow: 0 0 5px red; }
+.user-track { color: #ffffff; }
+
+/* --- ANIMATIONS --- */
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+#cursor { display: inline-block; animation: blink 1s infinite; }
+
+/* Jitter Animation */
+@keyframes glitch-skew {
+    0% { transform: skew(0deg); }
+    20% { transform: skew(-20deg); }
+    40% { transform: skew(10deg); }
+    60% { transform: skew(-5deg); }
+    80% { transform: skew(5deg); }
+    100% { transform: skew(0deg); }
+}
+
+.glitch-active {
+    animation: glitch-skew 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite;
+    color: red;
+}
+
+/* Screen Flash (Invert colors) */
+#flash-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: white;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 20;
+    mix-blend-mode: difference; /* Inverts colors underneath */
+}
+
+.flash-trigger {
+    animation: flash 0.1s 3;
+}
+
+@keyframes flash {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
+}
+
+/* Custom Cursor follower */
+.tracker {
+    position: fixed;
+    color: red;
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 12;
 }
