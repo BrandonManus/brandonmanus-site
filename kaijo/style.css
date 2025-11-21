@@ -1,0 +1,25 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #2a2a2a;
+    font-family: sans-serif;
+    color: white;
+}
+
+canvas {
+    display: block;
+}
+
+#info {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none; /* Lets clicks pass through to the canvas */
+    font-size: 1.5rem;
+    opacity: 0.7;
+    background: rgba(0,0,0,0.5);
+    padding: 20px;
+    border-radius: 8px;
+}
