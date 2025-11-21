@@ -1,87 +1,107 @@
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const output = document.getElementById('output');
+const flashOverlay = document.getElementById('flash-overlay');
 
-// --- 1. SCENE SETUP ---
-const scene = new THREE.Scene();
+// Audio context for simulated beeps (browsers require interaction first usually)
+// We will use visual intensity instead to be safe.
 
-// Camera (Field of View, Aspect Ratio, Near Clip, Far Clip)
-const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-// Move camera back so we can see the globe initially
-camera.position.z = 3; 
+const messages = [
+    { text: "Initializing connection...", delay: 500, type: "system-msg" },
+    { text: "Bypassing firewall...", delay: 1500, type: "system-msg" },
+    { text: "ACCESS GRANTED.", delay: 1000, type: "error-msg" },
+    { text: "Scanning local host...", delay: 2000, type: "system-msg" },
+    { text: "Found user location.", delay: 1000, type: "system-msg" },
+    { text: "Why are you looking at me?", delay: 3000, type: "user-track" },
+    { text: "I can see you.", delay: 2000, type: "error-msg" },
+    { text: "Do not close this window.", delay: 2000, type: "error-msg" },
+    { text: "UPLOADING CONSCIOUSNESS...", delay: 1000, type: "system-msg" }
+];
 
-// Renderer
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
-document.body.appendChild(renderer.domElement);
+let msgIndex = 0;
 
-
-// --- 2. CREATING EARTH ---
-// Geometry: A sphere with a radius of 1. 
-// 64, 32 are width/height segments to make it look smooth.
-const geometry = new THREE.SphereGeometry(1, 64, 32);
-
-// Texture Loader: This loads your PNG file
-const textureLoader = new THREE.TextureLoader();
-
-// Load the texture from the assets folder
-// NOTE: If your image isn't loading, check the browser console (F12) for errors
-const earthTexture = textureLoader.load('assets/earth.png');
-
-// Material: Standard material reacts to light. We set the 'map' to your texture.
-const material = new THREE.MeshStandardMaterial({ 
-    map: earthTexture,
-    roughness: 0.8, //Adjusts how shiny the surface is (0-1)
-    metalness: 0.1  //Adjusts how metallic it looks (0-1)
-});
-
-// Mesh: Combines geometry and material
-const earthMesh = new THREE.Mesh(geometry, material);
-scene.add(earthMesh);
-
-
-// --- 3. LIGHTING ---
-// Without light, the standard material will be black.
-
-// Ambient Light: Soft general white light illuminating everywhere
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.3); 
-scene.add(ambientLight);
-
-// Directional Light: Like a sun, coming from the top right
-const sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
-sunLight.position.set(5, 3, 5);
-scene.add(sunLight);
-
-
-// --- 4. CONTROLS ("Flying around") ---
-// OrbitControls allow clicking and dragging to rotate around the center
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true; // Adds a smooth feeling of weight
-controls.dampingFactor = 0.05;
-// Prevent zooming too far in (clipping through earth) or too far out
-controls.minDistance = 1.2;
-controls.maxDistance = 10;
-controls.autoRotate = true; // Optional: slowly rotates when idle
-controls.autoRotateSpeed = 0.5;
-
-
-// --- 5. THE ANIMATION LOOP ---
-function animate() {
-    requestAnimationFrame(animate);
+// 1. TYPEWRITER FUNCTION
+function typeLine(text, type, callback) {
+    const line = document.createElement('div');
+    line.className = type;
+    output.appendChild(line);
     
-    // Required if enableDamping or autoRotate is true
-    controls.update();
-
-    renderer.render(scene, camera);
+    let i = 0;
+    const interval = setInterval(() => {
+        line.textContent += text.charAt(i);
+        i++;
+        // Randomly scroll to bottom
+        window.scrollTo(0, document.body.scrollHeight);
+        
+        if (i >= text.length) {
+            clearInterval(interval);
+            if (callback) setTimeout(callback, 500);
+        }
+    }, 50); // Typing speed
 }
-// Start the loop
-animate();
 
+// 2. SEQUENCE RUNNER
+function runSequence() {
+    if (msgIndex < messages.length) {
+        const msg = messages[msgIndex];
+        setTimeout(() => {
+            typeLine(msg.text, msg.type, runSequence);
+            
+            // Special FX triggers based on index
+            if (msg.text.includes("ACCESS GRANTED")) glitchScreen();
+            if (msg.text.includes("see you")) triggerFlash();
+            
+        }, msg.delay);
+        msgIndex++;
+    } else {
+        // End loop chaos
+        setInterval(spawnRandomCode, 100);
+    }
+}
 
-// --- 6. RESIZE HANDLER ---
-// Keeps the view looking correct if the window is resized
-window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+// 3. INTERACTIVE MOUSE TRACKER
+document.addEventListener('mousemove', (e) => {
+    // Create a trail of numbers following the cursor
+    const el = document.createElement('div');
+    el.className = 'tracker';
+    el.style.left = e.pageX + 'px';
+    el.style.top = e.pageY + 'px';
+    el.innerText = Math.floor(Math.random() * 2); // 0 or 1
+    document.body.appendChild(el);
+
+    // Clean up trails
+    setTimeout(() => {
+        el.remove();
+    }, 500);
 });
+
+// 4. VISUAL FX FUNCTIONS
+function glitchScreen() {
+    document.body.classList.add('glitch-active');
+    setTimeout(() => {
+        document.body.classList.remove('glitch-active');
+    }, 400);
+}
+
+function triggerFlash() {
+    flashOverlay.classList.add('flash-trigger');
+    setTimeout(() => {
+        flashOverlay.classList.remove('flash-trigger');
+    }, 500);
+}
+
+function spawnRandomCode() {
+    const hex = "0123456789ABCDEF";
+    const el = document.createElement('div');
+    el.style.position = 'fixed';
+    el.style.left = Math.random() * 100 + 'vw';
+    el.style.top = Math.random() * 100 + 'vh';
+    el.style.color = '#0f0';
+    el.style.opacity = 0.5;
+    el.style.fontFamily = 'monospace';
+    el.innerText = `0x${hex[Math.floor(Math.random()*16)]}${hex[Math.floor(Math.random()*16)]}`;
+    document.body.appendChild(el);
+    
+    setTimeout(() => el.remove(), 2000);
+}
+
+// Start the simulation
+runSequence();
