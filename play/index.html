@@ -1,390 +1,431 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>SKY ODYSSEY – Epic Flying Minigame</title>
-<style>
-  html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    overflow: hidden;
-    background: #000;
-    font-family: 'Courier New', monospace;
-    user-select: none;
-  }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ORBITAL: Live Data Interceptor</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', Courier, monospace; }
+        canvas { display: block; }
+        
+        /* Cyberpunk HUD */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            box-shadow: inset 0 0 50px rgba(0, 255, 0, 0.1);
+        }
+        
+        .hud-panel {
+            position: absolute;
+            background: rgba(0, 10, 0, 0.7);
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 2px;
+            text-shadow: 0 0 5px #00ff00;
+            pointer-events: auto;
+        }
 
-  canvas { display: block; width: 100%; height: 100%; }
+        #top-bar { top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; }
+        #bottom-left { bottom: 20px; left: 20px; }
+        #bottom-right { bottom: 20px; right: 20px; text-align: right; }
+        
+        h1 { margin: 0; font-size: 18px; letter-spacing: 2px; text-transform: uppercase; }
+        p { margin: 5px 0 0 0; font-size: 12px; opacity: 0.8; }
+        
+        /* Custom File Upload Button */
+        .upload-btn-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            cursor: pointer;
+        }
+        
+        .btn {
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            background-color: rgba(0, 20, 0, 0.8);
+            padding: 8px 20px;
+            font-size: 14px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        
+        .btn:hover { background: #00ff00; color: #000; }
+        
+        .upload-btn-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0; top: 0; opacity: 0;
+            cursor: pointer;
+        }
 
-  #hud {
-    position: absolute; top: 15px; left: 15px;
-    color: #0f0; font-size: 16px;
-    text-shadow: 0 0 8px #0f0, 0 0 16px #0f0;
-    letter-spacing: 1px; pointer-events: none; z-index: 10;
-  }
-  #score { position: absolute; top: 15px; right: 15px;
-    color: #ff0; font-size: 18px; text-shadow: 0 0 8px #ff0; z-index: 10; }
-
-  #start-screen, #game-over {
-    position: absolute; inset: 0;
-    background: rgba(0,0,0,0.85); color: #0f0;
-    font-size: 32px; display: flex;
-    flex-direction: column; justify-content: center; align-items: center;
-    text-align: center; z-index: 20; backdrop-filter: blur(4px);
-    transition: opacity 1s; text-shadow: 0 0 10px #0f0;
-  }
-  #game-over { display: none; }
-
-  button {
-    margin-top: 20px; padding: 12px 30px;
-    font-family: inherit; font-size: 20px;
-    background: #000; color: #0f0; border: 2px solid #0f0;
-    cursor: pointer; text-shadow: 0 0 8px #0f0;
-    box-shadow: 0 0 20px #0f0; transition: all .3s;
-  }
-  button:hover {
-    background: #0f0; color: #000;
-    box-shadow: 0 0 30px #0f0, inset 0 0 20px #000;
-  }
-
-  .pulse { animation: pulse 1.5s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
-
-  /* hide cursor only when the game is running */
-  .playing { cursor: none; }
-</style>
+        #loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #00ff00; font-size: 24px; display: none;
+            text-shadow: 0 0 10px #00ff00;
+        }
+        
+        .blinking { animation: blink 1s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    </style>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
 </head>
 <body>
 
-<canvas id="game"></canvas>
+    <div id="ui-layer">
+        <div id="top-bar" class="hud-panel">
+            <div>
+                <h1>Orbital Interceptor // <span class="blinking">ONLINE</span></h1>
+                <p>WASD: Thrusters | MOUSE: Pitch/Yaw | SPACE: Warp Boost</p>
+            </div>
+            <div class="upload-btn-wrapper">
+                <button class="btn">UPLOAD SHIP (.GLB / .PNG)</button>
+                <input type="file" id="fileInput" accept=".glb,.gltf,.png,.jpg,.jpeg" />
+            </div>
+        </div>
 
-<div id="hud">ALT: <span id="alt">0000</span>ft | SPD: <span id="spd">000</span>kt | FUEL: <span id="fuel">100</span>%</div>
-<div id="score">SCORE: <span id="points">0</span></div>
+        <div id="bottom-left" class="hud-panel">
+            <p>ALTITUDE: <span id="hud-alt">0</span> KM</p>
+            <p>VELOCITY: <span id="hud-vel">0</span> MACH</p>
+            <p>COORDS: <span id="hud-pos">0, 0</span></p>
+        </div>
 
-<div id="start-screen">
-  <h1 class="pulse">SKY ODYSSEY</h1>
-  <p>Move your mouse to fly. Collect fuel. Avoid storms.</p>
+        <div id="bottom-right" class="hud-panel">
+            <p>LIVE TRAFFIC: <span id="hud-flights">SEARCHING...</span></p>
+            <p>DATA SOURCE: OPENSKY NETWORK</p>
+        </div>
+    </div>
 
-  <label style="margin-top:15px; font-size:18px;">
-    <input type="file" id="plane-upload" accept="image/*" style="display:none;">
-    <button type="button" id="upload-btn" style="margin:0; padding:8px 20px; font-size:16px;">
-      Upload Plane Image
-    </button>
-  </label>
+    <div id="loading" class="blinking">UPLOADING BLUEPRINT...</div>
 
-  <button id="start-btn">LAUNCH</button>
-</div>
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-<div id="game-over">
-  <h1>MISSION FAILED</h1>
-  <p>Final Score: <span id="final-score">0</span></p>
-  <button id="restart-btn">TRY AGAIN</button>
-</div>
+        // --- Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.002);
 
-<script>
-/* ---------- Canvas & HUD ---------- */
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
-canvas.width = innerWidth; canvas.height = innerHeight;
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 10000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        document.body.appendChild(renderer.domElement);
 
-const hud = {
-  alt: document.getElementById('alt'),
-  spd: document.getElementById('spd'),
-  fuel: document.getElementById('fuel'),
-  points: document.getElementById('points')
-};
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0x333333);
+        scene.add(ambientLight);
+        const sunLight = new THREE.DirectionalLight(0xffffff, 2.0);
+        sunLight.position.set(500, 200, 500);
+        scene.add(sunLight);
+        
+        // Cyberpunk Rim Light
+        const rimLight = new THREE.DirectionalLight(0x00ff00, 0.5);
+        rimLight.position.set(-100, 100, -100);
+        scene.add(rimLight);
 
-const screens = {
-  start: document.getElementById('start-screen'),
-  over: document.getElementById('game-over'),
-  final: document.getElementById('final-score')
-};
+        // --- Earth & Atmosphere ---
+        const earthGroup = new THREE.Group();
+        scene.add(earthGroup);
 
-/* ---------- Plane Image (default + upload) ---------- */
-let planeImg = new Image();
-planeImg.src = 'https://na-assets.pinit.io/8GwrpeSH4TpAGEJsmoF35J8DY6RNCdyjCBZsEnTySEKd/c746a7a7-88cc-4677-b919-877329e2dd0d/437';
-planeImg.crossOrigin = 'anonymous';
+        const textureLoader = new THREE.TextureLoader();
+        
+        // Earth Base
+        const earthGeo = new THREE.SphereGeometry(100, 128, 128);
+        const earthMat = new THREE.MeshPhongMaterial({
+            map: textureLoader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg'),
+            bumpMap: textureLoader.load('https://unpkg.com/three-globe/example/img/earth-topology.png'),
+            bumpScale: 2,
+            specularMap: textureLoader.load('https://unpkg.com/three-globe/example/img/earth-water.png'),
+            specular: new THREE.Color('grey'),
+            shininess: 10
+        });
+        const earth = new THREE.Mesh(earthGeo, earthMat);
+        earthGroup.add(earth);
 
-const uploadInput = document.getElementById('plane-upload');
-const uploadBtn   = document.getElementById('upload-btn');
+        // Atmosphere Glow
+        const atmosGeo = new THREE.SphereGeometry(102, 64, 64);
+        const atmosMat = new THREE.MeshBasicMaterial({
+            color: 0x4488ff,
+            transparent: true,
+            opacity: 0.15,
+            side: THREE.BackSide,
+            blending: THREE.AdditiveBlending
+        });
+        const atmosphere = new THREE.Mesh(atmosGeo, atmosMat);
+        earthGroup.add(atmosphere);
 
-uploadBtn.onclick = () => uploadInput.click();
-uploadInput.onchange = e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const url = URL.createObjectURL(file);
-  const img = new Image();
-  img.onload = () => {
-    planeImg = img;               // replace the plane sprite
-    URL.revokeObjectURL(url);
-  };
-  img.src = url;
-};
+        // Stars
+        const starsGeo = new THREE.BufferGeometry();
+        const starsCount = 5000;
+        const posArray = new Float32Array(starsCount * 3);
+        for(let i = 0; i < starsCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 3000;
+        }
+        starsGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const starsMat = new THREE.PointsMaterial({ size: 0.8, color: 0xffffff, transparent: true, opacity: 0.8 });
+        const stars = new THREE.Points(starsGeo, starsMat);
+        scene.add(stars);
 
-/* ---------- Game State ---------- */
-let game = {
-  running: false,
-  score: 0, altitude: 3000, speed: 180, fuel: 100,
-  mouseX: canvas.width/2, mouseY: canvas.height/2,
-  plane: { x: canvas.width/2, y: canvas.height/2, rot: 0 },
-  clouds: [], storms: [], fuels: [], particles: [], stars: []
-};
+        // --- Player Ship System ---
+        const playerContainer = new THREE.Group();
+        scene.add(playerContainer);
 
-/* ---------- Stars (parallax) ---------- */
-for (let i=0;i<200;i++) {
-  game.stars.push({
-    x: Math.random()*canvas.width,
-    y: Math.random()*canvas.height,
-    size: Math.random()*2,
-    speed: 0.5 + Math.random()
-  });
-}
+        // Default Ship (A cool abstract shape)
+        let playerShip;
+        const defaultShipGeo = new THREE.ConeGeometry(0.5, 2, 8);
+        defaultShipGeo.rotateX(Math.PI / 2); // Point forward
+        const defaultShipMat = new THREE.MeshStandardMaterial({ 
+            color: 0x00ff00, 
+            emissive: 0x004400,
+            roughness: 0.4,
+            metalness: 0.8
+        });
+        playerShip = new THREE.Mesh(defaultShipGeo, defaultShipMat);
+        playerContainer.add(playerShip);
 
-/* ---------- Spawn helpers ---------- */
-function spawnCloud() {
-  game.clouds.push({
-    x: canvas.width + 200,
-    y: Math.random()*(canvas.height-200)+100,
-    size: 80 + Math.random()*120,
-    speed: 0.5 + Math.random()*1.5,
-    puff: Math.random() > .5
-  });
-}
-function spawnStorm() {
-  if (Math.random() < .3) {
-    game.storms.push({
-      x: canvas.width + 300,
-      y: Math.random()*(canvas.height-400)+200,
-      size: 150 + Math.random()*100,
-      speed: 2 + Math.random()*3,
-      lightning: 0
-    });
-  }
-}
-function spawnFuel() {
-  if (Math.random() < .4) {
-    game.fuels.push({
-      x: canvas.width + 100,
-      y: Math.random()*(canvas.height-100)+50,
-      size: 40,
-      speed: 3,
-      rot: 0
-    });
-  }
-}
+        // Camera rig (Third Person)
+        const cameraOffset = new THREE.Vector3(0, 5, 15);
+        const currentCameraPos = new THREE.Vector3(0, 120, 140); // Start high
+        
+        // Physics/Movement Variables
+        let speed = 0;
+        let maxSpeed = 0.8;
+        let boostSpeed = 2.5;
+        let isBoosting = false;
+        
+        // Coordinates
+        let lat = 0;
+        let lon = 0;
+        let alt = 130; // Start altitude
+        
+        // Input State
+        const keys = { w:false, a:false, s:false, d:false, space:false };
+        const mouse = { x:0, y:0 };
+        
+        document.addEventListener('keydown', e => {
+            if(e.key.toLowerCase() === 'w') keys.w = true;
+            if(e.key.toLowerCase() === 's') keys.s = true;
+            if(e.key.toLowerCase() === 'a') keys.a = true;
+            if(e.key.toLowerCase() === 'd') keys.d = true;
+            if(e.code === 'Space') keys.space = true;
+        });
+        
+        document.addEventListener('keyup', e => {
+            if(e.key.toLowerCase() === 'w') keys.w = false;
+            if(e.key.toLowerCase() === 's') keys.s = false;
+            if(e.key.toLowerCase() === 'a') keys.a = false;
+            if(e.key.toLowerCase() === 'd') keys.d = false;
+            if(e.code === 'Space') keys.space = false;
+        });
 
-/* ---------- Particles ---------- */
-function createParticles(x,y,color='#ff0',count=8){
-  for(let i=0;i<count;i++){
-    game.particles.push({
-      x,y,
-      vx:(Math.random()-.5)*8,
-      vy:(Math.random()-.5)*8,
-      life:30,
-      color,
-      size:2+Math.random()*3
-    });
-  }
-}
+        document.addEventListener('mousemove', e => {
+            // Normalize mouse -1 to 1
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        });
 
-/* ---------- Controls ---------- */
-canvas.addEventListener('mousemove', e=>{
-  if (game.running) {
-    game.mouseX = e.clientX;
-    game.mouseY = e.clientY;
-  }
-});
+        // --- Live Flight Data System ---
+        const flightsGroup = new THREE.Group();
+        earthGroup.add(flightsGroup); // Add flights as children of Earth so they rotate with it
+        const flightGeo = new THREE.OctahedronGeometry(0.3);
+        const flightMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
 
-/* ---------- UI Buttons ---------- */
-document.getElementById('start-btn').onclick = () => {
-  screens.start.style.opacity = '0';
-  setTimeout(()=>{ screens.start.style.display='none'; startGame(); },500);
-};
-document.getElementById('restart-btn').onclick = () => {
-  screens.over.style.display='none';
-  resetGame(); startGame();
-};
+        async function fetchFlights() {
+            document.getElementById('hud-flights').innerText = "SYNCING...";
+            try {
+                const response = await fetch('https://opensky-network.org/api/states/all');
+                const data = await response.json();
+                
+                // Clear old
+                while(flightsGroup.children.length > 0){ 
+                    flightsGroup.remove(flightsGroup.children[0]); 
+                }
 
-function resetGame(){
-  game = {
-    running:true, score:0, altitude:3000, speed:180, fuel:100,
-    mouseX:canvas.width/2, mouseY:canvas.height/2,
-    plane:{x:canvas.width/2, y:canvas.height/2, rot:0},
-    clouds:[], storms:[], fuels:[], particles:[],
-    stars: game.stars
-  };
-  hud.points.textContent='0';
-  hud.fuel.textContent='100';
-}
-function startGame(){
-  game.running = true;
-  document.body.classList.add('playing');   // hide cursor
-  gameLoop();
-  setInterval(spawnCloud,800);
-  setInterval(spawnStorm,4000);
-  setInterval(spawnFuel,3000);
-}
+                let count = 0;
+                if (data.states) {
+                    data.states.forEach(state => {
+                        if (count > 3000) return; // Cap limit for performance
+                        const lat = state[6];
+                        const lon = state[5];
+                        const alt = state[7];
+                        
+                        if (lat && lon) {
+                            const phi = (90 - lat) * (Math.PI / 180);
+                            const theta = (lon + 180) * (Math.PI / 180);
+                            // Scale down altitude visually or they fly too high
+                            const r = 100 + (alt ? alt / 2000 : 0.5); 
 
-/* ---------- Main Loop ---------- */
-function gameLoop(){
-  if (!game.running) return;
+                            const x = -(r * Math.sin(phi) * Math.cos(theta));
+                            const y = r * Math.cos(phi);
+                            const z = r * Math.sin(phi) * Math.sin(theta);
 
-  // ----- background -----
-  ctx.fillStyle = '#001122';
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+                            const plane = new THREE.Mesh(flightGeo, flightMat);
+                            plane.position.set(x, y, z);
+                            plane.lookAt(0,0,0); // Point feet at earth
+                            flightsGroup.add(plane);
+                            count++;
+                        }
+                    });
+                }
+                document.getElementById('hud-flights').innerText = count + " TRACKED";
+            } catch (e) {
+                console.warn("API Limit", e);
+                document.getElementById('hud-flights').innerText = "OFFLINE (API LIMIT)";
+            }
+        }
+        
+        // Fetch immediately and then every 20s
+        fetchFlights();
+        setInterval(fetchFlights, 20000);
 
-  // ----- stars -----
-  game.stars.forEach(s=>{
-    s.x -= s.speed * (game.speed/200);
-    if (s.x < 0) s.x = canvas.width;
-    ctx.fillStyle = '#fff';
-    ctx.globalAlpha = s.size>1?1:0.6;
-    ctx.fillRect(s.x,s.y,s.size,s.size);
-  });
-  ctx.globalAlpha = 1;
+        // --- File Upload Logic ---
+        const fileInput = document.getElementById('fileInput');
+        const gltfLoader = new GLTFLoader();
+        const loadingDiv = document.getElementById('loading');
 
-  // ----- plane movement -----
-  const dx = game.mouseX - game.plane.x;
-  const dy = game.mouseY - game.plane.y;
-  game.plane.x += dx * 0.08;
-  game.plane.y += dy * 0.08;
-  game.plane.rot = Math.atan2(dy,dx)*0.8;
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
 
-  // ----- altitude / speed / fuel -----
-  const targetAlt = Math.max(1000, Math.min(8000, (canvas.height - game.plane.y)*15));
-  game.altitude += (targetAlt - game.altitude)*0.02;
-  game.speed = 150 + (8000 - game.altitude)*0.03;
-  game.fuel = Math.max(0, game.fuel - 0.015 - (game.speed>300?0.03:0));
+            const url = URL.createObjectURL(file);
+            const extension = file.name.split('.').pop().toLowerCase();
 
-  // ----- HUD -----
-  hud.alt.textContent = Math.round(game.altitude);
-  hud.spd.textContent = Math.round(game.speed);
-  hud.fuel.textContent = Math.round(game.fuel);
-  hud.points.textContent = game.score;
+            loadingDiv.style.display = 'block';
 
-  // ----- draw plane -----
-  ctx.save();
-  ctx.translate(game.plane.x, game.plane.y);
-  ctx.rotate(game.plane.rot);
-  if (planeImg.complete && planeImg.naturalHeight !== 0) {
-    ctx.drawImage(planeImg, -60, -40, 120, 80);
-  } else {
-    ctx.font = '60px Arial';
-    ctx.fillStyle = '#fff';
-    ctx.fillText('Plane', -30, 10);
-  }
-  ctx.restore();
+            if (['glb', 'gltf'].includes(extension)) {
+                // Load 3D Model
+                gltfLoader.load(url, (gltf) => {
+                    // Remove old ship
+                    playerContainer.remove(playerShip);
+                    
+                    playerShip = gltf.scene;
+                    
+                    // Normalize Scale (Very important for user uploads)
+                    const box = new THREE.Box3().setFromObject(playerShip);
+                    const size = new THREE.Vector3();
+                    box.getSize(size);
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const scaleFactor = 3 / maxDim; // Scale to approx 3 units
+                    playerShip.scale.setScalar(scaleFactor);
 
-  // ----- clouds -----
-  game.clouds = game.clouds.filter(c=>{
-    c.x -= c.speed * (game.speed/200);
-    if (c.x < -300) return false;
+                    // Fix rotation (many models come facing +Z or +Y)
+                    playerShip.rotation.y = Math.PI; // Spin around if needed
+                    
+                    playerContainer.add(playerShip);
+                    loadingDiv.style.display = 'none';
+                }, undefined, (error) => {
+                    console.error(error);
+                    loadingDiv.innerText = "ERROR LOADING MODEL";
+                });
+            } else if (['png', 'jpg', 'jpeg'].includes(extension)) {
+                // Load Image as Billboard
+                new THREE.TextureLoader().load(url, (tex) => {
+                     playerContainer.remove(playerShip);
+                     const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+                     const geo = new THREE.PlaneGeometry(3, 3 * (tex.image.height / tex.image.width));
+                     playerShip = new THREE.Mesh(geo, mat);
+                     // Lay it flat or stand it up? Let's stand it up and billboard it
+                     playerShip.rotation.x = -Math.PI / 2; 
+                     playerShip.rotation.y = Math.PI; // Face camera
+                     playerContainer.add(playerShip);
+                     loadingDiv.style.display = 'none';
+                });
+            }
+        });
 
-    ctx.globalAlpha = 0.7;
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.ellipse(c.x, c.y, c.size, c.size*0.6, 0,0,Math.PI*2);
-    ctx.fill();
-    if (c.puff){
-      ctx.beginPath(); ctx.ellipse(c.x-c.size*0.4,c.y,c.size*0.7,c.size*0.5,0,0,Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(c.x+c.size*0.4,c.y,c.size*0.7,c.size*0.5,0,0,Math.PI*2); ctx.fill();
-    }
-    ctx.globalAlpha = 1;
 
-    if (Math.hypot(c.x-game.plane.x, c.y-game.plane.y) < c.size){
-      game.score += 10;
-      createParticles(c.x,c.y,'#0ff');
-      return false;
-    }
-    return true;
-  });
+        // --- Animation Loop ---
+        const clock = new THREE.Clock();
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const delta = clock.getDelta();
+            
+            // 1. Handle Inputs & Speed
+            isBoosting = keys.space;
+            const targetSpeed = (keys.w ? maxSpeed : 0) * (isBoosting ? boostSpeed : 1);
+            speed += (targetSpeed - speed) * 0.1; // Acceleration
+            
+            // 2. Movement (Spherical Coordinates)
+            if (keys.w || speed > 0.01) {
+                // Move "Forward" means rotating the Earth group? 
+                // No, let's orbit the player coordinates around the sphere logic
+                // Simplified: We update lat/lon based on input
+                
+                // Pitch (Mouse Y) affects Altitude slightly or speed? Let's just do simple arcade flight
+                // Turning (Mouse X + A/D)
+                const turnSpeed = 0.5 * delta;
+                
+                // Determine flight direction vectors
+                // This is complex in spherical, so we'll cheat:
+                // We rotate the "World" (EarthGroup) opposite to the player's movement
+                // This makes the player feel like they are flying
+                
+                const moveVector = new THREE.Vector3(0, 0, 1); // Forward
+                
+                // Rotate flight direction based on mouse x (Yaw)
+                const yaw = -mouse.x * 1.5;
+                const pitch = mouse.y * 1.0;
+                
+                // Visually rotate the ship
+                playerShip.rotation.z = THREE.MathUtils.lerp(playerShip.rotation.z, -mouse.x * 0.8 - (keys.a?0.5:0) + (keys.d?0.5:0), 0.1);
+                playerShip.rotation.x = THREE.MathUtils.lerp(playerShip.rotation.x, pitch * 0.5, 0.1);
+                
+                // Move the EARTH under the player
+                // Rotate Earth Group based on speed
+                earthGroup.rotateX(speed * delta * 0.5 * (1 + pitch)); 
+                earthGroup.rotateY(speed * delta * 0.5 * yaw);
+            }
 
-  // ----- storms -----
-  game.storms.forEach((s,i)=>{
-    s.x -= s.speed * (game.speed/200);
-    s.lightning = Math.max(0, s.lightning-1);
-    if (Math.random()<0.02) s.lightning = 15;
+            // 3. Camera Follow Logic
+            // Calculate ideal camera position relative to ship
+            const idealOffset = new THREE.Vector3(0, 8 + (speed*5), 20 + (speed*10));
+            idealOffset.applyMatrix4(playerContainer.matrixWorld); // Convert to world space
+            
+            // Smoothly interpolate current cam pos to ideal
+            currentCameraPos.lerp(idealOffset, 0.1);
+            camera.position.copy(currentCameraPos);
+            camera.lookAt(playerContainer.position);
 
-    ctx.globalAlpha = 0.6;
-    ctx.fillStyle = '#444';
-    ctx.beginPath();
-    ctx.ellipse(s.x,s.y,s.size,s.size*0.8,0,0,Math.PI*2);
-    ctx.fill();
+            // 4. HUD Updates
+            document.getElementById('hud-alt').innerText = (130 + (mouse.y * 10)).toFixed(1);
+            document.getElementById('hud-vel').innerText = (speed * 10).toFixed(2);
+            
+            // 5. Visual Effects
+            if(isBoosting) {
+               camera.fov = THREE.MathUtils.lerp(camera.fov, 85, 0.1);
+            } else {
+               camera.fov = THREE.MathUtils.lerp(camera.fov, 60, 0.1);
+            }
+            camera.updateProjectionMatrix();
 
-    if (s.lightning>0){
-      ctx.globalAlpha = s.lightning/15;
-      ctx.strokeStyle = '#ff0';
-      ctx.lineWidth = 3;
-      for(let j=0;j<3;j++){
-        ctx.beginPath();
-        ctx.moveTo(s.x+(Math.random()-.5)*s.size, s.y);
-        ctx.lineTo(s.x+(Math.random()-.5)*s.size*1.5, s.y+(Math.random()-.5)*s.size);
-        ctx.stroke();
-      }
-    }
-    ctx.globalAlpha = 1;
+            // Rotate stars slowly
+            stars.rotation.y += 0.0005;
 
-    if (Math.hypot(s.x-game.plane.x, s.y-game.plane.y) < s.size*0.8){
-      game.fuel -= 20;
-      createParticles(game.plane.x, game.plane.y, '#f00',15);
-      game.storms.splice(i,1);
-    }
-  });
+            renderer.render(scene, camera);
+        }
 
-  // ----- fuel cans -----
-  game.fuels = game.fuels.filter(f=>{
-    f.x -= f.speed * (game.speed/200);
-    f.rot += 0.1;
-    if (f.x < -100) return false;
+        animate();
 
-    ctx.save();
-    ctx.translate(f.x,f.y);
-    ctx.rotate(f.rot);
-    ctx.fillStyle = '#ff0';
-    ctx.fillRect(-f.size/2,-f.size/2,f.size,f.size);
-    ctx.fillStyle = '#0c0';
-    ctx.fillRect(-f.size/3,-f.size/3,f.size/1.5,f.size/1.5);
-    ctx.restore();
-
-    if (Math.hypot(f.x-game.plane.x, f.y-game.plane.y) < 50){
-      game.fuel = Math.min(100, game.fuel+25);
-      game.score += 50;
-      createParticles(f.x,f.y,'#0f0',12);
-      return false;
-    }
-    return true;
-  });
-
-  // ----- particles -----
-  game.particles = game.particles.filter(p=>{
-    p.x += p.vx; p.y += p.vy; p.vy += .2; p.life--;
-    ctx.globalAlpha = p.life/30;
-    ctx.fillStyle = p.color;
-    ctx.fillRect(p.x,p.y,p.size,p.size);
-    return p.life > 0;
-  });
-  ctx.globalAlpha = 1;
-
-  // ----- game over -----
-  if (game.fuel <= 0 || game.altitude < 500){
-    game.running = false;
-    document.body.classList.remove('playing'); // show cursor again
-    screens.final.textContent = game.score;
-    setTimeout(()=>{ screens.over.style.display='flex'; },1000);
-  }
-
-  requestAnimationFrame(gameLoop);
-}
-
-/* ---------- Resize ---------- */
-window.addEventListener('resize',()=>{
-  canvas.width = innerWidth;
-  canvas.height = innerHeight;
-});
-
-/* ---------- Initial clouds ---------- */
-for(let i=0;i<15;i++) spawnCloud();
-</script>
+        // Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
 </body>
 </html>
