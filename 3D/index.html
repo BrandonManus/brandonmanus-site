@@ -3,476 +3,443 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3D Earth Galaxy</title>
+  <title>Orbital Command // 3D Earth</title>
   <style>
     body { 
       margin: 0; 
       overflow: hidden; 
-      background: radial-gradient(circle at top, #1a0b3a 0, #050010 45%, #020008 100%);
+      background-color: #020008;
       cursor: none; 
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+      font-family: "SF Mono", "Fira Code", Consolas, monospace;
       color: #f5f1ff;
     }
     canvas { display: block; }
 
-    /* Custom cursor: soft glow */
-    .cursor-glow {
+    /* Custom cursor: HUD Reticle style */
+    .cursor-reticle {
       position: fixed;
-      width: 24px;
-      height: 24px;
+      width: 40px;
+      height: 40px;
+      border: 1px solid rgba(100, 200, 255, 0.3);
       border-radius: 50%;
       pointer-events: none;
-      mix-blend-mode: screen;
-      background: radial-gradient(circle, rgba(255, 102, 255, 0.9) 0, transparent 60%);
-      filter: blur(4px);
       transform: translate(-50%, -50%);
-      z-index: 10;
+      z-index: 100;
+      transition: width 0.2s, height 0.2s;
+      mix-blend-mode: screen;
+    }
+    
+    .cursor-dot {
+      position: fixed;
+      width: 6px;
+      height: 6px;
+      background: #00ffff;
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      z-index: 101;
+      box-shadow: 0 0 10px #00ffff;
     }
 
-    /* Overlay UI container */
+    /* When clicking */
+    body.clicking .cursor-reticle {
+      width: 30px;
+      height: 30px;
+      border-color: #ff0055;
+      background: rgba(255, 0, 85, 0.1);
+    }
+
+    /* UI Overlay */
     .hud {
       position: fixed;
       inset: 0;
       pointer-events: none;
-      z-index: 5;
+      z-index: 10;
+    }
+
+    .hud-header {
+      position: absolute;
+      top: 24px;
+      left: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    
+    .hud-title {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, #fff, #888);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hud-stats {
+      font-size: 10px;
+      color: #6699ff;
+      opacity: 0.8;
     }
 
     .hud-bottom {
       position: absolute;
-      bottom: 16px;
+      bottom: 32px;
       left: 50%;
       transform: translateX(-50%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      pointer-events: none;
+      text-align: center;
+      opacity: 0.7;
       font-size: 11px;
       text-transform: uppercase;
-      letter-spacing: 0.16em;
-      opacity: 0.7;
+      letter-spacing: 0.2em;
+      color: #aaccff;
+      text-shadow: 0 0 8px rgba(0, 150, 255, 0.5);
     }
 
-    .hud-bottom-bar {
-      width: 160px;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, #ffb2ff, transparent);
-      box-shadow: 0 0 12px rgba(255, 178, 255, 0.6);
+    /* Loading Overlay */
+    #loader {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      letter-spacing: 0.3em;
+      transition: opacity 1s ease;
+      pointer-events: none;
     }
 
-    /* dat.GUI tweaks – keep it but fit the theme */
-    .dg.ac {
-      z-index: 20 !important;
-    }
-    .dg.main .close-button {
-      color: #f3e6ff;
-    }
-    .dg.main {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
-    }
+    /* dat.GUI tweaks */
+    .dg.ac { z-index: 20 !important; }
+    .dg.main .close-button { background-color: #111; }
+    .dg .c { background-color: #1a1a1a; }
+    .dg .cr.function { border-left: 3px solid #00ffff; }
   </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.164.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.164.0/examples/jsm/"
+      }
+    }
+  </script>
 </head>
 <body>
-  <div class="cursor-glow" id="cursorGlow"></div>
+
+  <div id="loader">INITIALIZING ORBITAL SYSTEMS...</div>
+
+  <div class="cursor-reticle" id="cursorRing"></div>
+  <div class="cursor-dot" id="cursorDot"></div>
 
   <div class="hud">
+    <div class="hud-header">
+      <div class="hud-title">Terra//Vision</div>
+      <div class="hud-stats">SYS.ONLINE // WAITING FOR INPUT</div>
+    </div>
     <div class="hud-bottom">
-      <div class="hud-bottom-bar"></div>
-      <div>Move mouse to paint light · Scroll to zoom · Click to launch satellite at cursor</div>
+      [ CLICK ] LAUNCH SAT · [ DRAG ] ROTATE · [ SCROLL ] ZOOM
     </div>
   </div>
 
-  <!-- Include dat.GUI via CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
 
   <script type="module">
-    import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164/build/three.module.js";
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
-    // Scene & camera
+    // --- SCENE SETUP ---
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x020008, 0.035);
+    scene.fog = new THREE.FogExp2(0x020008, 0.02); // Darker fog for deep space feel
 
-    const camera = new THREE.PerspectiveCamera(
-      60,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      100
-    );
-    camera.position.set(0, 0.2, 3.2);
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 0.5, 3.5);
 
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" }); // Antialias off for Bloom performance
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
     document.body.appendChild(renderer.domElement);
 
-    // Raycaster for mouse → 3D mapping
-    const raycaster = new THREE.Raycaster();
-    const mouseNDC = new THREE.Vector2();
+    // --- POST PROCESSING (THE GLOW UP) ---
+    const composer = new EffectComposer(renderer);
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
 
-    // Load Earth texture
-    const loader = new THREE.TextureLoader();
-    const earthTexture = loader.load("../assets/earth.png", (tex) => {
-      tex.colorSpace = THREE.SRGBColorSpace || THREE.sRGBEncoding;
-    });
+    // Resolution, Strength, Radius, Threshold
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+    bloomPass.strength = 1.5;
+    bloomPass.radius = 0.4;
+    bloomPass.threshold = 0.15; // Only bright things glow
+    composer.addPass(bloomPass);
 
-    // Earth sphere
-    const geo = new THREE.SphereGeometry(1, 64, 64);
-    const mat = new THREE.MeshStandardMaterial({
-      map: earthTexture,
-      roughness: 0.4,
-      metalness: 0.1
-    });
+    // --- CONTROLS ---
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.enablePan = false;
+    controls.minDistance = 1.5;
+    controls.maxDistance = 10;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.5;
 
-    const earth = new THREE.Mesh(geo, mat);
-    earth.rotation.z = THREE.MathUtils.degToRad(23.4); // tilt
-    scene.add(earth);
-
-    // Subtle glowing atmosphere
-    const atmosphereGeo = new THREE.SphereGeometry(1.06, 64, 64);
-    const atmosphereMat = new THREE.MeshBasicMaterial({
-      color: 0x9966ff,
-      transparent: true,
-      opacity: 0.2,
-      blending: THREE.AdditiveBlending,
-      side: THREE.BackSide
-    });
-    const atmosphere = new THREE.Mesh(atmosphereGeo, atmosphereMat);
-    earth.add(atmosphere);
-
-    // Earth halo
-    const haloGeo = new THREE.RingGeometry(1.2, 1.6, 128);
-    const haloMat = new THREE.MeshBasicMaterial({
-      color: 0xff66ff,
-      transparent: true,
-      opacity: 0.1,
-      side: THREE.DoubleSide
-    });
-    const halo = new THREE.Mesh(haloGeo, haloMat);
-    halo.rotation.x = THREE.MathUtils.degToRad(83);
-    scene.add(halo);
-
-    // Lights
-    const ambient1 = new THREE.AmbientLight(0x444444, 0.7);
-    const ambient2 = new THREE.AmbientLight(0x6600cc, 0.25);
-    scene.add(ambient1, ambient2);
-
-    const pointLight = new THREE.PointLight(0xffffff, 1.2);
-    pointLight.position.set(2, 2, 3);
-    scene.add(pointLight);
-
-    const mouseLight = new THREE.PointLight(0xff66ff, 0.8, 5);
-    scene.add(mouseLight);
-
-    // Subtle back rim light
-    const backLight = new THREE.DirectionalLight(0x220044, 0.7);
-    backLight.position.set(-3, -1, -2);
-    scene.add(backLight);
-
-    // Mouse tracking
-    const mouse = { x: 0, y: 0 };
-    const targetMouse = { x: 0, y: 0 }; // for smoothing
-    const cursorGlow = document.getElementById("cursorGlow");
-
-    window.addEventListener("mousemove", (e) => {
-      const normalizedX = (e.clientX / window.innerWidth) * 2 - 1;
-      const normalizedY = -(e.clientY / window.innerHeight) * 2 + 1;
-      targetMouse.x = normalizedX;
-      targetMouse.y = normalizedY;
-
-      mouseNDC.x = normalizedX;
-      mouseNDC.y = normalizedY;
-
-      cursorGlow.style.left = e.clientX + "px";
-      cursorGlow.style.top = e.clientY + "px";
-    });
-
-    // Scroll to zoom
-    window.addEventListener("wheel", (e) => {
-      const delta = e.deltaY * 0.0015;
-      camera.position.z = THREE.MathUtils.clamp(
-        camera.position.z + delta,
-        1.8,
-        5.5
-      );
-    });
-
-    // Procedural galaxy background (two layers for depth)
-    const starCount = 2000;
-    const starsGeometry = new THREE.BufferGeometry();
-    const starPositions = [];
-    const starColors = [];
-
-    const color1 = new THREE.Color(0xbb00ff);
-    const color2 = new THREE.Color(0x66ccff);
-
-    for (let i = 0; i < starCount; i++) {
-      const radius = THREE.MathUtils.randFloat(40, 200);
-      const theta = THREE.MathUtils.randFloatSpread(360);
-      const phi = THREE.MathUtils.randFloatSpread(360);
-
-      const x = radius * Math.sin(theta) * Math.cos(phi);
-      const y = radius * Math.sin(phi);
-      const z = radius * Math.cos(theta) * Math.cos(phi);
-
-      starPositions.push(x, y, z);
-
-      const t = Math.random();
-      const c = color1.clone().lerp(color2, t);
-      starColors.push(c.r, c.g, c.b);
-    }
-
-    starsGeometry.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(starPositions, 3)
-    );
-    starsGeometry.setAttribute(
-      "color",
-      new THREE.Float32BufferAttribute(starColors, 3)
-    );
-
-    const starsMaterial = new THREE.PointsMaterial({
-      vertexColors: true,
-      size: 0.22,
-      sizeAttenuation: true,
-      transparent: true,
-      opacity: 0.95
-    });
-
-    const starField = new THREE.Points(starsGeometry, starsMaterial);
-    scene.add(starField);
-
-    // Foreground "dust" layer
-    const dustGeometry = new THREE.BufferGeometry();
-    const dustPositions = [];
-    for (let i = 0; i < 400; i++) {
-      dustPositions.push(
-        (Math.random() - 0.5) * 16,
-        (Math.random() - 0.5) * 16,
-        (Math.random() - 0.5) * 16
-      );
-    }
-    dustGeometry.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(dustPositions, 3)
-    );
-    const dustMaterial = new THREE.PointsMaterial({
-      color: 0xffd5ff,
-      size: 0.06,
-      transparent: true,
-      opacity: 0.45
-    });
-    const dustField = new THREE.Points(dustGeometry, dustMaterial);
-    scene.add(dustField);
-
-    // Satellite setup
-    const satellites = [];
-    let satelliteOrbitAngle = 0; // shared angle so they move with Earth's rotation
-    const satelliteOrbitSpeed = 0.02; // base orbit speed
-
-    function createSatellite(spawnDirection) {
-      // Smaller satellite
-      const bodyGeo = new THREE.BoxGeometry(0.06, 0.04, 0.04);
-      const bodyMat = new THREE.MeshStandardMaterial({
-        color: 0xd0d0ff,
-        metalness: 0.7,
-        roughness: 0.25
-      });
-      const body = new THREE.Mesh(bodyGeo, bodyMat);
-
-      const panelGeo = new THREE.BoxGeometry(0.14, 0.01, 0.04);
-      const panelMat = new THREE.MeshStandardMaterial({
-        color: 0x6699ff,
-        emissive: 0x2244ff,
-        emissiveIntensity: 0.7,
-        metalness: 0.25,
-        roughness: 0.4
-      });
-
-      const leftPanel = new THREE.Mesh(panelGeo, panelMat);
-      const rightPanel = new THREE.Mesh(panelGeo, panelMat);
-
-      leftPanel.position.x = -0.11;
-      rightPanel.position.x = 0.11;
-
-      const satGroup = new THREE.Group();
-      satGroup.add(body);
-      satGroup.add(leftPanel);
-      satGroup.add(rightPanel);
-
-      // Normalize spawnDirection for safety
-      const dir = spawnDirection.clone().normalize();
-      if (dir.lengthSq() === 0) {
-        dir.set(1, 0, 0);
-      }
-
-      // Orbit radius slightly above atmosphere
-      const orbitRadius = 1.45 + Math.random() * 0.15;
-
-      // Phase: angle around Earth based on projected x/z of direction
-      const angle = Math.atan2(dir.z, dir.x);
-      const phase = angle;
-
-      // Position on orbit ring at creation (for "spawn where mouse is")
-      const x = Math.cos(phase) * orbitRadius;
-      const z = Math.sin(phase) * orbitRadius;
-      const y = dir.y * 0.25; // carry some vertical character from mouse
-
-      satGroup.position.set(x, y, z);
-      satGroup.lookAt(0, 0, 0);
-      satGroup.rotateY(Math.PI / 2);
-
-      satellites.push({ group: satGroup, radius: orbitRadius, phase });
-
-      scene.add(satGroup);
-    }
-
-    // Spawn a satellite on click at mouse position direction
-    window.addEventListener("click", () => {
-      if (satellites.length >= 10) return;
-
-      // Cast ray from camera through mouse and intersect Earth
-      raycaster.setFromCamera(mouseNDC, camera);
-      const intersects = raycaster.intersectObject(earth);
-
-      let spawnDirection;
-      if (intersects.length > 0) {
-        // From Earth center through intersection point
-        const hit = intersects[0].point.clone();
-        spawnDirection = hit.sub(earth.position).normalize();
-      } else {
-        // Fallback: mouse direction in world space
-        const dir = new THREE.Vector3();
-        raycaster.ray.direction.clone(dir);
-        spawnDirection = dir;
-      }
-
-      createSatellite(spawnDirection);
-    });
-
-    // GUI controls
-    const gui = new dat.GUI();
-    const controls = {
-      rotationSpeedY: 0.01,
-      rotationSpeedX: 0.003,
-      lightColor: "#ffffff",
-      keyLightIntensity: 1.2,
-      keyLightOffsetX: 2.0,
-      keyLightOffsetY: 2.0,
-      keyLightOffsetZ: 3.0,
-      mouseLightIntensity: 0.8,
-      galaxyRotationSpeed: 0.0005,
-      glowIntensity: 0.2
+    // --- TEXTURES (Using reliable CDNs) ---
+    const textureLoader = new THREE.TextureLoader();
+    const earthMap = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg');
+    const earthBump = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-topology.png');
+    const earthLights = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-night-lights.png');
+    const earthClouds = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-clouds.png');
+    
+    // Hide loader when textures done (rough approximation)
+    THREE.DefaultLoadingManager.onLoad = function ( ) {
+        const loader = document.getElementById('loader');
+        loader.style.opacity = '0';
+        setTimeout(() => loader.remove(), 1000);
     };
 
-    gui.add(controls, "rotationSpeedY", 0, 0.1).name("Rotate Y speed");
-    gui.add(controls, "rotationSpeedX", 0, 0.05).name("Rotate X speed");
-    gui
-      .add(controls, "galaxyRotationSpeed", 0, 0.003)
-      .name("Galaxy rotation");
-    gui
-      .add(controls, "keyLightIntensity", 0, 7)
-      .step(0.05)
-      .name("Key light intensity");
-    gui
-      .add(controls, "keyLightOffsetX", -10, 10)
-      .step(0.1)
-      .name("Key light X");
-    gui
-      .add(controls, "keyLightOffsetY", -10, 10)
-      .step(0.1)
-      .name("Key light Y");
-    gui
-      .add(controls, "keyLightOffsetZ", -10, 10)
-      .step(0.1)
-      .name("Key light Z");
-    gui
-      .add(controls, "mouseLightIntensity", 0, 2)
-      .step(0.05)
-      .name("Pointer light");
-    gui
-      .add(controls, "glowIntensity", 0, 0.6)
-      .step(0.01)
-      .name("Atmosphere glow");
-    gui
-      .addColor(controls, "lightColor")
-      .name("Key light color")
-      .onChange((val) => {
-        pointLight.color.set(val);
-      });
+    // --- EARTH GROUP ---
+    const earthGroup = new THREE.Group();
+    earthGroup.rotation.z = 23.4 * Math.PI / 180; // Axial tilt
+    scene.add(earthGroup);
 
-    // Animation loop
-    let time = 0;
+    // 1. The Earth Sphere
+    const earthGeo = new THREE.SphereGeometry(1, 64, 64);
+    const earthMat = new THREE.MeshStandardMaterial({
+      map: earthMap,
+      bumpMap: earthBump,
+      bumpScale: 0.05,
+      emissiveMap: earthLights,
+      emissive: new THREE.Color(0xffff88),
+      emissiveIntensity: 0, // Starts off (controlled by sun angle in complex setups, or GUI here)
+      roughness: 0.6,
+      metalness: 0.1
+    });
+    const earth = new THREE.Mesh(earthGeo, earthMat);
+    earthGroup.add(earth);
+
+    // 2. Cloud Sphere (Slightly larger)
+    const cloudGeo = new THREE.SphereGeometry(1.01, 64, 64);
+    const cloudMat = new THREE.MeshStandardMaterial({
+      map: earthClouds,
+      transparent: true,
+      opacity: 0.4,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      depthWrite: false // Fixes transparency sorting issues
+    });
+    const clouds = new THREE.Mesh(cloudGeo, cloudMat);
+    earthGroup.add(clouds);
+
+    // 3. Custom Atmosphere Glow (Fresnel Shader)
+    const vertexShader = `
+      varying vec3 vNormal;
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `;
+    const fragmentShader = `
+      varying vec3 vNormal;
+      void main() {
+        float intensity = pow(0.65 - dot(vNormal, vec3(0, 0, 1.0)), 4.0);
+        gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity;
+      }
+    `;
+    
+    const atmosGeo = new THREE.SphereGeometry(1.2, 64, 64);
+    const atmosMat = new THREE.ShaderMaterial({
+      vertexShader: vertexShader,
+      fragmentShader: fragmentShader,
+      blending: THREE.AdditiveBlending,
+      side: THREE.BackSide,
+      transparent: true,
+      depthWrite: false
+    });
+    const atmosphere = new THREE.Mesh(atmosGeo, atmosMat);
+    scene.add(atmosphere); // Add to scene, not group, so it doesn't tilt with earth
+
+    // --- LIGHTING ---
+    const sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
+    sunLight.position.set(5, 3, 5);
+    scene.add(sunLight);
+
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.5); // Soft fill
+    scene.add(ambientLight);
+
+    const blueBacklight = new THREE.DirectionalLight(0x0033ff, 1.5);
+    blueBacklight.position.set(-5, -2, -5);
+    scene.add(blueBacklight);
+
+    // --- STARS ---
+    const starCount = 3000;
+    const starGeo = new THREE.BufferGeometry();
+    const starPos = [];
+    const starColors = [];
+    const color1 = new THREE.Color(0x44aaff);
+    const color2 = new THREE.Color(0xffaaff);
+
+    for(let i=0; i<starCount; i++) {
+        const r = 20 + Math.random() * 80;
+        const theta = 2 * Math.PI * Math.random();
+        const phi = Math.acos(2 * Math.random() - 1);
+        const x = r * Math.sin(phi) * Math.cos(theta);
+        const y = r * Math.sin(phi) * Math.sin(theta);
+        const z = r * Math.cos(phi);
+        starPos.push(x,y,z);
+        
+        // Color variation
+        const c = Math.random() > 0.5 ? color1 : color2;
+        starColors.push(c.r, c.g, c.b);
+    }
+    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+    starGeo.setAttribute('color', new THREE.Float32BufferAttribute(starColors, 3));
+
+    const starMat = new THREE.PointsMaterial({
+        size: 0.15,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.8
+    });
+    const stars = new THREE.Points(starGeo, starMat);
+    scene.add(stars);
+
+
+    // --- SATELLITE SYSTEM ---
+    const satellites = [];
+    const satGeo = new THREE.BoxGeometry(0.05, 0.02, 0.02);
+    const satPanelGeo = new THREE.BoxGeometry(0.12, 0.01, 0.04);
+    
+    // High emissive material to make them GLOW with the bloom pass
+    const satMat = new THREE.MeshBasicMaterial({ color: 0xffffff }); 
+    const panelMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+
+    function createSatellite(posVector) {
+        const group = new THREE.Group();
+        
+        const body = new THREE.Mesh(satGeo, satMat);
+        const left = new THREE.Mesh(satPanelGeo, panelMat);
+        const right = new THREE.Mesh(satPanelGeo, panelMat);
+        left.position.x = -0.09;
+        right.position.x = 0.09;
+        
+        group.add(body, left, right);
+        
+        // Calculate orbit properties
+        const distance = posVector.length();
+        group.position.copy(posVector);
+        group.lookAt(new THREE.Vector3(0,0,0));
+        
+        // Random orbit axis
+        const axis = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
+        
+        satellites.push({ 
+            mesh: group, 
+            axis: axis, 
+            speed: 0.005 + Math.random() * 0.01,
+            distance: distance 
+        });
+        
+        scene.add(group);
+        
+        // Limit max sats
+        if(satellites.length > 30) {
+            const old = satellites.shift();
+            scene.remove(old.mesh);
+        }
+    }
+
+    // --- INTERACTION ---
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const cursorRing = document.getElementById('cursorRing');
+    const cursorDot = document.getElementById('cursorDot');
+
+    window.addEventListener('mousemove', (e) => {
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+        cursorRing.style.left = e.clientX + 'px';
+        cursorRing.style.top = e.clientY + 'px';
+        cursorDot.style.left = e.clientX + 'px';
+        cursorDot.style.top = e.clientY + 'px';
+    });
+
+    window.addEventListener('mousedown', () => document.body.classList.add('clicking'));
+    window.addEventListener('mouseup', () => document.body.classList.remove('clicking'));
+
+    window.addEventListener('click', (e) => {
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObject(earth);
+        
+        let spawnPos;
+        if(intersects.length > 0) {
+            // Spawn above the clicked point
+            spawnPos = intersects[0].point.normalize().multiplyScalar(1.5);
+        } else {
+            // Spawn in space
+            raycaster.ray.at(2, spawnPos = new THREE.Vector3());
+        }
+        createSatellite(spawnPos);
+    });
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        composer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // --- GUI ---
+    const gui = new dat.GUI();
+    const params = {
+        rotationSpeed: 0.5,
+        bloomStrength: 1.5,
+        bloomThreshold: 0.15,
+        cityLights: 2.0,
+        cloudSpeed: 0.0005,
+    };
+
+    gui.add(params, 'rotationSpeed', 0, 5).name('Auto Rotate').onChange(v => controls.autoRotateSpeed = v);
+    gui.add(params, 'bloomStrength', 0, 3).name('Glow Strength').onChange(v => bloomPass.strength = v);
+    gui.add(params, 'cityLights', 0, 5).name('City Lights').onChange(v => earthMat.emissiveIntensity = v);
+    gui.add(params, 'cloudSpeed', 0, 0.01).name('Cloud Speed');
+
+    // --- ANIMATION LOOP ---
+    const clock = new THREE.Clock();
+
     function animate() {
-      requestAnimationFrame(animate);
-      time += 0.01;
+        requestAnimationFrame(animate);
+        
+        const delta = clock.getDelta();
 
-      // Smooth mouse for light
-      mouse.x += (targetMouse.x - mouse.x) * 0.12;
-      mouse.y += (targetMouse.y - mouse.y) * 0.12;
+        controls.update();
 
-      // Rotate Earth
-      earth.rotation.y += controls.rotationSpeedY;
-      earth.rotation.x += controls.rotationSpeedX * 0.4;
+        // Rotate clouds independently
+        clouds.rotation.y += params.cloudSpeed;
 
-      // Atmosphere breathing
-      atmosphere.material.opacity =
-        controls.glowIntensity * (0.8 + Math.sin(time * 0.8) * 0.2);
+        // Rotate stars slowly
+        stars.rotation.y -= 0.0002;
 
-      // Rotate galaxy and dust
-      starField.rotation.y += controls.galaxyRotationSpeed;
-      starField.rotation.x += controls.galaxyRotationSpeed * 0.4;
-
-      dustField.rotation.y -= controls.galaxyRotationSpeed * 1.6;
-      dustField.rotation.x += controls.galaxyRotationSpeed * 1.2;
-
-      // Mouse light
-      mouseLight.position.x = mouse.x * 5;
-      mouseLight.position.y = mouse.y * 3;
-      mouseLight.position.z = 2.3;
-      mouseLight.intensity = controls.mouseLightIntensity;
-
-      // Key light intensity & position
-      pointLight.intensity = controls.keyLightIntensity;
-      pointLight.position.set(
-        controls.keyLightOffsetX,
-        controls.keyLightOffsetY,
-        controls.keyLightOffsetZ
-      );
-
-      // Slight halo wobble
-      halo.rotation.z = Math.sin(time * 0.4) * 0.1;
-
-      // Camera subtle parallax
-      camera.position.x = mouse.x * 0.2;
-      camera.position.y = 0.2 + mouse.y * 0.1;
-      camera.lookAt(0, 0, 0);
-
-      // Satellite orbiting (tied to Earth's rotation speed)
-      satelliteOrbitAngle += satelliteOrbitSpeed * (0.5 + controls.rotationSpeedY * 80);
-      satellites.forEach((sat, index) => {
-        const angle = satelliteOrbitAngle + sat.phase + index * 0.15;
-        const x = Math.cos(angle) * sat.radius;
-        const z = Math.sin(angle) * sat.radius;
-        const y = Math.sin(angle * 1.7) * 0.15; // small vertical wobble
-
-        sat.group.position.set(x, y, z);
-        sat.group.lookAt(0, 0, 0);
-        sat.group.rotateY(Math.PI / 2);
-      });
-
-      renderer.render(scene, camera);
+        // Animate Satellites
+        satellites.forEach(sat => {
+            // Rotate position around (0,0,0) using axis
+            sat.mesh.position.applyAxisAngle(sat.axis, sat.speed);
+            sat.mesh.lookAt(0,0,0);
+            sat.mesh.rotateY(Math.PI/2); // Orient panels
+        });
+        
+        // Render via Composer (Bloom) instead of standard renderer
+        composer.render();
     }
 
     animate();
-
-    // Resize
-    window.addEventListener("resize", () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
   </script>
 </body>
 </html>
