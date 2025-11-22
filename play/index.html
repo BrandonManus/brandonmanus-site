@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>NEON VANGUARD // V2</title>
+    <title>ORBITAL FLIGHT SIMULATOR</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', monospace; user-select: none; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', monospace; user-select: none; }
         canvas { display: block; }
 
         /* --- HUD --- */
@@ -15,46 +15,40 @@
 
         .hud-top {
             display: flex; justify-content: space-between; padding: 20px;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+            background: linear-gradient(to bottom, rgba(0,10,20,0.8), transparent);
         }
 
         .stat-box { text-shadow: 0 0 10px currentColor; }
         .big-text { font-size: 24px; font-weight: 900; letter-spacing: 2px; }
         .sub-text { font-size: 14px; opacity: 0.8; font-weight: bold; }
 
-        /* Health Bar */
-        .hp-container { width: 250px; height: 8px; background: #220000; margin-top: 5px; border: 1px solid #ff0055; transform: skewX(-15deg); }
-        .hp-fill { width: 100%; height: 100%; background: #ff0055; transition: width 0.2s; }
+        /* Health Bar styling reused as Power/Integrity */
+        .hp-container { width: 250px; height: 8px; background: #001122; margin-top: 5px; border: 1px solid #00ffff; transform: skewX(-15deg); }
+        .hp-fill { width: 100%; height: 100%; background: #00ffff; }
 
-        /* Artificial Horizon (The Line that keeps you oriented) */
+        /* Artificial Horizon */
         #horizon-wrapper {
             position: absolute; top: 50%; left: 50%;
             width: 400px; height: 400px;
             transform: translate(-50%, -50%);
-            overflow: hidden;
-            opacity: 0.5;
+            overflow: hidden; opacity: 0.6;
         }
         #horizon-line {
             position: absolute; top: 50%; left: -50%; right: -50%;
-            height: 2px; background: rgba(0, 255, 255, 0.6);
+            height: 2px; background: rgba(0, 255, 255, 0.8);
             box-shadow: 0 0 10px cyan;
-            /* This will rotate via JS */
+            /* Rotated via JS */
         }
-
-        /* Crosshair */
-        #crosshair {
-            position: absolute; top: 50%; left: 50%;
-            width: 20px; height: 20px;
-            transform: translate(-50%, -50%);
-            border: 2px solid rgba(255, 255, 255, 0.8);
-            border-radius: 2px;
+        #horizon-wrapper::after {
+            /* Center reference dot */
+            content: ''; position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: #ff0055; transform: translate(-50%,-50%);
         }
 
         /* Bottom Info */
         .hud-bottom {
             padding: 20px; text-align: center;
-            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
-            color: #888; font-size: 12px;
+            background: linear-gradient(to top, rgba(0,10,20,0.8), transparent);
+            color: #88aaff; font-size: 12px;
         }
 
         /* Upload Button */
@@ -65,9 +59,6 @@
             text-decoration: none; display: inline-block; margin-top: 8px;
         }
         input[type="file"] { display: none; }
-
-        /* Damage Flash */
-        #flash { position: absolute; inset: 0; background: white; opacity: 0; pointer-events: none; transition: opacity 0.1s; mix-blend-mode: overlay; }
     </style>
     
     <script type="importmap">
@@ -81,30 +72,27 @@
 </head>
 <body>
 
-    <div id="flash"></div>
-
     <div id="ui-layer">
         <div class="hud-top">
-            <div class="stat-box" style="color: #ff0055;">
-                <div class="sub-text">SHIELD INTEGRITY</div>
-                <div class="hp-container"><div id="hp-bar" class="hp-fill"></div></div>
+            <div class="stat-box" style="color: #00ffff;">
+                <div class="sub-text">SYSTEM INTEGRITY</div>
+                <div class="hp-container"><div class="hp-fill"></div></div>
                 <label class="upload-btn">
-                    UPLOAD SHIP
+                    CHANGE VESSEL
                     <input type="file" id="fileInput" accept=".glb,.gltf,.png,.jpg">
                 </label>
             </div>
-            <div class="stat-box" style="color: #00ffff; text-align: right;">
-                <div class="big-text" id="score">0</div>
-                <div class="sub-text">SCORE</div>
-                <div class="sub-text" style="color: #ffff00; margin-top:5px;">COMBO x<span id="combo">1</span></div>
+            <div class="stat-box" style="color: #ffffff; text-align: right;">
+                <div class="big-text"><span id="alt">0</span> KM</div>
+                <div class="sub-text" style="color: #88aaff;">ALTITUDE</div>
+                <div class="sub-text" style="margin-top:5px; color: #ffaa00;">VELOCITY: <span id="vel">0</span> MACH</div>
             </div>
         </div>
 
         <div id="horizon-wrapper"><div id="horizon-line"></div></div>
-        <div id="crosshair"></div>
 
         <div class="hud-bottom">
-            WASD: Pilot (Smoothed) | SHIFT: Boost | CLICK: Fire
+            WASD: Pitch/Yaw (Smoothed) | SHIFT: Warp Thrusters | MOUSE: Look
         </div>
     </div>
 
@@ -113,82 +101,101 @@
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
         // --- CONFIG ---
+        const EARTH_RADIUS = 200;
+        const MOON_DISTANCE = 4000;
         const SETTINGS = {
-            turnSpeed: 0.8,    // Lower = Slower Turning
-            pitchSpeed: 0.6,   // Lower = Slower Pitching
-            inertia: 0.92,     // Higher (0-1) = More "slide/weight"
-            maxBank: 0.5       // How much the ship rolls visually when turning
+            turnSpeed: 0.8, pitchSpeed: 0.6, inertia: 0.92,
+            normalThrust: 50, warpThrust: 500
         };
 
         // --- SCENE ---
         const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x000000, 0.0025);
-
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 20000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.toneMapping = THREE.ReinhardToneMapping;
+        // Cinematic tone mapping
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0;
         document.body.appendChild(renderer.domElement);
 
         // --- LIGHTS ---
-        const ambient = new THREE.AmbientLight(0x202020);
+        const ambient = new THREE.AmbientLight(0x111111);
         scene.add(ambient);
-        const sun = new THREE.DirectionalLight(0xffffff, 1.5);
-        sun.position.set(50, 100, 50);
+        // THE SUN
+        const sun = new THREE.DirectionalLight(0xffffff, 3.0);
+        sun.position.set(1000, 500, 1000); // Top right sun position
         scene.add(sun);
 
-        // --- WORLD REFERENCE (The Grids) ---
-        // Floor (Blue)
-        const floorGrid = new THREE.GridHelper(4000, 200, 0x0044ff, 0x001133);
-        floorGrid.position.y = -100;
-        scene.add(floorGrid);
+        // --- CELESTIAL BODIES ---
+        const textureLoader = new THREE.TextureLoader();
+        const earthGroup = new THREE.Group();
+        scene.add(earthGroup);
 
-        // Ceiling (Red - subtle)
-        const ceilingGrid = new THREE.GridHelper(4000, 200, 0xff0044, 0x330011);
-        ceilingGrid.position.y = 300;
-        scene.add(ceilingGrid);
+        // Earth
+        const earthGeo = new THREE.SphereGeometry(EARTH_RADIUS, 64, 64);
+        const earthMat = new THREE.MeshPhongMaterial({
+            map: textureLoader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg'),
+            bumpMap: textureLoader.load('https://unpkg.com/three-globe/example/img/earth-topology.png'),
+            bumpScale: 5,
+            specularMap: textureLoader.load('https://unpkg.com/three-globe/example/img/earth-water.png'),
+            specular: new THREE.Color('grey'),
+            shininess: 10
+        });
+        const earth = new THREE.Mesh(earthGeo, earthMat);
+        earthGroup.add(earth);
+
+        // Atmosphere Glow
+        const atmosMat = new THREE.MeshBasicMaterial({
+            color: 0x4488ff, transparent: true, opacity: 0.1, side: THREE.BackSide, blending: THREE.AdditiveBlending
+        });
+        const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(EARTH_RADIUS * 1.03, 64, 64), atmosMat);
+        earthGroup.add(atmosphere);
+
+        // Moon
+        const moonGeo = new THREE.SphereGeometry(50, 32, 32);
+        const moonMat = new THREE.MeshStandardMaterial({
+            map: textureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/moon_1024.jpg'),
+            roughness: 0.8
+        });
+        const moon = new THREE.Mesh(moonGeo, moonMat);
+        moon.position.set(0, 0, -MOON_DISTANCE);
+        scene.add(moon);
 
         // Stars
         const starsGeo = new THREE.BufferGeometry();
         const starPos = [];
-        for(let i=0; i<8000; i++) {
-            starPos.push((Math.random()-0.5)*5000, (Math.random()-0.5)*5000, (Math.random()-0.5)*5000);
+        for(let i=0; i<10000; i++) {
+            const r = 8000 + Math.random() * 4000;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            starPos.push(r * Math.sin(phi) * Math.cos(theta), r * Math.sin(phi) * Math.sin(theta), r * Math.cos(phi));
         }
         starsGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
-        const stars = new THREE.Points(starsGeo, new THREE.PointsMaterial({color:0xaaaaaa, size: 0.9}));
+        const stars = new THREE.Points(starsGeo, new THREE.PointsMaterial({color:0xaaaaaa, size: 1.5}));
         scene.add(stars);
 
         // --- PLAYER ---
         const playerGroup = new THREE.Group();
+        // Start in orbit
+        playerGroup.position.set(0, EARTH_RADIUS + 50, 0);
         scene.add(playerGroup);
         
         let playerShip;
-        const defaultMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.3, metalness: 0.8, emissive: 0x00ffff, emissiveIntensity: 0.5 });
-
-        // Default Ship Geometry
+        const defaultMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.3, metalness: 0.8 });
         const createShip = () => {
-            const hull = new THREE.Mesh(new THREE.ConeGeometry(1, 5, 4), defaultMat);
+            const hull = new THREE.Mesh(new THREE.ConeGeometry(1, 5, 8), defaultMat);
             hull.rotation.x = Math.PI/2;
-            hull.rotation.y = Math.PI/4;
-            
-            const wings = new THREE.Mesh(new THREE.BoxGeometry(5, 0.1, 2), defaultMat);
+            const wings = new THREE.Mesh(new THREE.BoxGeometry(6, 0.2, 3), defaultMat);
             wings.position.z = 1;
-            
             playerShip = new THREE.Group();
-            playerShip.add(hull);
-            playerShip.add(wings);
+            playerShip.add(hull); playerShip.add(wings);
             playerGroup.add(playerShip);
         };
         createShip();
 
-        // --- GAME LOGIC ARRAYS ---
-        const projectiles = [];
-        const enemies = [];
-        const particles = [];
-
-        // --- INPUT & PHYSICS VARIABLES ---
+        // --- INPUT & PHYSICS ---
         const keys = { w:false, a:false, s:false, d:false, shift:false };
-        const velocity = { thrust: 0, pitch: 0, yaw: 0, roll: 0 }; // Current momentum
+        const velocity = { thrust: 0, pitch: 0, yaw: 0 };
         
         window.addEventListener('keydown', e => {
             if(keys[e.key.toLowerCase()] !== undefined) keys[e.key.toLowerCase()] = true;
@@ -199,206 +206,61 @@
             if(e.key === 'Shift') keys.shift = false;
         });
 
-        window.addEventListener('mousedown', fireLaser);
-
-        // --- SHOOTING ---
-        const laserGeo = new THREE.BoxGeometry(0.3, 0.3, 8);
-        const laserMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-
-        function fireLaser() {
-            if(gameState.gameOver) return;
-            
-            // Create 2 lasers
-            [-1.5, 1.5].forEach(offset => {
-                const laser = new THREE.Mesh(laserGeo, laserMat);
-                const pos = new THREE.Vector3(offset, 0, -2).applyMatrix4(playerGroup.matrixWorld);
-                laser.position.copy(pos);
-                laser.quaternion.copy(playerGroup.quaternion);
-                scene.add(laser);
-                projectiles.push({ mesh: laser, life: 80 });
-            });
-            
-            // Recoil visual
-            playerShip.position.z += 0.4;
-        }
-
-        // --- PARTICLES ---
-        function explode(pos, color) {
-            for(let i=0; i<8; i++) {
-                const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.5,0.5), new THREE.MeshBasicMaterial({color: color}));
-                mesh.position.copy(pos);
-                scene.add(mesh);
-                particles.push({ 
-                    mesh: mesh, 
-                    vel: new THREE.Vector3((Math.random()-.5)*20, (Math.random()-.5)*20, (Math.random()-.5)*20),
-                    life: 40 
-                });
-            }
-        }
-
         // --- MAIN LOOP ---
-        const gameState = { score: 0, combo: 1, lastKill: 0, hp: 100, gameOver: false };
         const clock = new THREE.Clock();
 
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
-            const time = clock.getElapsedTime();
 
-            if(gameState.gameOver) return;
-
-            // --- 1. SMOOTH PHYSICS CONTROLS ---
+            // --- 1. PHYSICS CONTROLS (Smoothed) ---
+            const targetPitch = (keys.w ? 1 : 0) - (keys.s ? 1 : 0);
+            const targetYaw = (keys.a ? 1 : 0) - (keys.d ? 1 : 0);
             
-            // Target rotation speeds based on input
-            const targetPitch = (keys.w ? 1 : 0) - (keys.s ? 1 : 0); // W = Pitch Up (Positive X rotation for Group)
-            const targetYaw = (keys.a ? 1 : 0) - (keys.d ? 1 : 0);   // A = Turn Left (Positive Y rotation)
-            
-            // Apply "Inertia" (Lerp towards target)
             velocity.pitch += (targetPitch * SETTINGS.pitchSpeed - velocity.pitch) * (1 - SETTINGS.inertia);
             velocity.yaw += (targetYaw * SETTINGS.turnSpeed - velocity.yaw) * (1 - SETTINGS.inertia);
             
-            // Apply Rotation
             playerGroup.rotateX(velocity.pitch * delta);
             playerGroup.rotateY(velocity.yaw * delta);
 
-            // Visual "Banking" (Roll the ship model, not the group)
-            // If we are turning Left (Yaw +), we bank Left (Roll +Z)
-            const targetBank = velocity.yaw * 0.5; 
-            playerShip.rotation.z = THREE.MathUtils.lerp(playerShip.rotation.z, targetBank, 0.1);
+            // Visual Banking
+            playerShip.rotation.z = THREE.MathUtils.lerp(playerShip.rotation.z, velocity.yaw * 0.5, 0.1);
 
-            // Thrust Speed
-            const targetThrust = keys.shift ? 100 : 40;
-            velocity.thrust += (targetThrust - velocity.thrust) * 0.05; // Smooth acceleration
+            // Thrust
+            const targetThrust = keys.shift ? SETTINGS.warpThrust : SETTINGS.normalThrust;
+            velocity.thrust += (targetThrust - velocity.thrust) * 0.05;
             playerGroup.translateZ(-velocity.thrust * delta);
 
-            // Keep Floor/Ceiling Grids centered on X/Z but locked on Y
-            floorGrid.position.x = playerGroup.position.x;
-            floorGrid.position.z = playerGroup.position.z;
-            ceilingGrid.position.x = playerGroup.position.x;
-            ceilingGrid.position.z = playerGroup.position.z;
-
-            // Recoil recovery
-            if(playerShip.position.z > 0) playerShip.position.z -= 5 * delta;
-
+            // Slow rotation of Earth/Moon
+            earthGroup.rotation.y += 0.0001;
+            moon.rotation.y += 0.0005;
 
             // --- 2. ARTIFICIAL HORIZON HUD ---
-            // We need the ship's roll (Z rotation) relative to the world
-            // This is a bit of math trickery to extract Roll from the Group quaternion
+            // Calculate pitch/roll relative to global Y axis
             const euler = new THREE.Euler().setFromQuaternion(playerGroup.quaternion, 'YXZ');
-            // Rotate the HTML line opposite to the ship's roll to keep it "level"
             const rollDeg = -THREE.MathUtils.radToDeg(euler.z);
             const pitchDeg = THREE.MathUtils.radToDeg(euler.x);
-            
             const horizonLine = document.getElementById('horizon-line');
-            horizonLine.style.transform = `rotate(${rollDeg}deg) translateY(${pitchDeg * 2}px)`;
+            // Clamp pitch visualization so it doesn't fly off screen
+            const clampedPitch = Math.max(-150, Math.min(150, pitchDeg * 2));
+            horizonLine.style.transform = `rotate(${rollDeg}deg) translateY(${clampedPitch}px)`;
+
+            // --- 3. HUD DATA ---
+            // Altitude: Distance to earth center minus radius
+            const distToEarth = playerGroup.position.distanceTo(earth.position);
+            const altitude = Math.max(0, distToEarth - EARTH_RADIUS);
+            document.getElementById('alt').innerText = altitude.toFixed(1);
+            // Velocity display
+            document.getElementById('vel').innerText = (velocity.thrust / 20).toFixed(1);
 
 
-            // --- 3. CAMERA CHASE ---
-            const camTarget = new THREE.Vector3(0, 6 + (velocity.thrust/30), 15 + (velocity.thrust/10));
+            // --- 4. CAMERA CHASE ---
+            const camTarget = new THREE.Vector3(0, 8 + (velocity.thrust/100), 20 + (velocity.thrust/30));
             camTarget.applyMatrix4(playerGroup.matrixWorld);
             camera.position.lerp(camTarget, 0.1);
-            camera.lookAt(playerGroup.position.clone().translateZ(-50)); // Look slightly ahead
-
-
-            // --- 4. PROJECTILES ---
-            projectiles.forEach((p, i) => {
-                p.mesh.translateZ(-300 * delta); // Fast lasers
-                p.life--;
-                if(p.life <= 0) { scene.remove(p.mesh); projectiles.splice(i,1); }
-            });
-
-
-            // --- 5. ENEMIES ---
-            const spawnRate = 0.02 + (time * 0.0005); // Get harder over time
-            if(Math.random() < spawnRate && enemies.length < 20) {
-                const geo = new THREE.IcosahedronGeometry(2, 0);
-                const mat = new THREE.MeshBasicMaterial({ color: 0xff0055, wireframe: true });
-                const enemy = new THREE.Mesh(geo, mat);
-                
-                // Spawn ahead
-                const spawnPos = new THREE.Vector3(
-                    (Math.random()-0.5)*300,
-                    (Math.random()-0.5)*100,
-                    -300 - (Math.random()*200)
-                );
-                spawnPos.applyMatrix4(playerGroup.matrixWorld);
-                enemy.position.copy(spawnPos);
-                scene.add(enemy);
-                enemies.push(enemy);
-            }
-
-            enemies.forEach((e, i) => {
-                // Move towards player
-                const dir = new THREE.Vector3().subVectors(playerGroup.position, e.position).normalize();
-                e.position.add(dir.multiplyScalar(25 * delta));
-                e.rotation.x += delta; e.rotation.y += delta;
-
-                // Collision: Laser
-                let hit = false;
-                projectiles.forEach((p, pi) => {
-                    if(p.mesh.position.distanceTo(e.position) < 5) {
-                        hit = true;
-                        scene.remove(p.mesh); projectiles.splice(pi,1);
-                    }
-                });
-
-                // Collision: Player
-                if(e.position.distanceTo(playerGroup.position) < 5) {
-                    takeDamage(20);
-                    hit = true;
-                }
-
-                if(hit) {
-                    explode(e.position, 0xff0055);
-                    scene.remove(e); enemies.splice(i,1);
-                    if(e.position.distanceTo(playerGroup.position) > 5) addScore();
-                }
-            });
-
-            // --- 6. PARTICLES ---
-            particles.forEach((p, i) => {
-                p.mesh.position.add(p.vel.clone().multiplyScalar(delta));
-                p.life--;
-                p.mesh.scale.multiplyScalar(0.95);
-                if(p.life <= 0) { scene.remove(p.mesh); particles.splice(i,1); }
-            });
-            
-            // Combo timer
-            if(time - gameState.lastKill > 3 && gameState.combo > 1) {
-                gameState.combo = 1;
-                updateHUD();
-            }
+            camera.lookAt(playerGroup.position.clone().translateZ(-100));
 
             renderer.render(scene, camera);
-        }
-
-        // --- HELPERS ---
-        function takeDamage(amt) {
-            gameState.hp -= amt;
-            updateHUD();
-            const flash = document.getElementById('flash');
-            flash.style.opacity = 0.8;
-            setTimeout(() => flash.style.opacity = 0, 100);
-            
-            if(gameState.hp <= 0) {
-                gameState.gameOver = true;
-                document.querySelector('.hud-bottom').innerHTML = "<h1 style='color:red'>SYSTEM FAILURE // REFRESH TO REBOOT</h1>";
-            }
-        }
-
-        function addScore() {
-            gameState.score += 100 * gameState.combo;
-            if(gameState.combo < 10) gameState.combo++;
-            gameState.lastKill = clock.getElapsedTime();
-            updateHUD();
-        }
-
-        function updateHUD() {
-            document.getElementById('score').innerText = gameState.score.toLocaleString();
-            document.getElementById('combo').innerText = gameState.combo;
-            const bar = document.getElementById('hp-bar');
-            bar.style.width = gameState.hp + '%';
-            if(gameState.hp < 30) bar.style.backgroundColor = 'red';
         }
 
         // --- UPLOAD ---
@@ -407,35 +269,23 @@
             const file = e.target.files[0];
             if(!file) return;
             const url = URL.createObjectURL(file);
-            
             if(file.name.match(/\.(glb|gltf)$/i)) {
                 loader.load(url, gltf => {
-                    playerShip.clear(); // Clear old
-                    const model = gltf.scene;
-                    // Scale normalization
+                    playerShip.clear(); const model = gltf.scene;
                     const box = new THREE.Box3().setFromObject(model);
-                    const size = box.getSize(new THREE.Vector3());
-                    model.scale.setScalar(4 / Math.max(size.x, size.y, size.z));
-                    model.rotation.y = Math.PI;
-                    playerShip.add(model);
+                    model.scale.setScalar(5 / Math.max(box.max.x-box.min.x, box.max.y-box.min.y, box.max.z-box.min.z));
+                    model.rotation.y = Math.PI; playerShip.add(model);
                 });
             } else if(file.name.match(/\.(png|jpg)$/i)) {
                 new THREE.TextureLoader().load(url, tex => {
-                    playerShip.clear();
-                    const aspect = tex.image.height/tex.image.width;
-                    const plane = new THREE.Mesh(
-                        new THREE.PlaneGeometry(4, 4*aspect),
-                        new THREE.MeshBasicMaterial({ map:tex, transparent:true, side:THREE.DoubleSide })
-                    );
-                    plane.rotation.x = -Math.PI/2;
-                    plane.rotation.y = Math.PI;
-                    playerShip.add(plane);
+                    playerShip.clear(); const aspect = tex.image.height/tex.image.width;
+                    const plane = new THREE.Mesh(new THREE.PlaneGeometry(5, 5*aspect), new THREE.MeshBasicMaterial({ map:tex, transparent:true, side:THREE.DoubleSide }));
+                    plane.rotation.x = -Math.PI/2; plane.rotation.y = Math.PI; playerShip.add(plane);
                 });
             }
         });
 
         animate();
-
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth/window.innerHeight;
             camera.updateProjectionMatrix();
