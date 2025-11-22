@@ -2,73 +2,58 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ORBITAL: Live Data Interceptor</title>
+    <title>SOLAR DRIFT // HYPER-V</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', Courier, monospace; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
         canvas { display: block; }
-        
-        /* Cyberpunk HUD */
-        #ui-layer {
+
+        /* Cyberpunk UI Overlay */
+        #hud {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
-            box-shadow: inset 0 0 50px rgba(0, 255, 0, 0.1);
-        }
-        
-        .hud-panel {
-            position: absolute;
-            background: rgba(0, 10, 0, 0.7);
-            border: 1px solid #00ff00;
-            color: #00ff00;
-            padding: 10px;
-            border-radius: 2px;
-            text-shadow: 0 0 5px #00ff00;
-            pointer-events: auto;
+            box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.8);
         }
 
-        #top-bar { top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; }
-        #bottom-left { bottom: 20px; left: 20px; }
-        #bottom-right { bottom: 20px; right: 20px; text-align: right; }
-        
-        h1 { margin: 0; font-size: 18px; letter-spacing: 2px; text-transform: uppercase; }
-        p { margin: 5px 0 0 0; font-size: 12px; opacity: 0.8; }
-        
-        /* Custom File Upload Button */
-        .upload-btn-wrapper {
-            position: relative;
-            overflow: hidden;
-            display: inline-block;
-            cursor: pointer;
-        }
-        
-        .btn {
-            border: 1px solid #00ff00;
-            color: #00ff00;
-            background-color: rgba(0, 20, 0, 0.8);
-            padding: 8px 20px;
+        .panel {
+            position: absolute;
+            background: linear-gradient(180deg, rgba(0, 20, 40, 0.8) 0%, rgba(0,0,0,0.6) 100%);
+            border-left: 2px solid #00ffff;
+            color: #00ffff;
+            padding: 15px;
+            text-shadow: 0 0 5px #00ffff;
             font-size: 14px;
-            font-family: inherit;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        
-        .btn:hover { background: #00ff00; color: #000; }
-        
-        .upload-btn-wrapper input[type=file] {
-            font-size: 100px;
-            position: absolute;
-            left: 0; top: 0; opacity: 0;
-            cursor: pointer;
         }
 
-        #loading {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: #00ff00; font-size: 24px; display: none;
-            text-shadow: 0 0 10px #00ff00;
+        #top-left { top: 20px; left: 20px; }
+        #bottom-center { 
+            bottom: 20px; left: 50%; transform: translateX(-50%); 
+            text-align: center; border: 1px solid #00ffff; border-radius: 20px;
+            background: rgba(0,0,0,0.8);
+            width: 300px;
         }
-        
-        .blinking { animation: blink 1s infinite; }
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        #top-right { top: 20px; right: 20px; border-left: none; border-right: 2px solid #00ffff; text-align: right;}
+
+        h1 { margin: 0 0 5px 0; font-size: 20px; letter-spacing: 3px; }
+        .stat-label { font-size: 10px; opacity: 0.7; display: block; margin-top: 5px; }
+        .stat-val { font-size: 18px; font-weight: bold; }
+
+        /* Upload Button */
+        .upload-wrapper { pointer-events: auto; display: inline-block; margin-top: 10px; }
+        input[type="file"] { display: none; }
+        .btn {
+            background: rgba(0, 255, 255, 0.1); border: 1px solid #00ffff; color: #00ffff;
+            padding: 8px 16px; cursor: pointer; font-family: inherit; transition: 0.3s;
+        }
+        .btn:hover { background: #00ffff; color: #000; box-shadow: 0 0 15px #00ffff; }
+
+        /* Warp Effect UI */
+        #warp-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 50%, rgba(0, 255, 255, 0.2) 100%);
+            opacity: 0; transition: opacity 0.2s; pointer-events: none;
+        }
+        .blink { animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.3; } }
     </style>
     
     <script type="importmap">
@@ -82,350 +67,314 @@
 </head>
 <body>
 
-    <div id="ui-layer">
-        <div id="top-bar" class="hud-panel">
-            <div>
-                <h1>Orbital Interceptor // <span class="blinking">ONLINE</span></h1>
-                <p>WASD: Thrusters | MOUSE: Pitch/Yaw | SPACE: Warp Boost</p>
-            </div>
-            <div class="upload-btn-wrapper">
-                <button class="btn">UPLOAD SHIP (.GLB / .PNG)</button>
-                <input type="file" id="fileInput" accept=".glb,.gltf,.png,.jpg,.jpeg" />
+    <div id="warp-overlay"></div>
+    <div id="hud">
+        <div id="top-left" class="panel">
+            <h1>SOLAR DRIFT</h1>
+            <span class="stat-label">SYSTEM STATUS</span>
+            <span class="stat-val blink">ONLINE</span>
+            
+            <div class="upload-wrapper">
+                <label class="btn">
+                    UPLOAD SHIP (.GLB / .PNG)
+                    <input type="file" id="fileInput" accept=".glb,.gltf,.png,.jpg">
+                </label>
             </div>
         </div>
 
-        <div id="bottom-left" class="hud-panel">
-            <p>ALTITUDE: <span id="hud-alt">0</span> KM</p>
-            <p>VELOCITY: <span id="hud-vel">0</span> MACH</p>
-            <p>COORDS: <span id="hud-pos">0, 0</span></p>
+        <div id="top-right" class="panel">
+            <span class="stat-label">NEAREST CELESTIAL BODY</span>
+            <span class="stat-val" id="target-name">SCANNING...</span>
+            <span class="stat-label">DISTANCE</span>
+            <span class="stat-val" id="target-dist">0 KM</span>
         </div>
 
-        <div id="bottom-right" class="hud-panel">
-            <p>LIVE TRAFFIC: <span id="hud-flights">SEARCHING...</span></p>
-            <p>DATA SOURCE: OPENSKY NETWORK</p>
+        <div id="bottom-center" class="panel">
+            <span class="stat-label">VELOCITY</span>
+            <span id="speed-bar" style="display:block; width:0%; height:4px; background:#00ffff; margin: 5px auto;"></span>
+            <div style="margin-top:5px;">WASD to Fly | SPACE to WARP</div>
         </div>
     </div>
-
-    <div id="loading" class="blinking">UPLOADING BLUEPRINT...</div>
 
     <script type="module">
         import * as THREE from 'three';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
-        // --- Scene Setup ---
+        // --- CONFIG ---
+        // "Toy Scale" allows us to see planets without traveling for real-time years
+        const SCALE_FACTOR = 1; 
+        
+        const PLANET_DATA = [
+            { name: "SUN", size: 80, dist: 0, color: 0xffaa00, emissive: 0xff5500 },
+            { name: "MERCURY", size: 4, dist: 150, color: 0xaaaaaa },
+            { name: "VENUS", size: 8, dist: 250, color: 0xffcc99 },
+            { name: "EARTH", size: 9, dist: 400, color: 0x2244ff, cloud: true },
+            { name: "MARS", size: 5, dist: 550, color: 0xff3300 },
+            { name: "JUPITER", size: 35, dist: 900, color: 0xd9a873 },
+            { name: "SATURN", size: 28, dist: 1300, color: 0xeebb88, rings: true },
+            { name: "URANUS", size: 12, dist: 1700, color: 0x99ffff },
+            { name: "NEPTUNE", size: 11, dist: 2000, color: 0x3333ff }
+        ];
+
+        // --- SCENE SETUP ---
         const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x000000, 0.002);
+        scene.fog = new THREE.FogExp2(0x000005, 0.0002); // Deep space fog
 
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 10000);
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 20000);
         const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
-        // --- Lighting ---
-        const ambientLight = new THREE.AmbientLight(0x333333);
+        // --- LIGHTING ---
+        const ambientLight = new THREE.AmbientLight(0x404040); // Soft ambient
         scene.add(ambientLight);
-        const sunLight = new THREE.DirectionalLight(0xffffff, 2.0);
-        sunLight.position.set(500, 200, 500);
-        scene.add(sunLight);
-        
-        // Cyberpunk Rim Light
-        const rimLight = new THREE.DirectionalLight(0x00ff00, 0.5);
-        rimLight.position.set(-100, 100, -100);
-        scene.add(rimLight);
 
-        // --- Earth & Atmosphere ---
-        const earthGroup = new THREE.Group();
-        scene.add(earthGroup);
+        // The Sun is the main light source
+        const sunLight = new THREE.PointLight(0xffffff, 2.5, 5000, 1);
+        sunLight.position.set(0, 0, 0);
+        scene.add(sunLight);
+
+        // --- OBJECTS ---
+        const planets = [];
+        const celestialGroup = new THREE.Group();
+        scene.add(celestialGroup);
 
         const textureLoader = new THREE.TextureLoader();
+
+        // Helper to create planets
+        PLANET_DATA.forEach(data => {
+            const geometry = new THREE.SphereGeometry(data.size, 64, 64);
+            const material = new THREE.MeshStandardMaterial({
+                color: data.color,
+                roughness: 0.8,
+                metalness: 0.1,
+                emissive: data.emissive || 0x000000,
+                emissiveIntensity: 1
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            
+            // Random start angle for orbit
+            const angle = Math.random() * Math.PI * 2;
+            mesh.position.set(Math.cos(angle) * data.dist, 0, Math.sin(angle) * data.dist);
+            
+            mesh.userData = { name: data.name, orbitDist: data.dist, orbitSpeed: 100 / (data.dist + 10), angle: angle };
+            
+            celestialGroup.add(mesh);
+            planets.push(mesh);
+
+            // Special: Earth Clouds
+            if(data.cloud) {
+                const cGeo = new THREE.SphereGeometry(data.size + 0.5, 32, 32);
+                const cMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 });
+                const clouds = new THREE.Mesh(cGeo, cMat);
+                mesh.add(clouds);
+            }
+
+            // Special: Saturn Rings
+            if(data.rings) {
+                const rGeo = new THREE.RingGeometry(data.size + 5, data.size + 20, 64);
+                const rMat = new THREE.MeshBasicMaterial({ color: 0xaa9977, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+                // UV mapping fix for rings
+                const pos = rGeo.attributes.position;
+                const uv = rGeo.attributes.uv;
+                for ( let i = 0; i < pos.count; i ++ ) {
+                    const x = pos.getX( i );
+                    const y = pos.getY( i );
+                    uv.setXY( i, x < 0 ? 0 : 1, y < 0 ? 0 : 1 ); // Simple mapping
+                }
+                const ring = new THREE.Mesh(rGeo, rMat);
+                ring.rotation.x = Math.PI / 2;
+                mesh.add(ring);
+            }
+        });
+
+        // --- STARFIELD (WARP EFFECT) ---
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 4000;
+        const starPos = new Float32Array(starCount * 3);
+        const starVel = []; // To store individual star quirks
         
-        // Earth Base
-        const earthGeo = new THREE.SphereGeometry(100, 128, 128);
-        const earthMat = new THREE.MeshPhongMaterial({
-            map: textureLoader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg'),
-            bumpMap: textureLoader.load('https://unpkg.com/three-globe/example/img/earth-topology.png'),
-            bumpScale: 2,
-            specularMap: textureLoader.load('https://unpkg.com/three-globe/example/img/earth-water.png'),
-            specular: new THREE.Color('grey'),
-            shininess: 10
-        });
-        const earth = new THREE.Mesh(earthGeo, earthMat);
-        earthGroup.add(earth);
-
-        // Atmosphere Glow
-        const atmosGeo = new THREE.SphereGeometry(102, 64, 64);
-        const atmosMat = new THREE.MeshBasicMaterial({
-            color: 0x4488ff,
-            transparent: true,
-            opacity: 0.15,
-            side: THREE.BackSide,
-            blending: THREE.AdditiveBlending
-        });
-        const atmosphere = new THREE.Mesh(atmosGeo, atmosMat);
-        earthGroup.add(atmosphere);
-
-        // Stars
-        const starsGeo = new THREE.BufferGeometry();
-        const starsCount = 5000;
-        const posArray = new Float32Array(starsCount * 3);
-        for(let i = 0; i < starsCount * 3; i++) {
-            posArray[i] = (Math.random() - 0.5) * 3000;
+        for(let i=0; i<starCount*3; i++) {
+            starPos[i] = (Math.random() - 0.5) * 4000;
         }
-        starsGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-        const starsMat = new THREE.PointsMaterial({ size: 0.8, color: 0xffffff, transparent: true, opacity: 0.8 });
-        const stars = new THREE.Points(starsGeo, starsMat);
-        scene.add(stars);
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 });
+        const starSystem = new THREE.Points(starGeo, starMat);
+        scene.add(starSystem);
 
-        // --- Player Ship System ---
-        const playerContainer = new THREE.Group();
-        scene.add(playerContainer);
 
-        // Default Ship (A cool abstract shape)
+        // --- PLAYER SHIP ---
+        const playerGroup = new THREE.Group();
+        // Start near Earth
+        const earthStart = planets.find(p => p.userData.name === "EARTH");
+        playerGroup.position.set(earthStart.position.x + 20, 0, earthStart.position.z + 20);
+        scene.add(playerGroup);
+
         let playerShip;
         const defaultShipGeo = new THREE.ConeGeometry(0.5, 2, 8);
-        defaultShipGeo.rotateX(Math.PI / 2); // Point forward
-        const defaultShipMat = new THREE.MeshStandardMaterial({ 
-            color: 0x00ff00, 
-            emissive: 0x004400,
-            roughness: 0.4,
-            metalness: 0.8
-        });
+        defaultShipGeo.rotateX(Math.PI/2);
+        const defaultShipMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x004444 });
         playerShip = new THREE.Mesh(defaultShipGeo, defaultShipMat);
-        playerContainer.add(playerShip);
+        playerGroup.add(playerShip);
 
-        // Camera rig (Third Person)
-        const cameraOffset = new THREE.Vector3(0, 5, 15);
-        const currentCameraPos = new THREE.Vector3(0, 120, 140); // Start high
-        
-        // Physics/Movement Variables
+        // --- PHYSICS & CONTROLS ---
         let speed = 0;
-        let maxSpeed = 0.8;
-        let boostSpeed = 2.5;
-        let isBoosting = false;
-        
-        // Coordinates
-        let lat = 0;
-        let lon = 0;
-        let alt = 130; // Start altitude
-        
-        // Input State
-        const keys = { w:false, a:false, s:false, d:false, space:false };
-        const mouse = { x:0, y:0 };
-        
-        document.addEventListener('keydown', e => {
+        const normalMaxSpeed = 0.8;
+        const warpMaxSpeed = 30.0; // HUGE speed for solar travel
+        let currentMaxSpeed = normalMaxSpeed;
+        let velocity = new THREE.Vector3();
+        let rotationVelocity = new THREE.Vector2();
+        const keys = { w: false, s: false, a: false, d: false, space: false };
+        const mouse = { x: 0, y: 0 };
+
+        // Event Listeners
+        window.addEventListener('keydown', (e) => {
             if(e.key.toLowerCase() === 'w') keys.w = true;
             if(e.key.toLowerCase() === 's') keys.s = true;
             if(e.key.toLowerCase() === 'a') keys.a = true;
             if(e.key.toLowerCase() === 'd') keys.d = true;
             if(e.code === 'Space') keys.space = true;
         });
-        
-        document.addEventListener('keyup', e => {
+        window.addEventListener('keyup', (e) => {
             if(e.key.toLowerCase() === 'w') keys.w = false;
             if(e.key.toLowerCase() === 's') keys.s = false;
             if(e.key.toLowerCase() === 'a') keys.a = false;
             if(e.key.toLowerCase() === 'd') keys.d = false;
             if(e.code === 'Space') keys.space = false;
         });
-
-        document.addEventListener('mousemove', e => {
-            // Normalize mouse -1 to 1
+        window.addEventListener('mousemove', (e) => {
             mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
         });
 
-        // --- Live Flight Data System ---
-        const flightsGroup = new THREE.Group();
-        earthGroup.add(flightsGroup); // Add flights as children of Earth so they rotate with it
-        const flightGeo = new THREE.OctahedronGeometry(0.3);
-        const flightMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
-
-        async function fetchFlights() {
-            document.getElementById('hud-flights').innerText = "SYNCING...";
-            try {
-                const response = await fetch('https://opensky-network.org/api/states/all');
-                const data = await response.json();
-                
-                // Clear old
-                while(flightsGroup.children.length > 0){ 
-                    flightsGroup.remove(flightsGroup.children[0]); 
-                }
-
-                let count = 0;
-                if (data.states) {
-                    data.states.forEach(state => {
-                        if (count > 3000) return; // Cap limit for performance
-                        const lat = state[6];
-                        const lon = state[5];
-                        const alt = state[7];
-                        
-                        if (lat && lon) {
-                            const phi = (90 - lat) * (Math.PI / 180);
-                            const theta = (lon + 180) * (Math.PI / 180);
-                            // Scale down altitude visually or they fly too high
-                            const r = 100 + (alt ? alt / 2000 : 0.5); 
-
-                            const x = -(r * Math.sin(phi) * Math.cos(theta));
-                            const y = r * Math.cos(phi);
-                            const z = r * Math.sin(phi) * Math.sin(theta);
-
-                            const plane = new THREE.Mesh(flightGeo, flightMat);
-                            plane.position.set(x, y, z);
-                            plane.lookAt(0,0,0); // Point feet at earth
-                            flightsGroup.add(plane);
-                            count++;
-                        }
-                    });
-                }
-                document.getElementById('hud-flights').innerText = count + " TRACKED";
-            } catch (e) {
-                console.warn("API Limit", e);
-                document.getElementById('hud-flights').innerText = "OFFLINE (API LIMIT)";
-            }
-        }
-        
-        // Fetch immediately and then every 20s
-        fetchFlights();
-        setInterval(fetchFlights, 20000);
-
-        // --- File Upload Logic ---
-        const fileInput = document.getElementById('fileInput');
-        const gltfLoader = new GLTFLoader();
-        const loadingDiv = document.getElementById('loading');
-
-        fileInput.addEventListener('change', function(e) {
+        // --- FILE UPLOAD ---
+        const loader = new GLTFLoader();
+        document.getElementById('fileInput').addEventListener('change', (e) => {
             const file = e.target.files[0];
-            if (!file) return;
-
+            if(!file) return;
             const url = URL.createObjectURL(file);
-            const extension = file.name.split('.').pop().toLowerCase();
+            const ext = file.name.split('.').pop().toLowerCase();
 
-            loadingDiv.style.display = 'block';
-
-            if (['glb', 'gltf'].includes(extension)) {
-                // Load 3D Model
-                gltfLoader.load(url, (gltf) => {
-                    // Remove old ship
-                    playerContainer.remove(playerShip);
-                    
+            if(['glb','gltf'].includes(ext)){
+                loader.load(url, (gltf) => {
+                    playerGroup.remove(playerShip);
                     playerShip = gltf.scene;
-                    
-                    // Normalize Scale (Very important for user uploads)
+                    // Normalize Scale
                     const box = new THREE.Box3().setFromObject(playerShip);
-                    const size = new THREE.Vector3();
-                    box.getSize(size);
-                    const maxDim = Math.max(size.x, size.y, size.z);
-                    const scaleFactor = 3 / maxDim; // Scale to approx 3 units
-                    playerShip.scale.setScalar(scaleFactor);
-
-                    // Fix rotation (many models come facing +Z or +Y)
-                    playerShip.rotation.y = Math.PI; // Spin around if needed
-                    
-                    playerContainer.add(playerShip);
-                    loadingDiv.style.display = 'none';
-                }, undefined, (error) => {
-                    console.error(error);
-                    loadingDiv.innerText = "ERROR LOADING MODEL";
+                    const size = box.getSize(new THREE.Vector3());
+                    const scale = 2 / Math.max(size.x, size.y, size.z);
+                    playerShip.scale.setScalar(scale);
+                    playerShip.rotation.y = Math.PI; // Often needed
+                    playerGroup.add(playerShip);
                 });
-            } else if (['png', 'jpg', 'jpeg'].includes(extension)) {
-                // Load Image as Billboard
+            } else if(['png','jpg'].includes(ext)) {
                 new THREE.TextureLoader().load(url, (tex) => {
-                     playerContainer.remove(playerShip);
-                     const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
-                     const geo = new THREE.PlaneGeometry(3, 3 * (tex.image.height / tex.image.width));
-                     playerShip = new THREE.Mesh(geo, mat);
-                     // Lay it flat or stand it up? Let's stand it up and billboard it
-                     playerShip.rotation.x = -Math.PI / 2; 
-                     playerShip.rotation.y = Math.PI; // Face camera
-                     playerContainer.add(playerShip);
-                     loadingDiv.style.display = 'none';
+                    playerGroup.remove(playerShip);
+                    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+                    const ratio = tex.image.height / tex.image.width;
+                    const geo = new THREE.PlaneGeometry(3, 3*ratio);
+                    playerShip = new THREE.Mesh(geo, mat);
+                    playerShip.rotation.x = -Math.PI/2; 
+                    playerShip.rotation.y = Math.PI;
+                    playerGroup.add(playerShip);
                 });
             }
         });
 
 
-        // --- Animation Loop ---
+        // --- ANIMATION LOOP ---
         const clock = new THREE.Clock();
-        
+
         function animate() {
             requestAnimationFrame(animate);
-            
             const delta = clock.getDelta();
-            
-            // 1. Handle Inputs & Speed
-            isBoosting = keys.space;
-            const targetSpeed = (keys.w ? maxSpeed : 0) * (isBoosting ? boostSpeed : 1);
-            speed += (targetSpeed - speed) * 0.1; // Acceleration
-            
-            // 2. Movement (Spherical Coordinates)
-            if (keys.w || speed > 0.01) {
-                // Move "Forward" means rotating the Earth group? 
-                // No, let's orbit the player coordinates around the sphere logic
-                // Simplified: We update lat/lon based on input
-                
-                // Pitch (Mouse Y) affects Altitude slightly or speed? Let's just do simple arcade flight
-                // Turning (Mouse X + A/D)
-                const turnSpeed = 0.5 * delta;
-                
-                // Determine flight direction vectors
-                // This is complex in spherical, so we'll cheat:
-                // We rotate the "World" (EarthGroup) opposite to the player's movement
-                // This makes the player feel like they are flying
-                
-                const moveVector = new THREE.Vector3(0, 0, 1); // Forward
-                
-                // Rotate flight direction based on mouse x (Yaw)
-                const yaw = -mouse.x * 1.5;
-                const pitch = mouse.y * 1.0;
-                
-                // Visually rotate the ship
-                playerShip.rotation.z = THREE.MathUtils.lerp(playerShip.rotation.z, -mouse.x * 0.8 - (keys.a?0.5:0) + (keys.d?0.5:0), 0.1);
-                playerShip.rotation.x = THREE.MathUtils.lerp(playerShip.rotation.x, pitch * 0.5, 0.1);
-                
-                // Move the EARTH under the player
-                // Rotate Earth Group based on speed
-                earthGroup.rotateX(speed * delta * 0.5 * (1 + pitch)); 
-                earthGroup.rotateY(speed * delta * 0.5 * yaw);
-            }
 
-            // 3. Camera Follow Logic
-            // Calculate ideal camera position relative to ship
-            const idealOffset = new THREE.Vector3(0, 8 + (speed*5), 20 + (speed*10));
-            idealOffset.applyMatrix4(playerContainer.matrixWorld); // Convert to world space
-            
-            // Smoothly interpolate current cam pos to ideal
-            currentCameraPos.lerp(idealOffset, 0.1);
-            camera.position.copy(currentCameraPos);
-            camera.lookAt(playerContainer.position);
+            // 1. Planet Orbits (They move slowly)
+            planets.forEach(p => {
+                if(p.userData.name === "SUN") return;
+                p.userData.angle += p.userData.orbitSpeed * 0.005 * delta;
+                p.position.x = Math.cos(p.userData.angle) * p.userData.orbitDist;
+                p.position.z = Math.sin(p.userData.angle) * p.userData.orbitDist;
+                p.rotation.y += 0.5 * delta;
+            });
 
-            // 4. HUD Updates
-            document.getElementById('hud-alt').innerText = (130 + (mouse.y * 10)).toFixed(1);
-            document.getElementById('hud-vel').innerText = (speed * 10).toFixed(2);
+            // 2. Ship Physics
+            const isWarp = keys.space;
+            const targetMax = isWarp ? warpMaxSpeed : normalMaxSpeed;
             
-            // 5. Visual Effects
-            if(isBoosting) {
-               camera.fov = THREE.MathUtils.lerp(camera.fov, 85, 0.1);
-            } else {
-               camera.fov = THREE.MathUtils.lerp(camera.fov, 60, 0.1);
-            }
+            // Acceleration
+            if(keys.w) speed += 20.0 * delta;
+            else if(keys.s) speed -= 20.0 * delta;
+            else speed -= speed * 2.0 * delta; // Friction
+            
+            // Clamp speed
+            speed = Math.max(0, Math.min(speed, targetMax));
+
+            // Turning (Mouse controls Pitch/Yaw, A/D controls Roll)
+            playerGroup.rotateY(-mouse.x * 1.5 * delta);
+            playerGroup.rotateX(mouse.y * 1.5 * delta);
+            if(keys.a) playerGroup.rotateZ(2.0 * delta);
+            if(keys.d) playerGroup.rotateZ(-2.0 * delta);
+
+            // Move forward based on rotation
+            playerGroup.translateZ(speed * 100 * delta); // Multiplier for scale
+
+            // 3. Visual Effects (Warp)
+            const fovTarget = isWarp ? 110 : 60;
+            camera.fov += (fovTarget - camera.fov) * 0.05;
             camera.updateProjectionMatrix();
 
-            // Rotate stars slowly
-            stars.rotation.y += 0.0005;
+            // Shake effect at high speed
+            if(isWarp && speed > 10) {
+                playerShip.position.x = (Math.random()-0.5) * 0.1;
+                playerShip.position.y = (Math.random()-0.5) * 0.1;
+                document.getElementById('warp-overlay').style.opacity = (speed/warpMaxSpeed) * 0.8;
+            } else {
+                playerShip.position.set(0,0,0);
+                document.getElementById('warp-overlay').style.opacity = 0;
+            }
 
+            // 4. Camera Chase
+            // Get position behind ship
+            const relativeCameraOffset = new THREE.Vector3(0, 5 + (speed/5), -15 - (speed/2));
+            const cameraOffset = relativeCameraOffset.applyMatrix4(playerGroup.matrixWorld);
+            
+            camera.position.lerp(cameraOffset, 0.1);
+            camera.lookAt(playerGroup.position);
+
+            // 5. HUD Data
+            // Find nearest planet
+            let nearest = null;
+            let minDist = Infinity;
+            planets.forEach(p => {
+                const dist = playerGroup.position.distanceTo(p.position);
+                if(dist < minDist) {
+                    minDist = dist;
+                    nearest = p;
+                }
+            });
+
+            if(nearest) {
+                document.getElementById('target-name').innerText = nearest.userData.name;
+                document.getElementById('target-dist').innerText = Math.floor(minDist) + " MKm";
+            }
+            document.getElementById('speed-bar').style.width = (speed / warpMaxSpeed * 100) + "%";
+
+            // Render
             renderer.render(scene, camera);
         }
 
         animate();
 
-        // Resize
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
+
     </script>
 </body>
 </html>
