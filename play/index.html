@@ -2,58 +2,68 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>SOLAR DRIFT // HYPER-V</title>
+    <title>SOLAR DRIFT: INTERCEPTOR</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
+        body { 
+            margin: 0; overflow: hidden; background: #000; 
+            font-family: 'Courier New', monospace; 
+            user-select: none; /* Prevents highlighting text while shooting */
+        }
         canvas { display: block; }
 
-        /* Cyberpunk UI Overlay */
+        /* HUD STYLING */
         #hud {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
-            box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.8);
         }
 
         .panel {
             position: absolute;
-            background: linear-gradient(180deg, rgba(0, 20, 40, 0.8) 0%, rgba(0,0,0,0.6) 100%);
-            border-left: 2px solid #00ffff;
-            color: #00ffff;
+            background: rgba(0, 10, 0, 0.8);
+            border: 1px solid #00ff00;
+            color: #00ff00;
             padding: 15px;
-            text-shadow: 0 0 5px #00ffff;
-            font-size: 14px;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+            transform: skew(-5deg); /* Cyberpunk tilt */
         }
 
         #top-left { top: 20px; left: 20px; }
         #bottom-center { 
-            bottom: 20px; left: 50%; transform: translateX(-50%); 
-            text-align: center; border: 1px solid #00ffff; border-radius: 20px;
-            background: rgba(0,0,0,0.8);
-            width: 300px;
+            bottom: 30px; left: 50%; transform: translateX(-50%) skew(-5deg);
+            text-align: center; width: 400px;
         }
-        #top-right { top: 20px; right: 20px; border-left: none; border-right: 2px solid #00ffff; text-align: right;}
+        #reticle {
+            position: absolute; top: 50%; left: 50%;
+            width: 40px; height: 40px;
+            border: 1px solid rgba(0, 255, 0, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        #reticle::after {
+            content: ''; position: absolute; top: 50%; left: 50%;
+            width: 4px; height: 4px; background: #00ff00;
+            transform: translate(-50%, -50%);
+        }
 
-        h1 { margin: 0 0 5px 0; font-size: 20px; letter-spacing: 3px; }
-        .stat-label { font-size: 10px; opacity: 0.7; display: block; margin-top: 5px; }
-        .stat-val { font-size: 18px; font-weight: bold; }
-
-        /* Upload Button */
-        .upload-wrapper { pointer-events: auto; display: inline-block; margin-top: 10px; }
+        .bar-container { width: 100%; background: #003300; height: 6px; margin-top: 5px; }
+        .bar-fill { height: 100%; background: #00ff00; width: 0%; transition: width 0.1s; }
+        
+        /* Upload UI */
+        .upload-btn {
+            pointer-events: auto;
+            background: transparent; color: #00ff00; border: 1px solid #00ff00;
+            padding: 5px 10px; cursor: pointer; font-size: 12px; margin-top: 10px;
+            display: inline-block; text-decoration: none;
+        }
         input[type="file"] { display: none; }
-        .btn {
-            background: rgba(0, 255, 255, 0.1); border: 1px solid #00ffff; color: #00ffff;
-            padding: 8px 16px; cursor: pointer; font-family: inherit; transition: 0.3s;
-        }
-        .btn:hover { background: #00ffff; color: #000; box-shadow: 0 0 15px #00ffff; }
 
-        /* Warp Effect UI */
-        #warp-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle, transparent 50%, rgba(0, 255, 255, 0.2) 100%);
-            opacity: 0; transition: opacity 0.2s; pointer-events: none;
+        /* Warp tunnel effect */
+        #warp-fx {
+            position: absolute; inset: 0;
+            background: radial-gradient(circle, transparent 40%, rgba(0,255,255, 0.1) 90%);
+            opacity: 0; transition: opacity 0.5s;
         }
-        .blink { animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0.3; } }
     </style>
     
     <script type="importmap">
@@ -67,223 +77,210 @@
 </head>
 <body>
 
-    <div id="warp-overlay"></div>
+    <div id="warp-fx"></div>
+    <div id="reticle"></div>
+
     <div id="hud">
         <div id="top-left" class="panel">
-            <h1>SOLAR DRIFT</h1>
-            <span class="stat-label">SYSTEM STATUS</span>
-            <span class="stat-val blink">ONLINE</span>
-            
-            <div class="upload-wrapper">
-                <label class="btn">
-                    UPLOAD SHIP (.GLB / .PNG)
-                    <input type="file" id="fileInput" accept=".glb,.gltf,.png,.jpg">
-                </label>
-            </div>
-        </div>
-
-        <div id="top-right" class="panel">
-            <span class="stat-label">NEAREST CELESTIAL BODY</span>
-            <span class="stat-val" id="target-name">SCANNING...</span>
-            <span class="stat-label">DISTANCE</span>
-            <span class="stat-val" id="target-dist">0 KM</span>
+            <strong>SYSTEMS ONLINE</strong><br>
+            <span style="font-size:12px; opacity:0.7;">WEAPONS HOT</span>
+            <br>
+            <label class="upload-btn">
+                CHANGE SHIP
+                <input type="file" id="fileInput" accept=".glb,.gltf,.png,.jpg">
+            </label>
         </div>
 
         <div id="bottom-center" class="panel">
-            <span class="stat-label">VELOCITY</span>
-            <span id="speed-bar" style="display:block; width:0%; height:4px; background:#00ffff; margin: 5px auto;"></span>
-            <div style="margin-top:5px;">WASD to Fly | SPACE to WARP</div>
+            <div style="display:flex; justify-content:space-between; font-size:12px;">
+                <span>THRUST (SHIFT)</span>
+                <span>WARP (SPACE)</span>
+            </div>
+            <div class="bar-container"><div id="speed-bar" class="bar-fill"></div></div>
+            <div style="margin-top:8px; font-size:10px; opacity:0.8;">
+                W/S: PITCH | A/D: YAW | CLICK: PLASMA
+            </div>
         </div>
     </div>
 
     <script type="module">
         import * as THREE from 'three';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-
-        // --- CONFIG ---
-        // "Toy Scale" allows us to see planets without traveling for real-time years
-        const SCALE_FACTOR = 1; 
-        
-        const PLANET_DATA = [
-            { name: "SUN", size: 80, dist: 0, color: 0xffaa00, emissive: 0xff5500 },
-            { name: "MERCURY", size: 4, dist: 150, color: 0xaaaaaa },
-            { name: "VENUS", size: 8, dist: 250, color: 0xffcc99 },
-            { name: "EARTH", size: 9, dist: 400, color: 0x2244ff, cloud: true },
-            { name: "MARS", size: 5, dist: 550, color: 0xff3300 },
-            { name: "JUPITER", size: 35, dist: 900, color: 0xd9a873 },
-            { name: "SATURN", size: 28, dist: 1300, color: 0xeebb88, rings: true },
-            { name: "URANUS", size: 12, dist: 1700, color: 0x99ffff },
-            { name: "NEPTUNE", size: 11, dist: 2000, color: 0x3333ff }
-        ];
 
         // --- SCENE SETUP ---
         const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x000005, 0.0002); // Deep space fog
+        scene.fog = new THREE.FogExp2(0x000000, 0.0003); // Deep space darkness
 
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 20000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 30000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
-        // --- LIGHTING ---
-        const ambientLight = new THREE.AmbientLight(0x404040); // Soft ambient
+        // --- LIGHTS ---
+        const ambientLight = new THREE.AmbientLight(0x222222);
         scene.add(ambientLight);
-
-        // The Sun is the main light source
-        const sunLight = new THREE.PointLight(0xffffff, 2.5, 5000, 1);
-        sunLight.position.set(0, 0, 0);
+        const sunLight = new THREE.PointLight(0xffffff, 3, 10000, 1); // The Sun
         scene.add(sunLight);
 
-        // --- OBJECTS ---
+        // --- SOLAR SYSTEM (Simplified) ---
         const planets = [];
         const celestialGroup = new THREE.Group();
         scene.add(celestialGroup);
 
-        const textureLoader = new THREE.TextureLoader();
+        // Sun
+        const sunGeo = new THREE.SphereGeometry(100, 32, 32);
+        const sunMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+        const sun = new THREE.Mesh(sunGeo, sunMat);
+        // Sun Glow
+        const sunGlow = new THREE.Mesh(
+            new THREE.SphereGeometry(120, 32, 32),
+            new THREE.MeshBasicMaterial({ color: 0xff4400, transparent: true, opacity: 0.3, side: THREE.BackSide })
+        );
+        sun.add(sunGlow);
+        celestialGroup.add(sun);
+        planets.push({ mesh: sun, name: "SUN", speed: 0, dist: 0 });
 
-        // Helper to create planets
-        PLANET_DATA.forEach(data => {
-            const geometry = new THREE.SphereGeometry(data.size, 64, 64);
-            const material = new THREE.MeshStandardMaterial({
-                color: data.color,
-                roughness: 0.8,
-                metalness: 0.1,
-                emissive: data.emissive || 0x000000,
-                emissiveIntensity: 1
+        // Planet Generator
+        function createPlanet(size, dist, color, name) {
+            const geo = new THREE.SphereGeometry(size, 32, 32);
+            const mat = new THREE.MeshStandardMaterial({ 
+                color: color, roughness: 0.7, metalness: 0.2 
             });
+            const mesh = new THREE.Mesh(geo, mat);
             
-            const mesh = new THREE.Mesh(geometry, material);
+            // Orbit logic
+            const angle = Math.random() * 6.28;
+            mesh.position.set(Math.cos(angle)*dist, 0, Math.sin(angle)*dist);
             
-            // Random start angle for orbit
-            const angle = Math.random() * Math.PI * 2;
-            mesh.position.set(Math.cos(angle) * data.dist, 0, Math.sin(angle) * data.dist);
-            
-            mesh.userData = { name: data.name, orbitDist: data.dist, orbitSpeed: 100 / (data.dist + 10), angle: angle };
-            
+            // Add Orbit Ring Visual
+            const ringGeo = new THREE.RingGeometry(dist-0.5, dist+0.5, 128);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0x333333, side: THREE.DoubleSide, transparent:true, opacity:0.3 });
+            const orbitRing = new THREE.Mesh(ringGeo, ringMat);
+            orbitRing.rotation.x = Math.PI/2;
+            celestialGroup.add(orbitRing);
+
+            mesh.userData = { angle: angle, dist: dist, speed: 50/dist };
             celestialGroup.add(mesh);
-            planets.push(mesh);
-
-            // Special: Earth Clouds
-            if(data.cloud) {
-                const cGeo = new THREE.SphereGeometry(data.size + 0.5, 32, 32);
-                const cMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 });
-                const clouds = new THREE.Mesh(cGeo, cMat);
-                mesh.add(clouds);
-            }
-
-            // Special: Saturn Rings
-            if(data.rings) {
-                const rGeo = new THREE.RingGeometry(data.size + 5, data.size + 20, 64);
-                const rMat = new THREE.MeshBasicMaterial({ color: 0xaa9977, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
-                // UV mapping fix for rings
-                const pos = rGeo.attributes.position;
-                const uv = rGeo.attributes.uv;
-                for ( let i = 0; i < pos.count; i ++ ) {
-                    const x = pos.getX( i );
-                    const y = pos.getY( i );
-                    uv.setXY( i, x < 0 ? 0 : 1, y < 0 ? 0 : 1 ); // Simple mapping
-                }
-                const ring = new THREE.Mesh(rGeo, rMat);
-                ring.rotation.x = Math.PI / 2;
-                mesh.add(ring);
-            }
-        });
-
-        // --- STARFIELD (WARP EFFECT) ---
-        const starGeo = new THREE.BufferGeometry();
-        const starCount = 4000;
-        const starPos = new Float32Array(starCount * 3);
-        const starVel = []; // To store individual star quirks
-        
-        for(let i=0; i<starCount*3; i++) {
-            starPos[i] = (Math.random() - 0.5) * 4000;
+            planets.push({ mesh: mesh, name: name });
+            return mesh;
         }
-        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-        const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 });
-        const starSystem = new THREE.Points(starGeo, starMat);
-        scene.add(starSystem);
 
+        createPlanet(10, 300, 0x00ccff, "EARTH");
+        createPlanet(8, 500, 0xff3300, "MARS");
+        createPlanet(30, 900, 0xffaa88, "JUPITER");
+        createPlanet(25, 1400, 0xccbb99, "SATURN");
 
-        // --- PLAYER SHIP ---
+        // --- STARS ---
+        const starGeo = new THREE.BufferGeometry();
+        const starPos = [];
+        for(let i=0; i<3000; i++) {
+            starPos.push((Math.random()-0.5)*4000, (Math.random()-0.5)*4000, (Math.random()-0.5)*4000);
+        }
+        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+        const starMat = new THREE.PointsMaterial({color:0xffffff, size: 0.8});
+        const stars = new THREE.Points(starGeo, starMat);
+        scene.add(stars);
+
+        // --- PLAYER ---
         const playerGroup = new THREE.Group();
-        // Start near Earth
-        const earthStart = planets.find(p => p.userData.name === "EARTH");
-        playerGroup.position.set(earthStart.position.x + 20, 0, earthStart.position.z + 20);
+        playerGroup.position.set(320, 0, 20); // Start near Earth
+        playerGroup.rotation.y = Math.PI; // Face sun roughly
         scene.add(playerGroup);
 
+        // Ship Model
         let playerShip;
-        const defaultShipGeo = new THREE.ConeGeometry(0.5, 2, 8);
-        defaultShipGeo.rotateX(Math.PI/2);
-        const defaultShipMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x004444 });
-        playerShip = new THREE.Mesh(defaultShipGeo, defaultShipMat);
-        playerGroup.add(playerShip);
+        const loadDefaultShip = () => {
+            const geo = new THREE.ConeGeometry(1, 4, 8);
+            geo.rotateX(Math.PI/2);
+            const mat = new THREE.MeshStandardMaterial({ color: 0x00ff00, roughness: 0.2, metalness: 0.8 });
+            playerShip = new THREE.Mesh(geo, mat);
+            playerGroup.add(playerShip);
+        };
+        loadDefaultShip();
 
-        // --- PHYSICS & CONTROLS ---
+        // --- LASER SYSTEM ---
+        const lasers = [];
+        const laserGeo = new THREE.CylinderGeometry(0.2, 0.2, 8, 8);
+        laserGeo.rotateX(Math.PI/2); // Point forward
+        const laserMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, blending: THREE.AdditiveBlending });
+        
+        window.addEventListener('mousedown', () => {
+            const laser = new THREE.Mesh(laserGeo, laserMat);
+            
+            // Spawn at ship position
+            laser.position.copy(playerGroup.position);
+            laser.quaternion.copy(playerGroup.quaternion);
+            
+            // Offset slightly forward so we don't shoot ourselves
+            laser.translateZ(5);
+            
+            scene.add(laser);
+            lasers.push({ mesh: laser, life: 100 }); // Life = frames until death
+
+            // Visual Recoil
+            if(playerShip) playerShip.position.z += 0.5;
+        });
+
+        // --- CONTROLS & PHYSICS ---
+        const keys = { w:false, a:false, s:false, d:false, shift:false, space:false };
         let speed = 0;
-        const normalMaxSpeed = 0.8;
-        const warpMaxSpeed = 30.0; // HUGE speed for solar travel
-        let currentMaxSpeed = normalMaxSpeed;
-        let velocity = new THREE.Vector3();
-        let rotationVelocity = new THREE.Vector2();
-        const keys = { w: false, s: false, a: false, d: false, space: false };
-        const mouse = { x: 0, y: 0 };
+        const MAX_SPEED = 2.0;
+        const WARP_SPEED = 40.0;
+        const ROT_SPEED = 1.5;
 
-        // Event Listeners
-        window.addEventListener('keydown', (e) => {
-            if(e.key.toLowerCase() === 'w') keys.w = true;
-            if(e.key.toLowerCase() === 's') keys.s = true;
-            if(e.key.toLowerCase() === 'a') keys.a = true;
-            if(e.key.toLowerCase() === 'd') keys.d = true;
+        window.addEventListener('keydown', e => {
+            const key = e.key.toLowerCase();
+            if(key === 'w') keys.w = true;
+            if(key === 's') keys.s = true;
+            if(key === 'a') keys.a = true;
+            if(key === 'd') keys.d = true;
+            if(e.key === 'Shift') keys.shift = true;
             if(e.code === 'Space') keys.space = true;
         });
-        window.addEventListener('keyup', (e) => {
-            if(e.key.toLowerCase() === 'w') keys.w = false;
-            if(e.key.toLowerCase() === 's') keys.s = false;
-            if(e.key.toLowerCase() === 'a') keys.a = false;
-            if(e.key.toLowerCase() === 'd') keys.d = false;
+        window.addEventListener('keyup', e => {
+            const key = e.key.toLowerCase();
+            if(key === 'w') keys.w = false;
+            if(key === 's') keys.s = false;
+            if(key === 'a') keys.a = false;
+            if(key === 'd') keys.d = false;
+            if(e.key === 'Shift') keys.shift = false;
             if(e.code === 'Space') keys.space = false;
-        });
-        window.addEventListener('mousemove', (e) => {
-            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
         });
 
         // --- FILE UPLOAD ---
-        const loader = new GLTFLoader();
+        const gltfLoader = new GLTFLoader();
         document.getElementById('fileInput').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if(!file) return;
             const url = URL.createObjectURL(file);
-            const ext = file.name.split('.').pop().toLowerCase();
-
-            if(['glb','gltf'].includes(ext)){
-                loader.load(url, (gltf) => {
+            
+            if(file.name.match(/\.(glb|gltf)$/i)) {
+                gltfLoader.load(url, (gltf) => {
                     playerGroup.remove(playerShip);
                     playerShip = gltf.scene;
-                    // Normalize Scale
+                    // Normalize scale
                     const box = new THREE.Box3().setFromObject(playerShip);
                     const size = box.getSize(new THREE.Vector3());
-                    const scale = 2 / Math.max(size.x, size.y, size.z);
+                    const scale = 4 / Math.max(size.x, size.y, size.z);
                     playerShip.scale.setScalar(scale);
-                    playerShip.rotation.y = Math.PI; // Often needed
+                    playerShip.rotation.y = Math.PI; 
                     playerGroup.add(playerShip);
                 });
-            } else if(['png','jpg'].includes(ext)) {
+            } else if(file.name.match(/\.(png|jpg|jpeg)$/i)) {
                 new THREE.TextureLoader().load(url, (tex) => {
                     playerGroup.remove(playerShip);
-                    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
-                    const ratio = tex.image.height / tex.image.width;
-                    const geo = new THREE.PlaneGeometry(3, 3*ratio);
-                    playerShip = new THREE.Mesh(geo, mat);
-                    playerShip.rotation.x = -Math.PI/2; 
+                    const aspect = tex.image.height/tex.image.width;
+                    playerShip = new THREE.Mesh(
+                        new THREE.PlaneGeometry(4, 4*aspect),
+                        new THREE.MeshBasicMaterial({ map:tex, transparent:true, side:THREE.DoubleSide })
+                    );
+                    playerShip.rotation.x = -Math.PI/2;
                     playerShip.rotation.y = Math.PI;
                     playerGroup.add(playerShip);
                 });
             }
         });
-
 
         // --- ANIMATION LOOP ---
         const clock = new THREE.Clock();
@@ -292,85 +289,70 @@
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
 
-            // 1. Planet Orbits (They move slowly)
-            planets.forEach(p => {
-                if(p.userData.name === "SUN") return;
-                p.userData.angle += p.userData.orbitSpeed * 0.005 * delta;
-                p.position.x = Math.cos(p.userData.angle) * p.userData.orbitDist;
-                p.position.z = Math.sin(p.userData.angle) * p.userData.orbitDist;
-                p.rotation.y += 0.5 * delta;
-            });
+            // 1. Ship Rotation (WASD)
+            if(keys.w) playerGroup.rotateX(ROT_SPEED * delta);  // Pitch Up
+            if(keys.s) playerGroup.rotateX(-ROT_SPEED * delta); // Pitch Down
+            if(keys.a) playerGroup.rotateY(ROT_SPEED * delta);  // Yaw Left
+            if(keys.d) playerGroup.rotateY(-ROT_SPEED * delta); // Yaw Right
 
-            // 2. Ship Physics
-            const isWarp = keys.space;
-            const targetMax = isWarp ? warpMaxSpeed : normalMaxSpeed;
+            // 2. Ship Speed
+            let targetSpeed = 0;
+            if(keys.space) targetSpeed = WARP_SPEED;
+            else if(keys.shift) targetSpeed = MAX_SPEED;
             
-            // Acceleration
-            if(keys.w) speed += 20.0 * delta;
-            else if(keys.s) speed -= 20.0 * delta;
-            else speed -= speed * 2.0 * delta; // Friction
+            // Smooth acceleration
+            speed += (targetSpeed - speed) * 2.0 * delta;
             
-            // Clamp speed
-            speed = Math.max(0, Math.min(speed, targetMax));
+            // Apply movement (Always move forward)
+            playerGroup.translateZ(speed * 50 * delta);
 
-            // Turning (Mouse controls Pitch/Yaw, A/D controls Roll)
-            playerGroup.rotateY(-mouse.x * 1.5 * delta);
-            playerGroup.rotateX(mouse.y * 1.5 * delta);
-            if(keys.a) playerGroup.rotateZ(2.0 * delta);
-            if(keys.d) playerGroup.rotateZ(-2.0 * delta);
-
-            // Move forward based on rotation
-            playerGroup.translateZ(speed * 100 * delta); // Multiplier for scale
-
-            // 3. Visual Effects (Warp)
-            const fovTarget = isWarp ? 110 : 60;
-            camera.fov += (fovTarget - camera.fov) * 0.05;
-            camera.updateProjectionMatrix();
-
-            // Shake effect at high speed
-            if(isWarp && speed > 10) {
-                playerShip.position.x = (Math.random()-0.5) * 0.1;
-                playerShip.position.y = (Math.random()-0.5) * 0.1;
-                document.getElementById('warp-overlay').style.opacity = (speed/warpMaxSpeed) * 0.8;
-            } else {
-                playerShip.position.set(0,0,0);
-                document.getElementById('warp-overlay').style.opacity = 0;
-            }
-
-            // 4. Camera Chase
-            // Get position behind ship
-            const relativeCameraOffset = new THREE.Vector3(0, 5 + (speed/5), -15 - (speed/2));
-            const cameraOffset = relativeCameraOffset.applyMatrix4(playerGroup.matrixWorld);
+            // 3. Camera Follow (Third Person)
+            // Calculate ideal position behind ship
+            const idealOffset = new THREE.Vector3(0, 6 + (speed*0.2), -15 - (speed*0.5)); 
+            idealOffset.applyMatrix4(playerGroup.matrixWorld);
             
-            camera.position.lerp(cameraOffset, 0.1);
+            camera.position.lerp(idealOffset, 0.1);
             camera.lookAt(playerGroup.position);
 
-            // 5. HUD Data
-            // Find nearest planet
-            let nearest = null;
-            let minDist = Infinity;
-            planets.forEach(p => {
-                const dist = playerGroup.position.distanceTo(p.position);
-                if(dist < minDist) {
-                    minDist = dist;
-                    nearest = p;
+            // 4. Laser Logic
+            for(let i = lasers.length - 1; i >= 0; i--) {
+                const l = lasers[i];
+                l.mesh.translateZ(200 * delta); // Lasers are fast
+                l.life--;
+                if(l.life <= 0) {
+                    scene.remove(l.mesh);
+                    lasers.splice(i, 1);
                 }
-            });
-
-            if(nearest) {
-                document.getElementById('target-name').innerText = nearest.userData.name;
-                document.getElementById('target-dist').innerText = Math.floor(minDist) + " MKm";
             }
-            document.getElementById('speed-bar').style.width = (speed / warpMaxSpeed * 100) + "%";
+
+            // 5. Recoil Recovery
+            if(playerShip && playerShip.position.z > 0) {
+                playerShip.position.z -= 5 * delta;
+                if(playerShip.position.z < 0) playerShip.position.z = 0;
+            }
+
+            // 6. Warp Visuals
+            const warpEl = document.getElementById('warp-fx');
+            if(speed > 5) {
+                warpEl.style.opacity = (speed / WARP_SPEED) * 0.8;
+                camera.fov = 60 + (speed);
+            } else {
+                warpEl.style.opacity = 0;
+                camera.fov = 60;
+            }
+            camera.updateProjectionMatrix();
+
+            // 7. HUD Update
+            document.getElementById('speed-bar').style.width = Math.min(100, (speed / MAX_SPEED) * 100) + '%';
 
             // Render
             renderer.render(scene, camera);
         }
-
         animate();
 
+        // Resize
         window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.aspect = window.innerWidth/window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
