@@ -2,73 +2,61 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ORBITAL FLIGHT: DATA EARTH</title>
+    <title>ORBITAL: ROLLING EARTH</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', monospace; user-select: none; }
         canvas { display: block; }
 
-        /* --- HUD LAYER --- */
+        /* --- HUD UI --- */
         #ui-layer {
             position: absolute; inset: 0; pointer-events: none;
             display: flex; flex-direction: column; justify-content: space-between;
-            z-index: 10;
         }
 
-        /* Top Bar */
+        /* Top HUD */
         .hud-top {
             display: flex; justify-content: space-between; padding: 20px;
-            background: linear-gradient(to bottom, rgba(0,10,30,0.9), transparent);
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
         }
-
-        .stat-box { text-shadow: 0 0 8px currentColor; }
+        .stat-box { color: #00ffff; text-shadow: 0 0 10px #00ffff; }
         .big-text { font-size: 24px; font-weight: 900; letter-spacing: 2px; }
-        .sub-text { font-size: 12px; opacity: 0.8; font-weight: bold; letter-spacing: 1px; }
+        .sub-text { font-size: 12px; font-weight: bold; opacity: 0.8; }
 
-        /* Power Bar */
-        .bar-container { width: 200px; height: 6px; background: #001122; margin-top: 5px; border: 1px solid #00ffff; transform: skewX(-20deg); }
-        .bar-fill { width: 100%; height: 100%; background: #00ffff; box-shadow: 0 0 10px #00ffff; }
-
-        /* Artificial Horizon Center Piece */
+        /* Artificial Horizon */
         #horizon-wrapper {
             position: absolute; top: 50%; left: 50%;
             width: 300px; height: 300px;
             transform: translate(-50%, -50%);
-            overflow: hidden; opacity: 0.7;
             border-radius: 50%;
-            border: 1px solid rgba(0, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            overflow: hidden; opacity: 0.8;
         }
-        /* The moving line */
         #horizon-line {
             position: absolute; top: 50%; left: -50%; right: -50%;
-            height: 2px; background: #00ffff;
-            box-shadow: 0 0 8px #00ffff;
+            height: 2px; background: #00ffff; box-shadow: 0 0 8px #00ffff;
         }
-        /* The center dot */
-        #center-dot {
-            position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; 
+        #center-point {
+            position: absolute; top: 50%; left: 50%; width: 4px; height: 4px;
             background: #ff0055; transform: translate(-50%, -50%);
-            box-shadow: 0 0 5px #ff0055;
+            box-shadow: 0 0 10px #ff0055;
         }
 
-        /* Bottom Bar */
+        /* Bottom HUD */
         .hud-bottom {
             padding: 20px; text-align: center;
-            background: linear-gradient(to top, rgba(0,10,30,0.9), transparent);
-            color: #6688aa; font-size: 11px; letter-spacing: 1px;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            color: #88aaff; font-size: 11px;
         }
 
-        /* Upload Button styling */
+        /* Controls */
         .upload-btn {
-            pointer-events: auto; cursor: pointer;
-            background: rgba(0, 255, 255, 0.1); border: 1px solid #00ffff;
-            color: #00ffff; padding: 4px 12px; font-size: 10px;
-            text-transform: uppercase; display: inline-block; margin-top: 8px;
-            transition: 0.2s;
+            pointer-events: auto; background: rgba(0, 255, 255, 0.1);
+            border: 1px solid #00ffff; color: #00ffff; padding: 5px 10px;
+            cursor: pointer; font-size: 10px; margin-top: 5px; display: inline-block;
         }
-        .upload-btn:hover { background: #00ffff; color: #000; }
         input[type="file"] { display: none; }
     </style>
-    
+
     <script type="importmap">
         {
             "imports": {
@@ -82,28 +70,26 @@
 
     <div id="ui-layer">
         <div class="hud-top">
-            <div class="stat-box" style="color: #00ffff;">
-                <div class="sub-text">SYSTEM STATUS</div>
-                <div class="bar-container"><div class="bar-fill"></div></div>
+            <div class="stat-box">
+                <div class="sub-text">ORBITAL SPEED</div>
+                <div class="big-text"><span id="speed-val">0</span> KM/H</div>
+            </div>
+            <div class="stat-box" style="text-align:right;">
+                <div class="sub-text">VESSEL CONFIG</div>
                 <label class="upload-btn">
-                    Upload Vessel
+                    UPLOAD SHIP
                     <input type="file" id="fileInput" accept=".glb,.gltf,.png,.jpg">
                 </label>
-            </div>
-            <div class="stat-box" style="color: #ffffff; text-align: right;">
-                <div class="big-text"><span id="alt">0</span> KM</div>
-                <div class="sub-text" style="color: #88aaff;">ALTITUDE</div>
-                <div class="sub-text" style="margin-top:5px; color: #ffaa00;">SPEED: <span id="vel">0</span> MACH</div>
             </div>
         </div>
 
         <div id="horizon-wrapper">
             <div id="horizon-line"></div>
         </div>
-        <div id="center-dot"></div>
+        <div id="center-point"></div>
 
         <div class="hud-bottom">
-            WASD: Pitch/Yaw (Flight Stick) | SHIFT: Ion Drive | MOUSE: Free Look
+            WASD: Pitch & Roll | SHIFT: Increase Orbit Speed
         </div>
     </div>
 
@@ -111,247 +97,210 @@
         import * as THREE from 'three';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-        // --- CONFIG ---
-        const EARTH_RADIUS = 200;
-        const MOON_DIST = 1200; // Closer than real life so you can fly there easily
-        const MOON_RADIUS = 50;
-
-        const PHYSICS = {
-            turnSpeed: 0.8,
-            pitchSpeed: 0.6,
-            inertia: 0.94, // High inertia for heavy feel
-            thrust: 40,
-            warpThrust: 400
-        };
-
-        // --- SCENE SETUP ---
+        // --- CONFIGURATION ---
+        const EARTH_RADIUS = 600;
+        const ORBIT_HEIGHT = 620; // Player sits at 20 units above surface
+        
+        // --- SCENE ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000); // Explicit black background
-        scene.fog = new THREE.FogExp2(0x000000, 0.0005); // Fog to hide infinite distance
+        // Set a dark blue background so you KNOW it's working even if earth is black
+        scene.background = new THREE.Color(0x000510); 
+        scene.fog = new THREE.FogExp2(0x000510, 0.002);
 
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 20000);
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);
+        // Position camera slightly behind and above the "Player" point
+        camera.position.set(0, ORBIT_HEIGHT + 5, 20); 
+
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
         document.body.appendChild(renderer.domElement);
 
-        // --- LIGHTING ---
-        // 1. The Sun (Bright directional light)
-        const sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
-        sunLight.position.set(500, 200, 500);
-        scene.add(sunLight);
-        
-        // 2. Ambient Light (So shadows aren't pitch black)
-        const ambientLight = new THREE.AmbientLight(0x404040); 
-        scene.add(ambientLight);
+        // --- LIGHTING (Critical for avoiding black screen) ---
+        // 1. Ambient Light (Guarantees everything is at least dimly visible)
+        const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambient);
 
-        // 3. Earth Glow (Point light inside earth)
-        const earthGlow = new THREE.PointLight(0x0044ff, 2, 1000);
-        earthGlow.position.set(0,0,0);
-        scene.add(earthGlow);
+        // 2. Sun Light (Directional)
+        const sun = new THREE.DirectionalLight(0xffffff, 2.0);
+        sun.position.set(500, 500, 500);
+        scene.add(sun);
 
-
-        // --- PLANETS (Procedural - No Textures) ---
-        
-        // EARTH (The Blue Marble)
+        // --- THE GIANT EARTH SPHERE ---
         const earthGroup = new THREE.Group();
+        // Move the earth DOWN so the top of it touches our orbit line
+        earthGroup.position.y = -EARTH_RADIUS + (ORBIT_HEIGHT - 620); 
         scene.add(earthGroup);
 
-        // Surface (Shiny Blue Sphere)
-        const earthGeo = new THREE.SphereGeometry(EARTH_RADIUS, 64, 64);
+        const textureLoader = new THREE.TextureLoader();
+        // High-res Earth texture
+        const earthUrl = 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg';
+        
+        const earthGeo = new THREE.SphereGeometry(EARTH_RADIUS, 128, 128);
         const earthMat = new THREE.MeshPhongMaterial({
-            color: 0x113388, // Deep ocean blue
-            emissive: 0x001133,
-            specular: 0x111111,
-            shininess: 40
+            color: 0xffffff, // White base to let texture show
+            emissive: 0x112244, // Slight glow so it's never fully black
+            specular: 0x333333,
+            shininess: 15
         });
+        
+        // Try to load texture, but if it fails, we still have the blue material above
+        textureLoader.load(earthUrl, (tex) => {
+            earthMat.map = tex;
+            earthMat.needsUpdate = true;
+        }, undefined, (err) => {
+            console.log("Texture failed to load (CORS?), using blue material.");
+            earthMat.color.setHex(0x0044ff);
+            earthMat.wireframe = true; // Cool fallback style
+        });
+
         const earth = new THREE.Mesh(earthGeo, earthMat);
+        // Rotate earth initially so we aren't looking at a pole
+        earth.rotation.x = 0.5; 
         earthGroup.add(earth);
 
-        // Atmosphere (Glowing Shell)
-        const atmosGeo = new THREE.SphereGeometry(EARTH_RADIUS * 1.1, 64, 64);
-        const atmosMat = new THREE.MeshBasicMaterial({
-            color: 0x00aaff,
-            transparent: true,
-            opacity: 0.15,
-            side: THREE.BackSide, // Render on inside so it looks like a halo
-            blending: THREE.AdditiveBlending
-        });
-        const atmosphere = new THREE.Mesh(atmosGeo, atmosMat);
-        earthGroup.add(atmosphere);
+        // Atmosphere Halo
+        const atmos = new THREE.Mesh(
+            new THREE.SphereGeometry(EARTH_RADIUS * 1.02, 64, 64),
+            new THREE.MeshBasicMaterial({ color: 0x00aaff, transparent: true, opacity: 0.1, side: THREE.BackSide })
+        );
+        earthGroup.add(atmos);
 
-        // MOON (The Grey Rock)
-        const moonGeo = new THREE.SphereGeometry(MOON_RADIUS, 32, 32);
-        const moonMat = new THREE.MeshStandardMaterial({
-            color: 0x888888,
-            roughness: 0.9,
-            metalness: 0.1
-        });
-        const moon = new THREE.Mesh(moonGeo, moonMat);
-        moon.position.set(0, 0, -MOON_DIST);
-        scene.add(moon);
-
-        // STARS (Procedural Particles)
-        const starsGeo = new THREE.BufferGeometry();
-        const starsCount = 5000;
+        // --- STARS ---
+        const starGeo = new THREE.BufferGeometry();
         const starPos = [];
-        for(let i=0; i<starsCount; i++) {
-            // Random spherical distribution
-            const r = 4000 + Math.random() * 2000;
-            const theta = Math.random() * Math.PI * 2;
-            const phi = Math.acos(2 * Math.random() - 1);
-            starPos.push(
-                r * Math.sin(phi) * Math.cos(theta),
-                r * Math.sin(phi) * Math.sin(theta),
-                r * Math.cos(phi)
-            );
+        for(let i=0; i<5000; i++) {
+            const x = (Math.random()-0.5) * 4000;
+            const y = (Math.random()-0.5) * 4000; // Keep stars high
+            const z = (Math.random()-0.5) * 4000;
+            // Keep stars away from earth center
+            if(y > -500) starPos.push(x,y,z); 
         }
-        starsGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
-        const starsMat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.5, transparent: true, opacity: 0.8 });
-        const stars = new THREE.Points(starsGeo, starsMat);
+        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+        const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color:0xffffff, size: 1.5}));
         scene.add(stars);
 
 
         // --- PLAYER SHIP ---
         const playerGroup = new THREE.Group();
-        // Start in orbit (Radius + 100 units up)
-        playerGroup.position.set(0, EARTH_RADIUS + 100, 0);
+        playerGroup.position.set(0, ORBIT_HEIGHT, 0);
         scene.add(playerGroup);
 
         let playerShip;
-        const defaultShipMat = new THREE.MeshStandardMaterial({ 
-            color: 0x222222, 
-            roughness: 0.4, 
-            metalness: 0.8,
-            emissive: 0x00ffff,
-            emissiveIntensity: 0.5
-        });
-
-        function createDefaultShip() {
-            const hull = new THREE.Mesh(new THREE.ConeGeometry(1.5, 6, 4), defaultShipMat);
-            hull.rotation.x = Math.PI / 2; // Point forward
-            hull.rotation.y = Math.PI / 4; // Rotate for cool angle
+        const defaultShipMat = new THREE.MeshStandardMaterial({ color: 0x333333, emissive: 0x00ffff, emissiveIntensity: 0.5 });
+        
+        function createShip() {
+            // Simple Fighter Shape
+            const body = new THREE.Mesh(new THREE.ConeGeometry(1, 5, 4), defaultShipMat);
+            body.rotation.x = Math.PI/2;
+            const wings = new THREE.Mesh(new THREE.BoxGeometry(6, 0.2, 2), defaultShipMat);
+            wings.position.z = 1;
             
-            const engines = new THREE.Mesh(new THREE.BoxGeometry(6, 0.5, 2), defaultShipMat);
-            engines.position.z = 1.5;
-
             playerShip = new THREE.Group();
-            playerShip.add(hull);
-            playerShip.add(engines);
+            playerShip.add(body);
+            playerShip.add(wings);
             playerGroup.add(playerShip);
         }
-        createDefaultShip();
+        createShip();
 
-        // --- INPUT SYSTEM ---
+
+        // --- INPUT & LOGIC ---
         const keys = { w:false, a:false, s:false, d:false, shift:false };
-        // State for smooth flying
-        const flyState = { pitch: 0, yaw: 0, speed: 0 };
+        const state = { pitch: 0, yaw: 0, roll: 0, speed: 0.0005 };
 
-        window.addEventListener('keydown', (e) => {
+        window.addEventListener('keydown', e => {
             if(keys[e.key.toLowerCase()] !== undefined) keys[e.key.toLowerCase()] = true;
-            if(e.key === "Shift") keys.shift = true;
+            if(e.key === 'Shift') keys.shift = true;
         });
-        window.addEventListener('keyup', (e) => {
+        window.addEventListener('keyup', e => {
             if(keys[e.key.toLowerCase()] !== undefined) keys[e.key.toLowerCase()] = false;
-            if(e.key === "Shift") keys.shift = false;
+            if(e.key === 'Shift') keys.shift = false;
         });
 
-        // --- GAME LOOP ---
+
+        // --- ANIMATION LOOP ---
         const clock = new THREE.Clock();
 
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
 
-            // 1. Physics & Controls
-            // Calculate Input (-1 to 1)
-            const inputPitch = (keys.w ? 1 : 0) - (keys.s ? 1 : 0);
-            const inputYaw = (keys.a ? 1 : 0) - (keys.d ? 1 : 0);
+            // 1. ROLL THE EARTH (Simulate Speed)
+            // The earth rotates on X axis to simulate us flying North/South
+            // Base speed + Boost
+            const targetSpeed = keys.shift ? 0.004 : 0.0005;
+            state.speed += (targetSpeed - state.speed) * 0.05;
             
-            // Apply Inertia (Smooth transition to target speed)
-            flyState.pitch += (inputPitch * PHYSICS.pitchSpeed - flyState.pitch) * (1 - PHYSICS.inertia);
-            flyState.yaw += (inputYaw * PHYSICS.turnSpeed - flyState.yaw) * (1 - PHYSICS.inertia);
-            
-            // Apply Rotation to Group
-            playerGroup.rotateX(flyState.pitch * delta);
-            playerGroup.rotateY(flyState.yaw * delta);
+            earth.rotation.x -= state.speed; 
 
-            // Visual Banking (Roll the ship model based on yaw)
-            if(playerShip) {
-                playerShip.rotation.z = THREE.MathUtils.lerp(playerShip.rotation.z, flyState.yaw * 0.8, 0.1);
-            }
+            // 2. SHIP MOVEMENT (Local rotation only)
+            const pitchInput = (keys.w ? 1 : 0) - (keys.s ? 1 : 0);
+            const yawInput = (keys.a ? 1 : 0) - (keys.d ? 1 : 0);
 
-            // Thrust
-            const targetSpeed = keys.shift ? PHYSICS.warpThrust : PHYSICS.thrust;
-            flyState.speed += (targetSpeed - flyState.speed) * 0.05;
-            playerGroup.translateZ(-flyState.speed * delta);
+            // Inertia logic
+            state.pitch += (pitchInput * 0.8 - state.pitch) * 0.1;
+            state.yaw += (yawInput * 0.8 - state.yaw) * 0.1;
+            state.roll = -state.yaw * 0.5; // Bank into the turn
 
-            // 2. HUD Updates (Artificial Horizon)
-            // Get rotation in Euler angles
-            const euler = new THREE.Euler().setFromQuaternion(playerGroup.quaternion, 'YXZ');
-            // Convert to degrees for CSS
-            const rollDeg = -THREE.MathUtils.radToDeg(euler.z);
-            const pitchDeg = THREE.MathUtils.radToDeg(euler.x);
-            
-            const horizonLine = document.getElementById('horizon-line');
-            // Clamp pitch so it doesn't float away completely
-            const visualPitch = Math.max(-140, Math.min(140, pitchDeg * 2));
-            
-            horizonLine.style.transform = `rotate(${rollDeg}deg) translateY(${visualPitch}px)`;
+            // Apply rotation to player group
+            playerGroup.rotation.x = state.pitch * 0.5;
+            playerGroup.rotation.z = state.roll;
+            playerGroup.rotation.y = state.yaw * 0.3;
 
-            // Altitude Calculation
-            const dist = playerGroup.position.distanceTo(earth.position);
-            const alt = Math.max(0, dist - EARTH_RADIUS);
-            document.getElementById('alt').innerText = alt.toFixed(0);
-            document.getElementById('vel').innerText = (flyState.speed / 20).toFixed(1);
+            // Move Stars slowly to match earth speed (Parallax)
+            stars.rotation.x += state.speed * 0.1;
 
-            // 3. Camera Chase
-            // Calculate ideal camera position relative to ship
-            const idealOffset = new THREE.Vector3(0, 8 + (flyState.speed/50), 25 + (flyState.speed/20));
-            idealOffset.applyMatrix4(playerGroup.matrixWorld);
-            
-            camera.position.lerp(idealOffset, 0.1);
+
+            // 3. CAMERA CHASE
+            // Camera is slightly lazy
+            const camIdeal = new THREE.Vector3(0, 6, 15);
+            camIdeal.applyMatrix4(playerGroup.matrixWorld);
+            camera.position.lerp(camIdeal, 0.1);
             camera.lookAt(playerGroup.position.clone().translateZ(-100));
 
-            // 4. Environment Animation
-            // Rotate Earth slowly
-            earthGroup.rotation.y += 0.0002;
-            moon.rotation.y += 0.001;
+
+            // 4. HUD UPDATE
+            // Update Artificial Horizon
+            // We use the Player Group's Z rotation (Roll) and X rotation (Pitch)
+            const rollDeg = -THREE.MathUtils.radToDeg(playerGroup.rotation.z);
+            const pitchDeg = THREE.MathUtils.radToDeg(playerGroup.rotation.x);
+            
+            const horizon = document.getElementById('horizon-line');
+            horizon.style.transform = `rotate(${rollDeg}deg) translateY(${pitchDeg * 5}px)`;
+
+            // Update Speed Text
+            document.getElementById('speed-val').innerText = Math.floor(state.speed * 1000000);
 
             renderer.render(scene, camera);
         }
-        
         animate();
 
-        // --- FILE UPLOAD LOGIC ---
-        const gltfLoader = new GLTFLoader();
-        document.getElementById('fileInput').addEventListener('change', function(e) {
+        // --- UPLOAD HANDLING ---
+        const loader = new GLTFLoader();
+        document.getElementById('fileInput').addEventListener('change', e => {
             const file = e.target.files[0];
             if(!file) return;
             const url = URL.createObjectURL(file);
-            const ext = file.name.split('.').pop().toLowerCase();
-
-            if(['glb', 'gltf'].includes(ext)) {
-                gltfLoader.load(url, (gltf) => {
+            if(file.name.match(/\.(glb|gltf)$/i)) {
+                loader.load(url, gltf => {
                     if(playerShip) playerGroup.remove(playerShip);
                     playerShip = gltf.scene;
-                    // Normalize Scale
+                    // Auto-scale
                     const box = new THREE.Box3().setFromObject(playerShip);
                     const size = box.getSize(new THREE.Vector3());
-                    const scale = 6 / Math.max(size.x, size.y, size.z);
-                    playerShip.scale.setScalar(scale);
-                    playerShip.rotation.y = Math.PI; // Face forward
+                    playerShip.scale.setScalar(5 / Math.max(size.x, size.y, size.z));
+                    playerShip.rotation.y = Math.PI;
                     playerGroup.add(playerShip);
                 });
-            } else if (['png', 'jpg'].includes(ext)) {
-                new THREE.TextureLoader().load(url, (tex) => {
+            } else if(file.name.match(/\.(png|jpg)$/i)) {
+                new THREE.TextureLoader().load(url, tex => {
                     if(playerShip) playerGroup.remove(playerShip);
-                    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
-                    const ratio = tex.image.height / tex.image.width;
-                    const geo = new THREE.PlaneGeometry(6, 6 * ratio);
-                    playerShip = new THREE.Mesh(geo, mat);
-                    playerShip.rotation.x = -Math.PI/2;
-                    playerShip.rotation.y = Math.PI;
+                    const aspect = tex.image.height/tex.image.width;
+                    const mesh = new THREE.Mesh(
+                        new THREE.PlaneGeometry(5, 5*aspect),
+                        new THREE.MeshBasicMaterial({map:tex, transparent:true, side:THREE.DoubleSide})
+                    );
+                    mesh.rotation.x = -Math.PI/2; mesh.rotation.y = Math.PI;
+                    playerShip = new THREE.Mesh().add(mesh); // Wrap in group
                     playerGroup.add(playerShip);
                 });
             }
@@ -359,11 +308,10 @@
 
         // Resize
         window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.aspect = window.innerWidth/window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
-
     </script>
 </body>
 </html>
