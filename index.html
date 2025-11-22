@@ -644,7 +644,12 @@ document.addEventListener("DOMContentLoaded", () => {
     status: () => `Hi ${username}!!! Brandon here, thank you so much for stopping by! Youve been here for ${Math.floor(performance.now()/1000)}s! Please get curious, I am constantly building!`,
     scan: () => `Scanning neural net... [OK] Avatar Core | [OK] Quantum Relay | [OK] 127.0.0.1`,
     echo: (args) => args.join(' '),
-    hack: () => `ACCESS GRANTED. Reality firewall bypassed. Commencing Im in protocol`,
+    hack: () => {
+  setTimeout(() => {
+    window.open('https://brandonmanus.com/hack/', '_blank');
+  }, 800);
+  return `ACCESS GRANTED. Reality firewall bypassed. Commencing Im in protocol\nOpening secret vault...`;
+},
     whoami: () => `You are ${username}, Neural Operative. Rank: Elite. Avatar: Kaijo Struct.`,
     x: () => { window.open('https://x.com/brandon_manus','_blank'); return 'Opening X...'; },
     youtube: () => { window.open('https://www.youtube.com/@brandonmanus','_blank'); return 'Opening YouTube...'; },
